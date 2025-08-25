@@ -49,6 +49,12 @@ function esc(s: string) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
 }
 
+function getBaseUrl(req: VercelRequest) {
+  const host = (req.headers['x-forwarded-host'] || req.headers.host) as string
+  const proto = (req.headers['x-forwarded-proto'] as string) || 'https'
+  return `${proto}://${host}`
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== 'POST') return res.status(405).send('Method not allowed')
@@ -79,7 +85,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const appendixPages = chunk(refs, 12)
 
     const brandColor = sanitizeColor(body.brandColor)
-    const logoUrl = body.logoUrl || '' // if empty, template will fall back to /logo.svg
+    const baseUrl = getBaseUrl(req)
+    const logoUrl = body.logoUrl || `${baseUrl}/logo.svg`
     const today = formatDate()
 
     // Compose HTML by replacing tokens
