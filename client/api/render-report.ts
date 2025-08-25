@@ -1,9 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
-import path from 'node:path';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Ensure Node runtime (not Edge)
 export const config = { runtime: 'nodejs' }
