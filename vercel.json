@@ -1,9 +1,6 @@
 {
   "functions": {
-    "client/api/**/*.[jt]s": {
-      "includeFiles": "client/templates/**",
-      "maxDuration": 120,
-      "externalNodeModules": ["pg"]
-    }
+    "api/**/*.[jt]s": { "maxDuration": 120 },
+    "client/api/**/*.[jt]s": { "includeFiles": "client/templates/**", "maxDuration": 120 }
   }
 }
