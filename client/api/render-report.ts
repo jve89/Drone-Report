@@ -8,16 +8,13 @@ import path from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Node runtime
 export const config = { runtime: 'nodejs' };
 
-// Fill placeholders
 function applyTemplate(template: string, payload: any): string {
   const contact = payload.contact ?? {};
   const notes = payload.notes ?? '';
   const logoUrl = payload.logoUrl ?? '/logo.svg';
   const brandColor = payload.brandColor ?? '#2563eb';
-
   return template
     .replace(/{{PROJECT}}/g, contact.project ?? '')
     .replace(/{{COMPANY}}/g, contact.company ?? '')
@@ -34,9 +31,9 @@ function applyTemplate(template: string, payload: any): string {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    console.log('[render-report] start')
     const payload = req.body as any;
 
-    // Resolve template
     const templatePath = path.resolve(__dirname, '../templates/report.html');
     const altPath = path.join(process.cwd(), 'client', 'templates', 'report.html');
     let template: string;
@@ -46,11 +43,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       template = await fs.readFile(altPath, 'utf8');
     }
 
-    // Use provided html or apply template
     const html: string = payload.html ?? applyTemplate(template, payload);
     if (!html) return res.status(400).send('Missing html and no template found');
 
-    // Log and force Sparticuz Chromium path
     const execPath = await chromium.executablePath();
     console.log('Chromium exec path in Vercel (render-report):', execPath);
     process.env.PUPPETEER_EXECUTABLE_PATH = execPath;
@@ -71,6 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Disposition', 'attachment; filename=report.pdf');
     res.send(pdf);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('[render-report] error', err)
+    if ((req as any)?.query?.debug === '1') {
+      return res.status(500).json({ error: String(err), stack: err?.stack });
+    }
+    return res.status(500).send('Internal error');
   }
 }

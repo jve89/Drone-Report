@@ -68,6 +68,7 @@ function getBaseUrl(req: VercelRequest) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    console.log('[create-draft] start')
     if (req.method !== 'POST') return res.status(405).send('Method not allowed')
     const body = req.body as Payload
     if (!body?.contact?.email || !body?.contact?.project) return res.status(400).send('Missing required fields')
@@ -145,7 +146,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replaceAll('{{VIDEOS_BLOCK}}', videosBlock)
       .replaceAll('{{APPENDIX}}', appendixHtml)
 
-    // Log and force the exact Chromium path used
     const execPath = await chromium.executablePath()
     console.log('Chromium exec path in Vercel:', execPath)
     process.env.PUPPETEER_EXECUTABLE_PATH = execPath
@@ -166,6 +166,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Disposition', `attachment; filename=DroneReport_${body.contact.project.replace(/\s+/g, '_')}.pdf`)
     res.send(pdf)
   } catch (err: any) {
-    res.status(500).send(err?.message || 'Internal error')
+    console.error('[create-draft] error', err)
+    if ((req as any)?.query?.debug === '1') {
+      return res.status(500).json({ error: String(err), stack: err?.stack })
+    }
+    return res.status(500).send('Internal error')
   }
 }
