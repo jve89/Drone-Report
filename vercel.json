@@ -1,5 +1,11 @@
 {
   "functions": {
-    "client/api/**/*.[jt]s": { "includeFiles": "client/templates/**", "maxDuration": 60 }
+    "client/api/**/*.[jt]s": {
+      "includeFiles": [
+        "client/templates/**",
+        "node_modules/@neondatabase/serverless/**"
+      ],
+      "maxDuration": 120
+    }
   }
 }
