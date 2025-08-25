@@ -4,8 +4,6 @@ import { getPool } from './_db'
 
 export const config = { runtime: 'nodejs' }
 
-const pool = getPool()
-
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'https://drone-report.fly.dev'
 const PDF_TIMEOUT_MS = Number(process.env.PDF_TIMEOUT_MS || 60000)
 
@@ -41,7 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { reportId } = (req.body || {}) as { reportId?: string }
   if (!reportId) return res.status(400).send('Missing reportId')
 
-  const client = await (await pool).connect()
+  const pool = getPool()
+  const client = await pool.connect()
   try {
     const r = await client.query('select * from reports where id=$1', [reportId])
     if (!r.rows.length) return res.status(404).send('Report not found')
