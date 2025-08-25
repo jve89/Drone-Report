@@ -18,6 +18,6 @@
     "stripe": "^16.12.0"
   },
   "devDependencies": {
-    "@vercel/node": "^3.2.29"
+    "@vercel/node": "^5.3.13"
   }
 }
