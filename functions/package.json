@@ -1,0 +1,17 @@
+{
+  "name": "dronereport-functions",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@vercel/node": "^3.2.22",
+    "@sparticuz/chromium": "^119.0.2",
+    "puppeteer-core": "^24.9.0",
+    "stripe": "^16.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "typescript": "^5.6.3"
+  }
+}
