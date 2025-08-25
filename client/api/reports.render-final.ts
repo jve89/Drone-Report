@@ -1,8 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getPool } from './_db'
 
-const pool = getPool()
-
 export const config = { runtime: 'nodejs' }
 
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'https://drone-report.fly.dev'
@@ -24,13 +22,15 @@ async function htmlToPdf(html: string, filename = 'report.pdf', timeoutMs = PDF_
     form.append('printBackground', 'true')
     const url = `${GOTENBERG_URL}/forms/chromium/convert/html`
     const resp = await fetch(url, { method: 'POST', body: form as any, signal: controller.signal })
-    if (!resp.ok) throw new Error(`Gotenberg ${resp.status}: ${await resp.text().catch(()=> '')}`)
+    if (!resp.ok) throw new Error(`Gotenberg ${resp.status}: ${await resp.text().catch(() => '')}`)
     return Buffer.from(await resp.arrayBuffer())
-  } finally { clearTimeout(t) }
+  } finally {
+    clearTimeout(t)
+  }
 }
 
 function esc(s: string) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c] as string))
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -38,48 +38,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { reportId } = (req.body || {}) as { reportId?: string }
   if (!reportId) return res.status(400).send('Missing reportId')
 
+  const pool = await getPool()
   const client = await pool.connect()
   try {
     const r = await client.query('select * from reports where id=$1', [reportId])
     if (!r.rows.length) return res.status(404).send('Report not found')
     const report = r.rows[0]
     const media = (await client.query('select * from media where report_id=$1 order by position asc', [reportId])).rows
-    const findings = (await client.query(
-      `select f.*, array_agg(m.ref_code order by m.position) as media_refs
-       from findings f
-       left join finding_media fm on fm.finding_id=f.id
-       left join media m on m.id=fm.media_id
-       where f.report_id=$1
-       group by f.id
-       order by f.updated_at desc`, [reportId]
-    )).rows
+    const findings = (
+      await client.query(
+        `select f.*, array_agg(m.ref_code order by m.position) as media_refs
+         from findings f
+         left join finding_media fm on fm.finding_id=f.id
+         left join media m on m.id=fm.media_id
+         where f.report_id=$1
+         group by f.id
+         order by f.updated_at desc`,
+        [reportId]
+      )
+    ).rows
 
-    const today = new Date().toISOString().slice(0,10)
+    const today = new Date().toISOString().slice(0, 10)
     const summaryItems = [
-      `Total media: ${media.filter(m=>m.kind==='image').length} images` + (media.some(m=>m.kind==='video') ? `, ${media.filter(m=>m.kind==='video').length} videos` : ''),
+      `Total media: ${media.filter(m => m.kind === 'image').length} images${
+        media.some(m => m.kind === 'video') ? `, ${media.filter(m => m.kind === 'video').length} videos` : ''
+      }`,
       `Generated on ${today}.`,
-      `Project date: ${report.inspection_date ?? today}.`
-    ].map(x=>`<li>${esc(x)}</li>`).join('')
+      `Project date: ${report.inspection_date ?? today}.`,
+    ]
+      .map(x => `<li>${esc(x)}</li>`)
+      .join('')
 
-    const findingsRows = findings.map(f => `
+    const findingsRows = findings
+      .map(
+        (f: any) => `
       <tr>
         <td>${esc(f.title || '')}</td>
         <td>${esc(f.caption || '')}</td>
         <td>${esc(f.severity || '')}</td>
-        <td>${(f.media_refs||[]).map((r:string)=>`<code>${esc(r)}</code>`).join(', ')}</td>
+        <td>${(f.media_refs || []).map((r: string) => `<code>${esc(r)}</code>`).join(', ')}</td>
       </tr>
-    `).join('')
+    `
+      )
+      .join('')
 
-    const grid = media.filter(m=>m.kind==='image').map(m => `
+    const grid = media
+      .filter((m: any) => m.kind === 'image')
+      .map(
+        (m: any) => `
       <div class="cell">
         <img src="${m.thumb || m.url}" alt="${esc(m.filename || m.ref_code)}" />
         <div class="ref">${esc(m.ref_code)}</div>
       </div>
-    `).join('')
+    `
+      )
+      .join('')
 
     const brand = report.brand_color || '#6B7280'
     const logo = report.logo_url || ''
-
     const html = `<!doctype html>
 <html><head><meta charset="utf-8"><title>DroneReport</title>
 <style>
@@ -114,10 +130,10 @@ p,li,td,th{font-size:12px;line-height:1.5}
     <div class="meta">
       <div><strong>Project:</strong> ${esc(report.project)}</div>
       <div><strong>Company:</strong> ${esc(report.company)}</div>
-      ${report.contact_name ? `<div><strong>Contact:</strong> ${esc(report.contact_name)}</div>`:''}
-      ${report.phone ? `<div><strong>Phone:</strong> ${esc(report.phone)}</div>`:''}
-      ${report.site_address ? `<div><strong>Address:</strong> ${esc(report.site_address)}</div>`:''}
-      <div><strong>Date:</strong> ${esc(String(report.inspection_date||today))}</div>
+      ${report.contact_name ? `<div><strong>Contact:</strong> ${esc(report.contact_name)}</div>` : ''}
+      ${report.phone ? `<div><strong>Phone:</strong> ${esc(report.phone)}</div>` : ''}
+      ${report.site_address ? `<div><strong>Address:</strong> ${esc(report.site_address)}</div>` : ''}
+      <div><strong>Date:</strong> ${esc(String(report.inspection_date || today))}</div>
       <div><strong>Email:</strong> ${esc(report.email)}</div>
     </div>
   </div>
@@ -138,8 +154,8 @@ p,li,td,th{font-size:12px;line-height:1.5}
   <h2>Site & Inspection Details</h2>
   <table class="table">
     <tbody>
-      ${report.site_address ? `<tr><th style="width:160px">Site address</th><td>${esc(report.site_address)}</td></tr>`:''}
-      <tr><th>Inspection date</th><td>${esc(String(report.inspection_date||today))}</td></tr>
+      ${report.site_address ? `<tr><th style="width:160px">Site address</th><td>${esc(report.site_address)}</td></tr>` : ''}
+      <tr><th>Inspection date</th><td>${esc(String(report.inspection_date || today))}</td></tr>
       <tr><th>Operator</th><td>${esc(report.company)}</td></tr>
     </tbody>
   </table>
@@ -166,11 +182,11 @@ p,li,td,th{font-size:12px;line-height:1.5}
 <div class="footer">DroneReport • Generated ${esc(today)} • Draft for review</div>
 </body></html>`
 
-    const pdf = await htmlToPdf(html, `DroneReport_${report.project.replace(/\s+/g,'_')}.pdf`)
-    res.setHeader('Content-Type','application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename=DroneReport_${report.project.replace(/\s+/g,'_')}.pdf`)
+    const pdf = await htmlToPdf(html, `DroneReport_${report.project.replace(/\s+/g, '_')}.pdf`)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename=DroneReport_${report.project.replace(/\s+/g, '_')}.pdf`)
     return res.send(pdf)
-  } catch (e:any) {
+  } catch (e: any) {
     return res.status(500).json({ error: String(e) })
   } finally {
     client.release()
