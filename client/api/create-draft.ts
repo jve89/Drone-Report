@@ -5,9 +5,6 @@ import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-chromium.setHeadlessMode(true);
-chromium.setGraphicsMode('disabled');
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
