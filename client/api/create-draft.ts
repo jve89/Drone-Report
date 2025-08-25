@@ -1,12 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import chromium from '@sparticuz/chromium'
-import puppeteer from 'puppeteer-core'
 import fs from 'node:fs/promises'
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 export const config = { runtime: 'nodejs' }
 
@@ -23,7 +21,6 @@ type Payload = {
 
 const MAX_IMAGES = 200
 const MAX_VIDEOS = 3
-
 const isImage = (m?: Media) => m?.type === 'image'
 const isVideo = (m?: Media) => m?.type === 'video'
 
@@ -49,11 +46,7 @@ function chunk<T>(arr: T[], size: number) {
 async function readTemplate(): Promise<string> {
   const a = path.resolve(__dirname, '../templates/report.html')
   const b = path.join(process.cwd(), 'client', 'templates', 'report.html')
-  try {
-    return await fs.readFile(a, 'utf8')
-  } catch {
-    return await fs.readFile(b, 'utf8')
-  }
+  try { return await fs.readFile(a, 'utf8') } catch { return await fs.readFile(b, 'utf8') }
 }
 
 function esc(s: string) {
@@ -66,9 +59,41 @@ function getBaseUrl(req: VercelRequest) {
   return `${proto}://${host}`
 }
 
+const GOTENBERG_URL = process.env.GOTENBERG_URL || 'https://drone-report.fly.dev'
+const PDF_TIMEOUT_MS = Number(process.env.PDF_TIMEOUT_MS || 30000)
+
+async function htmlToPdf(html: string, filename = 'report.pdf', timeoutMs = PDF_TIMEOUT_MS): Promise<Buffer> {
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const form = new FormData()
+    const blob = new Blob([html], { type: 'text/html' })
+    form.append('files', blob, 'index.html')
+    form.append('paperWidth', '8.27')   // A4 inches
+    form.append('paperHeight', '11.69') // A4 inches
+    form.append('marginTop', '0.5')
+    form.append('marginBottom', '0.5')
+    form.append('marginLeft', '0.5')
+    form.append('marginRight', '0.5')
+    form.append('printBackground', 'true')
+
+    const url = `${GOTENBERG_URL}/forms/chromium/convert/html`
+    let attempt = 0
+    while (true) {
+      attempt++
+      const resp = await fetch(url, { method: 'POST', body: form as any, signal: controller.signal })
+      if (resp.ok) return Buffer.from(await resp.arrayBuffer())
+      if (attempt < 3 && [502, 503, 504].includes(resp.status)) continue
+      const txt = await resp.text().catch(() => '')
+      throw new Error(`Gotenberg ${resp.status}: ${txt}`)
+    }
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    console.log('[create-draft] start')
     if (req.method !== 'POST') return res.status(405).send('Method not allowed')
     const body = req.body as Payload
     if (!body?.contact?.email || !body?.contact?.project) return res.status(400).send('Missing required fields')
@@ -146,34 +171,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replaceAll('{{VIDEOS_BLOCK}}', videosBlock)
       .replaceAll('{{APPENDIX}}', appendixHtml)
 
-    const execPath = await chromium.executablePath();
-    console.log('Chromium exec path:', execPath);
-
-    const browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: execPath,
-      headless: true,
-    });
-
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    const pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: 36, right: 36, bottom: 36, left: 36 } })
-    await browser.close()
-
+    const pdf = await htmlToPdf(html, `DroneReport_${body.contact.project.replace(/\s+/g, '_')}.pdf`)
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `attachment; filename=DroneReport_${body.contact.project.replace(/\s+/g, '_')}.pdf`)
-    res.send(pdf)
+    res.send(Buffer.from(pdf))
   } catch (err: any) {
     console.error('[create-draft] error', err)
-    if ((req as any)?.query?.debug === '1') {
-      return res.status(500).json({ error: String(err), stack: err?.stack })
-    }
+    if ((req as any)?.query?.debug === '1') return res.status(500).json({ error: String(err), stack: err?.stack })
     return res.status(500).send('Internal error')
   }
 }

@@ -1,0 +1,45 @@
+.
+├── client
+│   ├── api
+│   │   ├── create-draft.ts
+│   │   ├── package.json
+│   │   ├── render-report.ts
+│   │   ├── tsconfig.json
+│   │   └── verify-payment.ts
+│   ├── .env
+│   ├── .env.example
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.cjs
+│   ├── public
+│   │   └── logo.svg
+│   ├── src
+│   │   ├── App.tsx
+│   │   ├── components
+│   │   │   ├── Footer.tsx
+│   │   │   └── Header.tsx
+│   │   ├── main.tsx
+│   │   ├── sections
+│   │   │   ├── Hero.tsx
+│   │   │   ├── HowItWorks.tsx
+│   │   │   ├── IntakeForm.tsx
+│   │   │   ├── Pricing.tsx
+│   │   │   └── WhatYouGet.tsx
+│   │   ├── styles
+│   │   │   └── tailwind.css
+│   │   └── vite-env.d.ts
+│   ├── tailwind.config.ts
+│   ├── templates
+│   │   └── report.html
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── filetree.txt
+├── .gitignore
+├── .gitpod.yml
+├── LICENSE
+├── package.json
+├── package-lock.json
+├── README.md
+└── vercel.json
+
+8 directories, 34 files
