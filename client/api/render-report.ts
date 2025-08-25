@@ -5,6 +5,9 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+chromium.setHeadlessMode(true);
+chromium.setGraphicsMode('disabled');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -47,11 +50,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!html) return res.status(400).send('Missing html and no template found');
 
     const execPath = await chromium.executablePath();
-    console.log('Chromium exec path in Vercel (render-report):', execPath);
-    process.env.PUPPETEER_EXECUTABLE_PATH = execPath;
+    console.log('Chromium exec path:', execPath);
 
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
       defaultViewport: chromium.defaultViewport,
       executablePath: execPath,
       headless: true,
