@@ -1,9 +1,11 @@
+// client/api/reports.create.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { z } from 'zod'
 import { getPool } from './_db'
-const pool = getPool()
 
 export const config = { runtime: 'nodejs' }
+
+const pool = getPool()
 
 const Media = z.object({
   type: z.enum(['image', 'video']),
@@ -37,8 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
   const b = parsed.data
 
-  const pool = await getPool()
-  const client = await pool.connect()
+  const client = await (await pool).connect()
   try {
     await client.query('begin')
 
