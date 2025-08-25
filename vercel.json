@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "client/api/**/*.[jt]s": { "includeFiles": "client/templates/**" },
+    "api/**/*.[jt]s":        { "includeFiles": "client/templates/**" }
+  }
+}

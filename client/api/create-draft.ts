@@ -4,6 +4,8 @@ import puppeteer from 'puppeteer-core'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+export const config = { runtime: 'nodejs18.x' }
+
 type Contact = { email: string; company?: string; project: string }
 type Media = { type: 'image' | 'video'; url: string; thumb: string; filename?: string; mime?: string; size?: number }
 type Payload = {
@@ -40,13 +42,19 @@ function chunk<T>(arr: T[], size: number) {
   return res
 }
 
-async function readTemplate() {
-  const filePath = path.join(process.cwd(), 'templates', 'report.html')
-  return fs.readFile(filePath, 'utf8')
+async function readTemplate(): Promise<string> {
+  // Runtime __dirname ≈ /var/task/client/api
+  const a = path.resolve(__dirname, '../templates/report.html')
+  const b = path.join(process.cwd(), 'client', 'templates', 'report.html')
+  try {
+    return await fs.readFile(a, 'utf8')
+  } catch {
+    return await fs.readFile(b, 'utf8')
+  }
 }
 
 function esc(s: string) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
 
 function getBaseUrl(req: VercelRequest) {
@@ -67,11 +75,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videos = body.files.filter(isVideo).slice(0, MAX_VIDEOS)
     if (images.length + videos.length === 0) return res.status(400).send('No valid media after filtering')
 
-    // Deterministic ordering: by filename then url
+    // Deterministic ordering
     images.sort((a, b) => (a.filename || '').localeCompare(b.filename || '') || a.url.localeCompare(b.url))
     videos.sort((a, b) => (a.filename || '').localeCompare(b.filename || '') || a.url.localeCompare(b.url))
 
-    // References IMG-001 etc.
+    // References IMG-001...
     const refs = images.map((img, i) => ({ ...img, ref: `IMG-${String(i + 1).padStart(3, '0')}` }))
 
     // Findings placeholders: one per 6 images, capped to 32
@@ -99,15 +107,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const findingsRows = findings.map(f => `
       <tr>
-        <td class="px-2 py-2 text-sm text-gray-800">${f.ref}</td>
-        <td class="px-2 py-2 text-sm text-gray-600">${esc(f.caption)}</td>
-        <td class="px-2 py-2 text-sm">${f.severity}</td>
+        <td>${f.ref}</td>
+        <td>${esc(f.caption)}</td>
+        <td>${f.severity}</td>
       </tr>
     `).join('')
 
     const appendixHtml = appendixPages.map((page, i) => `
       <div class="appendix-page">
-        <h3 class="text-base font-semibold text-gray-900 mb-2">Appendix page ${i + 1}</h3>
+        <h3>Appendix page ${i + 1}</h3>
         <div class="grid grid-12">
           ${page.map(r => `
             <div class="cell">
@@ -122,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videosBlock = videos.length ? `
       <div class="section">
         <h2>Videos</h2>
-        <ul class="video-list">
+        <ul>
           ${videos.map((v, i) => `
             <li>
               <img class="poster" src="${v.thumb}" alt="Video ${i + 1} poster" />
