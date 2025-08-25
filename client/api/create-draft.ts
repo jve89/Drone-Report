@@ -47,7 +47,6 @@ function chunk<T>(arr: T[], size: number) {
 }
 
 async function readTemplate(): Promise<string> {
-  // Runtime __dirname ≈ /var/task/client/api
   const a = path.resolve(__dirname, '../templates/report.html')
   const b = path.join(process.cwd(), 'client', 'templates', 'report.html')
   try {
@@ -74,26 +73,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!body?.contact?.email || !body?.contact?.project) return res.status(400).send('Missing required fields')
     if (!Array.isArray(body.files) || body.files.length === 0) return res.status(400).send('No media provided')
 
-    // Validate and cap
     const images = body.files.filter(isImage).slice(0, MAX_IMAGES)
     const videos = body.files.filter(isVideo).slice(0, MAX_VIDEOS)
     if (images.length + videos.length === 0) return res.status(400).send('No valid media after filtering')
 
-    // Deterministic ordering
     images.sort((a, b) => (a.filename || '').localeCompare(b.filename || '') || a.url.localeCompare(b.url))
     videos.sort((a, b) => (a.filename || '').localeCompare(b.filename || '') || a.url.localeCompare(b.url))
 
-    // References IMG-001...
     const refs = images.map((img, i) => ({ ...img, ref: `IMG-${String(i + 1).padStart(3, '0')}` }))
-
-    // Findings placeholders: one per 6 images, capped to 32
-    const findings = refs.filter((_, i) => i % 6 === 0).slice(0, 32).map(r => ({
-      ref: r.ref,
-      caption: '',
-      severity: '—'
-    }))
-
-    // Appendix pages: 12 thumbs per page
+    const findings = refs.filter((_, i) => i % 6 === 0).slice(0, 32).map(r => ({ ref: r.ref, caption: '', severity: '—' }))
     const appendixPages = chunk(refs, 12)
 
     const brandColor = sanitizeColor(body.brandColor)
@@ -101,7 +89,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const logoUrl = body.logoUrl || `${baseUrl}/logo.svg`
     const today = formatDate()
 
-    // Compose HTML by replacing tokens
     const tpl = await readTemplate()
     const summaryBullets = [
       `Total media received: ${images.length} images${videos.length ? `, ${videos.length} videos` : ''}.`,
@@ -158,12 +145,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replaceAll('{{VIDEOS_BLOCK}}', videosBlock)
       .replaceAll('{{APPENDIX}}', appendixHtml)
 
+    // Log and force the exact Chromium path used
+    const execPath = await chromium.executablePath()
+    console.log('Chromium exec path in Vercel:', execPath)
+    process.env.PUPPETEER_EXECUTABLE_PATH = execPath
+
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: execPath,
       headless: true,
-    });
+    })
 
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'networkidle0' })

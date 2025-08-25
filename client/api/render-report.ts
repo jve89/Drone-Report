@@ -2,22 +2,21 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs/promises';
-import fsSync from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure Node runtime (not Edge)
-export const config = { runtime: 'nodejs' }
+// Node runtime
+export const config = { runtime: 'nodejs' };
 
-// Helper to fill placeholders
+// Fill placeholders
 function applyTemplate(template: string, payload: any): string {
   const contact = payload.contact ?? {};
   const notes = payload.notes ?? '';
   const logoUrl = payload.logoUrl ?? '/logo.svg';
-  const brandColor = payload.brandColor ?? '#2563eb'; // default blue
+  const brandColor = payload.brandColor ?? '#2563eb';
 
   return template
     .replace(/{{PROJECT}}/g, contact.project ?? '')
@@ -27,7 +26,6 @@ function applyTemplate(template: string, payload: any): string {
     .replace(/{{LOGO_URL}}/g, logoUrl)
     .replace(/{{BRAND_COLOR}}/g, brandColor)
     .replace(/{{NOTES}}/g, notes)
-    // leave blocks if not provided
     .replace(/{{SUMMARY_ITEMS}}/g, payload.summaryItems ?? '')
     .replace(/{{FINDINGS_ROWS}}/g, payload.findingsRows ?? '')
     .replace(/{{VIDEOS_BLOCK}}/g, payload.videosBlock ?? '')
@@ -38,10 +36,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const payload = req.body as any;
 
-    // Resolve template path
+    // Resolve template
     const templatePath = path.resolve(__dirname, '../templates/report.html');
     const altPath = path.join(process.cwd(), 'client', 'templates', 'report.html');
-
     let template: string;
     try {
       template = await fs.readFile(templatePath, 'utf8');
@@ -49,14 +46,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       template = await fs.readFile(altPath, 'utf8');
     }
 
-    // If request provides raw html, use it; else fill template
-    let html: string = payload.html ?? applyTemplate(template, payload);
+    // Use provided html or apply template
+    const html: string = payload.html ?? applyTemplate(template, payload);
     if (!html) return res.status(400).send('Missing html and no template found');
+
+    // Log and force Sparticuz Chromium path
+    const execPath = await chromium.executablePath();
+    console.log('Chromium exec path in Vercel (render-report):', execPath);
+    process.env.PUPPETEER_EXECUTABLE_PATH = execPath;
 
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: execPath,
       headless: true,
     });
 
