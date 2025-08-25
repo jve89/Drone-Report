@@ -1,8 +1,5 @@
 {
   "functions": {
-    "client/api/**/*.[jt]s": {
-      "includeFiles": "client/templates/**",
-      "nodeModuleType": "module"
-    }
+    "client/api/**/*.[jt]s": { "includeFiles": "client/templates/**" }
   }
 }
