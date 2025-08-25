@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { z } from 'zod'
-import { pool } from './_db'
+import { getPool } from './_db'
+
+const pool = getPool()
 
 export const config = { runtime: 'nodejs' }
 
