@@ -4,9 +4,21 @@ primary_region = "fra"
 [build]
   image = "gotenberg/gotenberg:8"
 
+[env]
+  CHROMIUM_AUTO_START = "true"
+  CHROMIUM_START_TIMEOUT = "60s"
+  API_TIMEOUT = "60s"
+  API_START_TIMEOUT = "60s"
+
 [http_service]
   internal_port = 3000
   force_https = true
   auto_start_machines = true
   auto_stop_machines = true
   min_machines_running = 0
+
+# optional but recommended for Chromium startup headroom
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "2048mb"
