@@ -158,15 +158,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replaceAll('{{VIDEOS_BLOCK}}', videosBlock)
       .replaceAll('{{APPENDIX}}', appendixHtml)
 
-    // Render to PDF
-    const executablePath = await chromium.executablePath()
-    const headless = process.env.PUPPETEER_HEADLESS?.toLowerCase() === 'false' ? false : true
-    
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless as boolean,  // cast for TS
+      headless: true,
     });
 
     const page = await browser.newPage()

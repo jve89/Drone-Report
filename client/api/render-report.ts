@@ -53,15 +53,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let html: string = payload.html ?? applyTemplate(template, payload);
     if (!html) return res.status(400).send('Missing html and no template found');
 
-    const executablePath = await chromium.executablePath();
-    const headless =
-      process.env.PUPPETEER_HEADLESS?.toLowerCase() === 'false' ? false : true;
-
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless as boolean,  // cast for TS
+      headless: true,
     });
 
     const page = await browser.newPage();
