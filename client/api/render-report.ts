@@ -6,7 +6,7 @@ import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 
 // Ensure Node runtime (not Edge)
-export const config = { runtime: 'nodejs18.x' };
+export const config = { runtime: 'nodejs' }
 
 // Helper to fill placeholders
 function applyTemplate(template: string, payload: any): string {

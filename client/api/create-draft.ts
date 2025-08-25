@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-export const config = { runtime: 'nodejs18.x' }
+export const config = { runtime: 'nodejs' }
 
 type Contact = { email: string; company?: string; project: string }
 type Media = { type: 'image' | 'video'; url: string; thumb: string; filename?: string; mime?: string; size?: number }
