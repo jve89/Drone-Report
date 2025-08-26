@@ -1,9 +1,11 @@
-import { Pool } from 'pg'
-let _pool: Pool | null = null
-export function getPool(): Pool {
-  if (_pool) return _pool
-  const cs = process.env.DATABASE_URL
-  if (!cs) throw new Error('Missing DATABASE_URL')
-  _pool = new Pool({ connectionString: cs, ssl: { rejectUnauthorized: false }, max: 5, idleTimeoutMillis: 10000, connectionTimeoutMillis: 10000 })
-  return _pool
+import { createClient, type Client } from '@libsql/client'
+
+let db: Client | null = null
+export function getDB(): Client {
+  if (db) return db
+  const url = process.env.TURSO_DATABASE_URL
+  const auth = process.env.TURSO_AUTH_TOKEN
+  if (!url || !auth) throw new Error('Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN')
+  db = createClient({ url, authToken: auth })
+  return db
 }
