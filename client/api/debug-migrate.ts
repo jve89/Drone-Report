@@ -1,10 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getDB } from './_db'
-
 export const config = { runtime: 'nodejs' }
 
-const SQL = `
-create table if not exists reports(
+const stmts: string[] = [
+`create table if not exists reports(
   id text primary key,
   project text not null,
   company text not null,
@@ -15,11 +14,11 @@ create table if not exists reports(
   inspection_date text,
   brand_color text,
   logo_url text,
-  created_at text default (datetime('now'))
-);
-create table if not exists media(
+  created_at text default (CURRENT_TIMESTAMP)
+);`,
+`create table if not exists media(
   id text primary key,
-  report_id text not null,
+  report_id text not null references reports(id),
   kind text check (kind in ('image','video')) not null,
   url text not null,
   thumb text,
@@ -31,32 +30,39 @@ create table if not exists media(
   camera text,
   ref_code text,
   position integer,
-  created_at text default (datetime('now'))
-);
-create table if not exists findings(
+  created_at text default (CURRENT_TIMESTAMP)
+);`,
+`create table if not exists findings(
   id text primary key,
-  report_id text not null,
+  report_id text not null references reports(id),
   title text,
   caption text,
   severity text check (severity in ('low','medium','high')),
   coords text,
   tags text,
   created_by text,
-  updated_at text default (datetime('now'))
-);
-create table if not exists finding_media(
-  finding_id text not null,
-  media_id text not null,
+  updated_at text default (CURRENT_TIMESTAMP)
+);`,
+`create table if not exists finding_media(
+  finding_id text not null references findings(id),
+  media_id text not null references media(id),
   unique(finding_id, media_id)
-);
-`;
+);`
+];
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     const db = getDB()
-    const stmts = SQL.split(';').map(s => s.trim()).filter(Boolean).map(sql => ({ sql }))
-    await db.batch(stmts)
-    res.json({ ok: true })
+    const results: {step:number; ok:boolean}[] = []
+    for (let i = 0; i < stmts.length; i++) {
+      try {
+        await db.execute(stmts[i])
+        results.push({ step: i, ok: true })
+      } catch (e:any) {
+        return res.status(500).json({ ok:false, step:i, error:String(e), snippet: stmts[i].split('\n')[0] })
+      }
+    }
+    res.json({ ok:true, results })
   } catch (e:any) {
     res.status(500).json({ ok:false, error:String(e) })
   }
