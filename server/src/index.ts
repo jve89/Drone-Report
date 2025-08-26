@@ -9,18 +9,23 @@ app.use(express.json({ limit: "20mb" }))
 // API
 app.use("/api", reports)
 
-// static
-const pub = path.resolve(__dirname, "../public")
-app.use(express.static(pub))
+// choose a static dir: server/public OR client/dist
+const candidates = [
+  process.env.SERVE_DIR && path.resolve(process.cwd(), process.env.SERVE_DIR),
+  path.resolve(__dirname, "../public"),
+  path.resolve(__dirname, "../../client/dist"),
+].filter(Boolean) as string[]
+
+const staticDir = candidates.find(p => fs.existsSync(p) && fs.existsSync(path.join(p, "index.html")))
+app.use(staticDir ? express.static(staticDir) : (_req, res, next) => next())
 
 // health
-app.get("/health", (_req: express.Request, res: express.Response) => res.json({ ok: true }))
+app.get("/health", (_req: express.Request, res: express.Response) => res.json({ ok: true, staticDir: staticDir || null }))
 
-// SPA fallback for non-API routes
-const indexFile = path.join(pub, "index.html")
+// SPA fallback
 app.get("*", (req: express.Request, res: express.Response) => {
   if (req.path.startsWith("/api")) return res.status(404).send("Not found")
-  if (fs.existsSync(indexFile)) return res.sendFile(indexFile)
+  if (staticDir) return res.sendFile(path.join(staticDir, "index.html"))
   return res.status(404).send("Client not built")
 })
 
