@@ -1,11 +1,7 @@
 .
+├── api
 ├── client
 │   ├── api
-│   │   ├── create-draft.ts
-│   │   ├── package.json
-│   │   ├── render-report.ts
-│   │   ├── tsconfig.json
-│   │   └── verify-payment.ts
 │   ├── .env
 │   ├── .env.example
 │   ├── index.html
@@ -34,12 +30,13 @@
 │   ├── tsconfig.json
 │   └── vite.config.ts
 ├── filetree.txt
+├── fly.toml
 ├── .gitignore
 ├── .gitpod.yml
 ├── LICENSE
+├── .nvmrc
 ├── package.json
 ├── package-lock.json
-├── README.md
-└── vercel.json
+└── README.md
 
-8 directories, 34 files
+9 directories, 30 files
