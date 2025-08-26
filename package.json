@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "workspaces": ["client","server"],
   "engines": { "node": "20.x" },
   "scripts": {
     "dev": "cd client && npm run dev",
