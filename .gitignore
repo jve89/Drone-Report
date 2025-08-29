@@ -143,3 +143,8 @@ vite.config.ts.timestamp-*
 client/.vite/
 client/node_modules/
 client/api/node_modules/
+
+# build output
+server/dist/
+shared/dist/
+client/dist/

@@ -1,180 +1,273 @@
-import { useCallback, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react";
+import { createDraft } from "../lib/api";
+import { initUploadcare, pickSingle, pickMultiple } from "../lib/uploadcare";
 
-type Media = { type: "image" | "video"; url: string; thumb: string; filename?: string; mime?: string; size?: number }
+type Mode = "easy" | "advanced";
 
-declare global {
-  interface Window { uploadcare?: any }
+type ImageItem = { url: string; filename?: string; thumb?: string };
+type VideoItem = { url: string; filename?: string; thumb?: string };
+
+type FormState = {
+  mode: Mode;
+  contact: { email: string; project: string; company: string; name?: string; phone?: string };
+  inspection: { date: string };
+  site: { address?: string; country?: string; mapImageUrl?: string };
+  branding: { color?: string; logoUrl?: string };
+  equipment?: { drone?: { manufacturer?: string; model?: string; type?: string } };
+  flight?: { type?: "Manual" | "Automated"; altitudeMinM?: number; altitudeMaxM?: number; airtimeMin?: number; crewCount?: number };
+  weather?: { tempC?: number; windMs?: number; precip?: string; cloud?: string };
+  constraints?: { heightLimitM?: number };
+  scope?: { types?: string[] };
+  areas?: string[];
+  summary?: { condition?: string; urgency?: string; topIssues?: string[] };
+  findings?: Array<{ area: string; defect: string; severity?: string; recommendation?: string; note?: string; imageRefs?: string[] }>;
+  media: { images: ImageItem[]; videos?: VideoItem[] };
+  preparedBy?: { name?: string; company?: string; credentials?: string };
+  compliance?: { insuranceConfirmed?: boolean; omRef?: string; evidenceRef?: string; eventsNote?: string };
+  notes?: string;
+};
+
+const initialState: FormState = {
+  mode: "easy",
+  contact: { email: "", project: "", company: "" },
+  inspection: { date: "" },
+  site: {},
+  branding: {},
+  media: { images: [] },
+};
+
+function requiredEasy(s: FormState): string[] {
+  const m: string[] = [];
+  if (!s.contact.project) m.push("Project");
+  if (!s.contact.company) m.push("Company");
+  if (!s.contact.email) m.push("Email");
+  if (!s.inspection.date) m.push("Inspection date");
+  if (!s.media.images || s.media.images.length < 1) m.push("At least 1 image");
+  return m;
 }
 
-// helpers
-const isImage = (mime?: string) => !!mime && mime.startsWith("image/")
-const isVideo = (mime?: string) => !!mime && mime.startsWith("video/")
-const imgThumb = (cdnUrl: string) => `${cdnUrl}-/resize/1600x/-/quality/smart/`
-const videoPoster = (cdnUrl: string) => `${cdnUrl}-/thumb/-/resize/1600x/`
+function requiredAdvanced(s: FormState): string[] {
+  const m = requiredEasy(s);
+  if (!s.site.address) m.push("Site address");
+  if (!s.equipment?.drone?.manufacturer) m.push("Drone manufacturer");
+  if (!s.equipment?.drone?.model) m.push("Drone model");
+  if (!s.scope?.types || s.scope.types.length < 1) m.push("Scope type");
+  if (!s.areas || s.areas.length < 1) m.push("At least 1 area");
+  if (!s.constraints?.heightLimitM && s.constraints?.heightLimitM !== 0) m.push("Height limit");
+  if (!s.preparedBy?.name) m.push("Prepared by name");
+  return m;
+}
 
 export default function IntakeForm() {
-  const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [files, setFiles] = useState<Media[]>([])
-  const [tier, setTier] = useState<"raw" | "polished">("raw")
+  const [state, setState] = useState<FormState>(initialState);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
-  const fileCounts = useMemo(() => {
-    let images = 0, videos = 0
-    files.forEach(f => { if (f.type === "image") images++; else videos++; })
-    return { images, videos }
-  }, [files])
+  useEffect(() => { initUploadcare(); }, []);
 
-  const openUploader = useCallback(async () => {
-    const uc = window.uploadcare
-    if (!uc) { setErrorMsg("Uploader not initialized"); return }
-    // open multiple file dialog; key can also be set globally but we pass explicitly
-    const dialog = uc.openDialog(null, { publicKey: import.meta.env.VITE_UPLOADCARE_PUBLIC_KEY, multiple: true })
-    const data = await dialog.done()
-    // Classic widget returns a group if multiple selected
-    const items: any[] = data.files ? await Promise.all(data.files()) : [await data.file()]
-    const resolved: Media[] = []
-    for (const it of items) {
-      const f = await it
-      const cdnUrl: string = f.cdnUrl // https://ucarecdn.com/<uuid>/
-      const mime: string | undefined = f?.sourceInfo?.file?.type || f?.data?.mimeType || f?.mimeType
-      const name: string | undefined = f?.name || f?.sourceInfo?.file?.name
-      const size: number | undefined = f?.size
-      if (isImage(mime)) {
-        resolved.push({ type: "image", url: cdnUrl, thumb: imgThumb(cdnUrl), filename: name, mime, size })
-      } else if (isVideo(mime)) {
-        resolved.push({ type: "video", url: cdnUrl, thumb: videoPoster(cdnUrl), filename: name, mime, size })
-      }
-    }
-    setFiles(prev => {
-      const merged = [...prev, ...resolved]
-      // enforce hard caps: ≤200 images, ≤3 videos
-      const imgs = merged.filter(f => f.type === "image").slice(0, 200)
-      const vids = merged.filter(f => f.type === "video").slice(0, 3)
-      return [...imgs, ...vids]
-    })
-    setErrorMsg(null)
-  }, [])
+  const missing = useMemo(() => {
+    return state.mode === "easy" ? requiredEasy(state) : requiredAdvanced(state);
+  }, [state]);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setErrorMsg(null)
+  const onPickLogo = async () => {
+    const url = await pickSingle();
+    if (!url) return;
+    setState(s => ({ ...s, branding: { ...s.branding, logoUrl: url } }));
+  };
 
-    const fd = new FormData(e.currentTarget)
-    const contact = {
-      email: String(fd.get("email") || ""),
-      company: String(fd.get("company") || ""),
-      project: String(fd.get("project") || ""),
-    }
-    const notes = String(fd.get("notes") || "")
-    const brandColor = String(fd.get("brandColor") || "#1f2937")
-    const logoUrl = String(fd.get("logoUrl") || "")
+  const onPickMap = async () => {
+    const url = await pickSingle();
+    if (!url) return;
+    setState(s => ({ ...s, site: { ...(s.site || {}), mapImageUrl: url } }));
+  };
 
-    if (!contact.email || !contact.project) {
-      setErrorMsg("Email and project name are required.")
-      return
-    }
-    if (files.length === 0) {
-      setErrorMsg("Please add images or videos.")
-      return
-    }
+  const onPickMedia = async () => {
+    const files = await pickMultiple(200);
+    if (!files?.length) return;
+    setState(s => ({ ...s, media: { images: files.slice(0, 200) } }));
+  };
 
-    setLoading(true)
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null); setOk(null);
+    const miss = missing;
+    if (miss.length) { setErr("Missing: " + miss.join(", ")); return; }
     try {
-      const resp = await fetch("/api/create-draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contact, notes, brandColor, logoUrl: logoUrl || undefined, files, tier })
-      })
-      if (!resp.ok) {
-        const t = await resp.text()
-        throw new Error(t || `Server error ${resp.status}`)
-      }
-      // expect PDF stream for RAW; for future POLISHED, backend could return JSON
-      const blob = await resp.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `DroneReport_${contact.project.replace(/\s+/g, "_")}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setErrorMsg(err?.message || "Draft generation failed")
+      setBusy(true);
+      const blob = await createDraft(state);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${state.contact.project || "report"}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setOk("PDF downloaded.");
+    } catch (e: any) {
+      setErr(e?.message || "Failed to create draft.");
     } finally {
-      setLoading(false)
+      setBusy(false);
     }
-  }
+  };
 
   return (
-    <section id="intake" className="py-16 px-6 max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold mb-6">Start a report</h2>
+    <section id="intake" className="py-10">
+      <div className="max-w-3xl mx-auto px-4">
+        <h2 className="text-2xl font-semibold mb-4">Create report</h2>
 
-      <form onSubmit={onSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium">Email*</label>
-            <input name="email" type="email" required className="mt-1 w-full border rounded-lg p-3" />
+        <form onSubmit={onSubmit} className="space-y-6">
+          {/* Mode toggle */}
+          <div className="flex items-center gap-3">
+            <label className="font-medium">Mode</label>
+            <select
+              className="border rounded px-2 py-1"
+              value={state.mode}
+              onChange={(e) => setState(s => ({ ...s, mode: e.target.value as Mode }))}
+            >
+              <option value="easy">Easy</option>
+              <option value="advanced">Advanced</option>
+            </select>
+            <span className="text-sm text-gray-500">
+              Advanced pre-fills more sections. Skeleton is identical.
+            </span>
           </div>
-          <div>
-            <label className="block text-sm font-medium">Company</label>
-            <input name="company" className="mt-1 w-full border rounded-lg p-3" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Project name*</label>
-            <input name="project" required className="mt-1 w-full border rounded-lg p-3" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium">Brand color</label>
-            <input name="brandColor" type="text" placeholder="#1f2937" className="mt-1 w-full border rounded-lg p-3" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium">Notes / focus</label>
-            <textarea name="notes" rows={4} className="mt-1 w-full border rounded-lg p-3" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium">Logo URL (optional)</label>
-            <input name="logoUrl" type="url" placeholder="https://..." className="mt-1 w-full border rounded-lg p-3" />
-          </div>
-        </div>
 
-        {/* Tier selector */}
-        <div className="flex items-center gap-4">
-          <label className="inline-flex items-center gap-2">
-            <input type="radio" name="tier" checked={tier === "raw"} onChange={() => setTier("raw")} />
-            <span className="text-sm">Raw Draft</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input type="radio" name="tier" checked={tier === "polished"} onChange={() => setTier("polished")} />
-            <span className="text-sm">Polished (manual review later)</span>
-          </label>
-        </div>
-
-        {/* Uploadcare */}
-        <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
-          <div className="flex items-center justify-between">
+          {/* Contact */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <div className="text-sm font-medium">Media</div>
-              <div className="text-xs text-gray-600">Images ≤200, Videos ≤3. Types: JPG, PNG, MP4.</div>
+              <label className="block text-sm font-medium">Project*</label>
+              <input className="w-full border rounded px-2 py-1" value={state.contact.project}
+                onChange={(e) => setState(s => ({ ...s, contact: { ...s.contact, project: e.target.value } }))} />
             </div>
-            <button type="button" onClick={openUploader} className="px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-800">
-              Select files
-            </button>
+            <div>
+              <label className="block text-sm font-medium">Company*</label>
+              <input className="w-full border rounded px-2 py-1" value={state.contact.company}
+                onChange={(e) => setState(s => ({ ...s, contact: { ...s.contact, company: e.target.value } }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Email*</label>
+              <input className="w-full border rounded px-2 py-1" type="email" value={state.contact.email}
+                onChange={(e) => setState(s => ({ ...s, contact: { ...s.contact, email: e.target.value } }))} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Inspection date*</label>
+              <input className="w-full border rounded px-2 py-1" type="date" value={state.inspection.date}
+                onChange={(e) => setState(s => ({ ...s, inspection: { ...s.inspection, date: e.target.value } }))} />
+            </div>
           </div>
 
-          {files.length > 0 && (
-            <div className="mt-3 text-sm text-gray-700">
-              Selected: {fileCounts.images} images, {fileCounts.videos} videos
+          {/* Branding + Map */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium">Brand color (hex)</label>
+              <input className="w-full border rounded px-2 py-1" placeholder="#2563EB"
+                value={state.branding.color || ""} onChange={(e) => setState(s => ({ ...s, branding: { ...s.branding, color: e.target.value } }))} />
+              <div className="text-xs text-gray-500 mt-1">Leave empty for default gray.</div>
             </div>
+            <div>
+              <label className="block text-sm font-medium">Upload logo</label>
+              <div className="flex items-center gap-2">
+                <button type="button" className="border rounded px-2 py-1" onClick={onPickLogo}>Pick logo</button>
+                {state.branding.logoUrl ? <span className="text-xs text-green-700">Selected</span> : <span className="text-xs text-gray-500">Optional</span>}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Site map image</label>
+              <div className="flex items-center gap-2">
+                <button type="button" className="border rounded px-2 py-1" onClick={onPickMap}>Pick map</button>
+                {state.site.mapImageUrl ? <span className="text-xs text-green-700">Selected</span> : <span className="text-xs text-gray-500">Optional</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Advanced-only fields */}
+          {state.mode === "advanced" && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium">Site address*</label>
+                  <input className="w-full border rounded px-2 py-1" value={state.site.address || ""}
+                    onChange={(e) => setState(s => ({ ...s, site: { ...s.site, address: e.target.value } }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Drone manufacturer*</label>
+                  <input className="w-full border rounded px-2 py-1" value={state.equipment?.drone?.manufacturer || ""}
+                    onChange={(e) => setState(s => ({ ...s, equipment: { ...(s.equipment || {}), drone: { ...(s.equipment?.drone || {}), manufacturer: e.target.value } } }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Drone model*</label>
+                  <input className="w-full border rounded px-2 py-1" value={state.equipment?.drone?.model || ""}
+                    onChange={(e) => setState(s => ({ ...s, equipment: { ...(s.equipment || {}), drone: { ...(s.equipment?.drone || {}), model: e.target.value } } }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Height limit (m)*</label>
+                  <input className="w-full border rounded px-2 py-1" type="number" value={state.constraints?.heightLimitM ?? ""}
+                    onChange={(e) => setState(s => ({ ...s, constraints: { ...(s.constraints || {}), heightLimitM: Number(e.target.value) } }))} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Prepared by*</label>
+                  <input className="w-full border rounded px-2 py-1" value={state.preparedBy?.name || ""}
+                    onChange={(e) => setState(s => ({ ...s, preparedBy: { ...(s.preparedBy || {}), name: e.target.value } }))} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Scope types*</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {["Roof","Facade","Solar","Insurance","Progress","Other"].map(t => (
+                    <label key={t} className="inline-flex items-center gap-1 text-sm border px-2 py-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={!!state.scope?.types?.includes(t)}
+                        onChange={(e) => setState(s => {
+                          const curr = new Set(s.scope?.types || []);
+                          e.target.checked ? curr.add(t) : curr.delete(t);
+                          return { ...s, scope: { types: [...curr] } };
+                        })}
+                      />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Areas*</label>
+                <input
+                  className="w-full border rounded px-2 py-1"
+                  placeholder="Comma-separated, e.g. Roof North, Roof South"
+                  value={(state.areas || []).join(", ")}
+                  onChange={(e) => setState(s => ({ ...s, areas: e.target.value.split(",").map(v => v.trim()).filter(Boolean) }))}
+                />
+              </div>
+            </>
           )}
-        </div>
 
-        <button type="submit" disabled={loading} className="px-6 py-3 bg-blue-600 text-white rounded-lg disabled:opacity-60">
-          {loading ? "Generating draft…" : "Generate Raw Draft"}
-        </button>
+          {/* Media */}
+          <div>
+            <label className="block text-sm font-medium">Media* (images; videos later)</label>
+            <button type="button" className="border rounded px-2 py-1" onClick={onPickMedia}>Pick images</button>
+            <div className="text-xs text-gray-500 mt-1">
+              Up to 200 images. Videos are listed in the PDF when added later.
+            </div>
+            {state.media.images?.length ? (
+              <div className="text-xs mt-1">{state.media.images.length} selected</div>
+            ) : null}
+          </div>
 
-        {errorMsg && <p className="text-sm text-red-600">Error: {errorMsg}</p>}
-      </form>
+          {/* Status */}
+          {err && <div className="text-red-600 text-sm">{err}</div>}
+          {ok && <div className="text-green-700 text-sm">{ok}</div>}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {busy ? "Generating…" : "Create PDF draft"}
+          </button>
+        </form>
+      </div>
     </section>
-  )
+  );
 }

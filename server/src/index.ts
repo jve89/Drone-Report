@@ -1,8 +1,12 @@
 import express from "express";
 import path from "node:path";
 import fs from "node:fs";
+import dotenv from "dotenv";
 import healthRouter from "./routes/health";
 import createDraftRouter from "./routes/createDraft";
+
+// Load env from repo root .env
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
@@ -11,7 +15,7 @@ app.use(express.json({ limit: "20mb" }));
 app.use("/", healthRouter);
 app.use("/", createDraftRouter);
 
-// Static serving: SERVER_PUBLIC (via SERVE_DIR) → server/public → client/dist
+// Static serving: SERVE_DIR → server/public → client/dist
 const candidates = [
   process.env.SERVE_DIR && path.resolve(process.cwd(), process.env.SERVE_DIR),
   path.resolve(__dirname, "../public"),
