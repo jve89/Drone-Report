@@ -84,8 +84,9 @@ export default function IntakeForm() {
 
   const onPickMedia = async () => {
     const files = await pickMultiple(200);
-    if (!files?.length) return;
-    setState(s => ({ ...s, media: { images: files.slice(0, 200) } }));
+    const valid = files.filter(f => /^https?:\/\//i.test(f.url));
+    if (!valid.length) return;
+    setState(s => ({ ...s, media: { images: valid.slice(0, 200) } }));
   };
 
   const onSubmit = async (e: React.FormEvent) => {

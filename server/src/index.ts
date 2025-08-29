@@ -1,12 +1,13 @@
-import express from "express";
 import path from "node:path";
-import fs from "node:fs";
 import dotenv from "dotenv";
+
+// Load env from repo root .env **before** importing routes that may read env
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+import express from "express";
+import fs from "node:fs";
 import healthRouter from "./routes/health";
 import createDraftRouter from "./routes/createDraft";
-
-// Load env from repo root .env
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = express();
 app.use(express.json({ limit: "20mb" }));
@@ -26,9 +27,7 @@ const staticDir = candidates.find(
   (p) => fs.existsSync(p) && fs.existsSync(path.join(p, "index.html"))
 );
 
-if (staticDir) {
-  app.use(express.static(staticDir));
-}
+if (staticDir) app.use(express.static(staticDir));
 
 // SPA fallback (preserve API 404s)
 app.get("*", (req, res) => {

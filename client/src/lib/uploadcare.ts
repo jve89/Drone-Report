@@ -1,4 +1,3 @@
-// client/src/lib/uploadcare.ts
 type UcFile = { cdnUrl?: string; cdnUrlMod?: string; name?: string };
 
 const UCARE_PUBLIC_KEY = import.meta.env.VITE_UPLOADCARE_PUBLIC_KEY || "";
@@ -24,7 +23,6 @@ function readyUploadcare(): Promise<any> {
 
 export async function initUploadcare() {
   ensureScript();
-  // also set the global, but we no longer rely on it
   (window as any).UPLOADCARE_PUBLIC_KEY = UCARE_PUBLIC_KEY;
 }
 
@@ -38,9 +36,9 @@ export async function pickSingle(): Promise<string | null> {
   return (file?.cdnUrl || null) as string | null;
 }
 
-export async function pickMultiple(maxFiles = 200): Promise<
-  { url: string; filename?: string; thumb?: string }[]
-> {
+export async function pickMultiple(
+  maxFiles = 200
+): Promise<{ url: string; filename?: string; thumb?: string }[]> {
   const uploadcare = await readyUploadcare();
   const dialog = uploadcare.openDialog(null, {
     imagesOnly: false,
@@ -49,10 +47,21 @@ export async function pickMultiple(maxFiles = 200): Promise<
   });
   const group = await dialog.done((g: any) => g.promise());
   const files: any[] = await group.files();
-  return files.slice(0, maxFiles).map((f: UcFile) => {
-    const url = (f.cdnUrl || f.cdnUrlMod || "") as string;
-    const filename = f.name as string | undefined;
-    const thumb = url ? `${url}-/preview/320x240/` : undefined;
-    return { url, filename, thumb };
-  });
+
+  // Wait for each file to resolve to get stable cdnUrl
+  const resolved = await Promise.all(
+    files.slice(0, maxFiles).map((f: any) => f.promise())
+  );
+
+  const out = resolved
+    .map((f: any) => {
+      const url: string = f.cdnUrl || f.cdnUrlMod || "";
+      const filename: string | undefined = f.name;
+      const thumb = url ? `${url}-/preview/320x240/` : undefined;
+      return { url, filename, thumb };
+    })
+    // keep only valid absolute http(s) URLs
+    .filter((x) => /^https?:\/\//i.test(x.url));
+
+  return out;
 }

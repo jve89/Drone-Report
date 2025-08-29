@@ -5,10 +5,10 @@ import { buildReportHtml, renderPdfViaGotenberg } from "../pdf";
 const router = Router();
 
 /**
- * POST /api/create-draft
+ * POST /create-draft      (mounted under /api in index.ts → /api/create-draft)
  * Validates payload, renders HTML, converts to PDF via Gotenberg.
  */
-router.post("/api/create-draft", async (req, res, next) => {
+router.post("/create-draft", async (req, res, next) => {
   try {
     const intake = validateIntake(req.body);
     const html = await buildReportHtml(intake);

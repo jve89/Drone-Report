@@ -3,41 +3,32 @@ import path from "node:path";
 import { chunkArray } from "./utils/chunkMedia";
 import type { Intake } from "@drone-report/shared/dist/types/intake";
 
-// Config
-const GOTENBERG_URL =
-  process.env.GOTENBERG_URL || "http://localhost:3000"; // override in Heroku
-const PDF_TIMEOUT_MS = Number(process.env.PDF_TIMEOUT_MS || 60000);
-
 // Helpers
 function esc(s?: string) {
   return (s ?? "").replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as any)[c]
   );
 }
-
 function fmt(val?: unknown) {
   if (val === undefined || val === null || val === "") return "—";
   return String(val);
 }
-
 function themeColor(hex?: string) {
-  return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280"; // default gray-500
+  return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280";
 }
-
 async function loadTemplate(): Promise<string> {
   const p = path.join(__dirname, "templates", "report.html");
   return fs.readFile(p, "utf8");
 }
 
 /**
- * Build a minimal HTML string by injecting the intake fields
- * into a static template with {{placeholders}}.
+ * Build HTML by injecting intake fields into template.
  */
 export async function buildReportHtml(intake: Intake): Promise<string> {
   const tpl = await loadTemplate();
 
   const color = themeColor(intake.branding?.color);
-  const logoTag = intake.branding?.logoUrl? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo"/>`: "";
+  const logoTag = intake.branding?.logoUrl ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo"/>` : "";
   const mapUrl = intake.site?.mapImageUrl || "";
   const dateStr = fmt(intake.inspection?.date);
   const project = esc(intake.contact.project);
@@ -46,7 +37,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const videos = intake.media?.videos ?? [];
   const images = intake.media?.images ?? [];
 
-  // Build Executive Summary block
   const summaryHtml =
     intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length
       ? `
@@ -64,7 +54,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   </div>`
       : `<div class="card"><h2>Executive summary</h2><p class="muted">No summary provided.</p></div>`;
 
-  // Build Methodology block
   const equip = intake.equipment;
   const auth = intake.authorisation;
   const weather = intake.weather;
@@ -132,7 +121,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     </div>
   </div>`;
 
-  // Findings block
   const findings = intake.findings || [];
   const findingsHtml =
     findings.length > 0
@@ -160,7 +148,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           .join("")
       : `<p class="muted">No findings entered. Raw report shows media in appendix.</p>`;
 
-  // Appendix: 24-up chunks
   const pages = chunkArray(images, 24).map((page, idx) => {
     const cells = page
       .map(
@@ -188,7 +175,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           .join("")}</ul>`
       : `<p class="muted">No videos.</p>`;
 
-  // Compliance footer
   const complianceHtml = `
     <p><strong>Operator:</strong> ${esc(intake.operator?.name || "")} ${esc(
     intake.operator?.registration || ""
@@ -227,7 +213,6 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     <p class="muted small">Documents retained ≥ 2 years per ops policy.</p>
   `;
 
-  // Template replacements
   let html = tpl
     .replaceAll("{{THEME_COLOR}}", color)
     .replaceAll("{{PROJECT}}", project)
@@ -247,24 +232,30 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
 
 /**
  * Send HTML to Gotenberg and return a PDF buffer.
+ * Reads env at call time to avoid stale values.
  */
 export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
+  const base = (process.env.GOTENBERG_URL || "").replace(/\/+$/, "");
+  if (!base) throw new Error("GOTENBERG_URL missing");
+  const url = `${base}/forms/chromium/convert/html`;
+
   const form = new FormData();
   const file = new Blob([html], { type: "text/html; charset=utf-8" });
   form.append("files", file, "index.html");
 
+  const timeoutMs = Number(process.env.PDF_TIMEOUT_MS || 60000);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PDF_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const resp = await fetch(`${GOTENBERG_URL}/forms/chromium/convert/html`, {
+    const resp = await fetch(url, {
       method: "POST",
       body: form as any,
       signal: controller.signal,
     });
 
     if (!resp.ok) {
-      const msg = await safeText(resp);
+      const msg = await safeText(resp as any);
       throw new Error(`Gotenberg error ${resp.status}: ${msg}`);
     }
     const arrayBuffer = await resp.arrayBuffer();
