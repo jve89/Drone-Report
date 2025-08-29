@@ -11,9 +11,9 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 const app = express();
 app.use(express.json({ limit: "20mb" }));
 
-// Health + PDF draft
-app.use("/", healthRouter);
-app.use("/", createDraftRouter);
+// API routes
+app.use("/api", healthRouter);
+app.use("/api", createDraftRouter);
 
 // Static serving: SERVE_DIR → server/public → client/dist
 const candidates = [
@@ -26,10 +26,12 @@ const staticDir = candidates.find(
   (p) => fs.existsSync(p) && fs.existsSync(path.join(p, "index.html"))
 );
 
-app.use(staticDir ? express.static(staticDir) : (_req, res, next) => next());
+if (staticDir) {
+  app.use(express.static(staticDir));
+}
 
 // SPA fallback (preserve API 404s)
-app.get("*", (req: express.Request, res: express.Response) => {
+app.get("*", (req, res) => {
   if (req.path.startsWith("/api")) return res.status(404).send("Not found");
   if (staticDir) return res.sendFile(path.join(staticDir, "index.html"));
   return res.status(404).send("Client not built");

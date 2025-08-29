@@ -10,6 +10,9 @@ export default defineConfig({
   root: r('client'),
   plugins: [react()],
   envDir: r('.'),
+  css: {
+    postcss: r('postcss.config.cjs'), // ensure Tailwind from root
+  },
   server: {
     allowedHosts: ['.gitpod.io'],
     host: true,

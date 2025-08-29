@@ -1,11 +1,9 @@
 .
 ├── client
 │   ├── api
-│   ├── .env.example
 │   ├── index.html
 │   ├── package.json
 │   ├── package-lock.json
-│   ├── postcss.config.cjs
 │   ├── public
 │   │   └── logo.svg
 │   ├── src
@@ -26,7 +24,6 @@
 │   │   ├── styles
 │   │   │   └── tailwind.css
 │   │   └── vite-env.d.ts
-│   ├── tailwind.config.ts
 │   └── tsconfig.json
 ├── .env
 ├── .env.example
@@ -92,4 +89,4 @@
 ├── tailwind.config.cjs
 └── vite.config.mjs
 
-25 directories, 67 files
+25 directories, 64 files
