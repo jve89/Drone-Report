@@ -1,6 +1,5 @@
 .
 ├── client
-│   ├── api
 │   ├── index.html
 │   ├── package.json
 │   ├── package-lock.json
@@ -25,7 +24,6 @@
 │   │   │   └── tailwind.css
 │   │   └── vite-env.d.ts
 │   └── tsconfig.json
-├── .env
 ├── .env.example
 ├── filetree.txt
 ├── fly.toml
@@ -40,18 +38,6 @@
 ├── Procfile
 ├── README.md
 ├── server
-│   ├── dist
-│   │   ├── index.js
-│   │   ├── pdf.js
-│   │   ├── routes
-│   │   │   ├── createDraft.js
-│   │   │   ├── health.js
-│   │   │   └── reports.js
-│   │   ├── templates
-│   │   │   └── report.html
-│   │   └── utils
-│   │       ├── chunkMedia.js
-│   │       └── validate.js
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── shared
@@ -70,13 +56,6 @@
 │   │       └── validate.ts
 │   └── tsconfig.json
 ├── shared
-│   ├── dist
-│   │   ├── schema
-│   │   │   ├── intake.schema.d.ts
-│   │   │   └── intake.schema.js
-│   │   └── types
-│   │       ├── intake.d.ts
-│   │       └── intake.js
 │   ├── mapping
 │   │   └── report.map.md
 │   ├── package.json
@@ -89,4 +68,4 @@
 ├── tailwind.config.cjs
 └── vite.config.mjs
 
-25 directories, 64 files
+17 directories, 51 files
