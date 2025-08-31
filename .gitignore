@@ -148,3 +148,7 @@ client/api/node_modules/
 server/dist/
 shared/dist/
 client/dist/
+
+# Other
+/full.pdf
+.DS_Store

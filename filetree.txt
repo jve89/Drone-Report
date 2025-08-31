@@ -1,8 +1,14 @@
 .
 ├── client
+│   ├── dist
+│   │   ├── assets
+│   │   │   ├── index-4FR7vqFT.js
+│   │   │   └── index-BPXMZoJ-.css
+│   │   ├── index.html
+│   │   └── logo.svg
 │   ├── index.html
 │   ├── package.json
-│   ├── package-lock.json
+│   ├── postcss.config.cjs
 │   ├── public
 │   │   └── logo.svg
 │   ├── src
@@ -23,25 +29,35 @@
 │   │   ├── styles
 │   │   │   └── tailwind.css
 │   │   └── vite-env.d.ts
-│   └── tsconfig.json
+│   ├── tailwind.config.cjs
+│   ├── tsconfig.json
+│   └── vite.config.mjs
+├── .env
 ├── .env.example
 ├── filetree.txt
 ├── fly.toml
-├── full.pdf
 ├── .gitignore
 ├── .gitpod.yml
 ├── LICENSE
 ├── .nvmrc
 ├── package.json
 ├── package-lock.json
-├── postcss.config.cjs
 ├── Procfile
 ├── README.md
 ├── server
+│   ├── dist
+│   │   ├── index.js
+│   │   ├── pdf.js
+│   │   ├── routes
+│   │   │   ├── createDraft.js
+│   │   │   ├── health.js
+│   │   │   └── reports.js
+│   │   ├── templates
+│   │   │   └── report.html
+│   │   └── utils
+│   │       ├── chunkMedia.js
+│   │       └── validate.js
 │   ├── package.json
-│   ├── package-lock.json
-│   ├── shared
-│   │   └── package-lock.json
 │   ├── src
 │   │   ├── index.ts
 │   │   ├── pdf.ts
@@ -55,17 +71,21 @@
 │   │       ├── chunkMedia.ts
 │   │       └── validate.ts
 │   └── tsconfig.json
-├── shared
-│   ├── mapping
-│   │   └── report.map.md
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── schema
-│   │   └── intake.schema.ts
-│   ├── tsconfig.json
-│   └── types
-│       └── intake.ts
-├── tailwind.config.cjs
-└── vite.config.mjs
+└── shared
+    ├── dist
+    │   ├── schema
+    │   │   ├── intake.schema.d.ts
+    │   │   └── intake.schema.js
+    │   └── types
+    │       ├── intake.d.ts
+    │       └── intake.js
+    ├── mapping
+    │   └── report.map.md
+    ├── package.json
+    ├── schema
+    │   └── intake.schema.ts
+    ├── tsconfig.json
+    └── types
+        └── intake.ts
 
-17 directories, 51 files
+25 directories, 63 files

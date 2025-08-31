@@ -8,6 +8,7 @@ export const ScopeTypeEnum = z.enum(["Roof", "Facade", "Solar", "Insurance", "Pr
 export const FlightTypeEnum = z.enum(["Manual", "Automated"]);
 export const ARCEnum = z.enum(["ARC-a", "ARC-b", "ARC-c", "ARC-d"]);
 export const MitigationLevelEnum = z.enum(["none", "low", "medium", "high"]);
+export const TierEnum = z.enum(["raw", "full"]); // NEW
 
 /** Reusable primitives */
 const UrlStr = z.string().url();
@@ -177,6 +178,7 @@ export const ScopeSchema = z.object({
 
 export const IntakeSchema = z.object({
   mode: ModeEnum.default("easy"),
+  tier: TierEnum.default("raw"), // NEW FIELD
 
   contact: ContactSchema,
   operator: OperatorSchema.optional(),
