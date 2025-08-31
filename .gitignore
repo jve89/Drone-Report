@@ -152,3 +152,6 @@ client/dist/
 # Other
 /full.pdf
 .DS_Store
+
+# Test artifacts
+report.pdf
