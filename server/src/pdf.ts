@@ -31,8 +31,8 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const logoTag = intake.branding?.logoUrl ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo"/>` : "";
   const mapUrl = intake.site?.mapImageUrl || "";
   const dateStr = fmt(intake.inspection?.date);
-  const project = esc(intake.contact.project);
-  const company = esc(intake.contact.company);
+  const project = esc(intake.contact?.project || "");
+  const company = esc(intake.contact?.company || "");
   const location = esc(intake.site?.address || "");
   const videos = intake.media?.videos ?? [];
   const images = intake.media?.images ?? [];
@@ -136,7 +136,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
               .join("");
             return `
             <div class="finding">
-              <h3>${esc(f.area)} · ${esc(f.defect)}</h3>
+              <h3>${esc(f.area || "Area")} · ${esc(f.defect || "Observation")}</h3>
               <div class="badges">
                 ${f.severity ? `<span class="badge">${esc(f.severity)}</span>` : ""}
                 ${f.recommendation ? `<span class="badge info">${esc(f.recommendation)}</span>` : ""}
@@ -148,14 +148,19 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           .join("")
       : `<p class="muted">No findings entered. Raw report shows media in appendix.</p>`;
 
-  // --- MEDIA APPENDIX: 3 items per page, each item 60/40 figure (inline styles to defeat external CSS) ---
-  const PAGE_SIZE = 3;
-  const imagePages = chunkArray(images, PAGE_SIZE).map((page, idx) => {
-    const figures = page
-      .map((img) => {
-        const fn = esc(img.filename || "");
-        const src = esc(img.thumb || img.url);
-        return `
+  // --- MEDIA APPENDIX ---
+  const isEasy = (intake.mode ?? "easy") === "easy";
+  const PAGE_SIZE = isEasy ? 1 : 3;
+
+  const imagePages =
+    images.length > 0
+      ? chunkArray(images, PAGE_SIZE).map((page, idx) => {
+          const figures = page
+            .map((img, i) => {
+              const fn = esc(img.filename || "");
+              const note = esc((img as any).note || "");
+              const src = esc(img.thumb || img.url);
+              return `
         <figure style="
           display:grid;
           grid-template-columns:3fr 2fr; /* 60/40 */
@@ -169,18 +174,30 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           break-inside:avoid;
         ">
           <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
-          <figcaption style="font-size:11px;color:#6B7280;word-break:break-all;margin:0;">
-            ${fn || "&nbsp;"}
+          <figcaption style="font-size:11px;color:#374151;word-break:break-all;margin:0;">
+            <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
+            ${
+              note
+                ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>`
+                : `<div style="color:#9CA3AF;">&nbsp;</div>`
+            }
           </figcaption>
         </figure>`;
-      })
-      .join("");
-    return `
+            })
+            .join("");
+          return `
     <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
       <h2>Media appendix — page ${idx + 1}</h2>
       <div>${figures}</div>
     </section>`;
-  });
+        })
+      : [
+          `
+    <section class="appendix-page">
+      <h2>Media appendix</h2>
+      <p class="muted">No media supplied.</p>
+    </section>`,
+        ];
 
   const videosList =
     videos.length > 0

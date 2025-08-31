@@ -4,11 +4,11 @@ import { z } from "zod";
 export const ModeEnum = z.enum(["easy", "advanced"]);
 export const ConditionEnum = z.enum(["Excellent", "Good", "Fair", "Poor"]);
 export const UrgencyEnum = z.enum(["None", "Low", "Medium", "High", "Critical"]);
-export const ScopeTypeEnum = z.enum(["Roof", "Facade", "Solar", "Insurance", "Progress", "Other"]);
+export const ScopeTypeEnum = z.enum(["General", "Roof", "Facade", "Solar", "Insurance", "Progress", "Other"]);
 export const FlightTypeEnum = z.enum(["Manual", "Automated"]);
 export const ARCEnum = z.enum(["ARC-a", "ARC-b", "ARC-c", "ARC-d"]);
 export const MitigationLevelEnum = z.enum(["none", "low", "medium", "high"]);
-export const TierEnum = z.enum(["raw", "full"]); // NEW
+export const TierEnum = z.enum(["raw", "full"]);
 
 /** Reusable primitives */
 const UrlStr = z.string().url();
@@ -18,15 +18,15 @@ const HexColor = z.string().regex(/^#([0-9A-Fa-f]{6})$/).optional();
 
 /** Contact / operator */
 export const ContactSchema = z.object({
-  email: EmailStr,
-  project: z.string().min(1),
-  company: z.string().min(1),
-  name: z.string().optional(), // contact name
+  email: EmailStr.optional(),
+  project: z.string().optional(),
+  company: z.string().optional(),
+  name: z.string().optional(),
   phone: PhoneStr,
 });
 
 export const OperatorSchema = z.object({
-  registration: z.string().min(1).optional(), // UAS operator registration number
+  registration: z.string().optional(),
   name: z.string().optional(),
   responsibleContact: z.object({
     name: z.string().optional(),
@@ -44,19 +44,19 @@ export const AuthorisationSchema = z.object({
 export const SiteSchema = z.object({
   address: z.string().optional(),
   country: z.string().optional(),
-  mapImageUrl: UrlStr.optional(), // uploaded map image
+  mapImageUrl: UrlStr.optional(),
 });
 
 export const InspectionSchema = z.object({
-  date: z.string().min(4), // ISO date (YYYY-MM-DD acceptable)
+  date: z.string().optional(), // allow blank; renderer will show "—" if missing
   time: z.string().optional(),
 });
 
 export const WeatherSchema = z.object({
   tempC: z.number().optional(),
   windMs: z.number().optional(),
-  precip: z.string().optional(), // none/light/moderate/etc.
-  cloud: z.string().optional(),  // few/scattered/broken/overcast
+  precip: z.string().optional(),
+  cloud: z.string().optional(),
 });
 
 export const FlightSchema = z.object({
@@ -83,7 +83,7 @@ export const RiskSchema = z.object({
       adjacent: ARCEnum.optional(),
     }).optional(),
     strategic: z.boolean().optional(),
-    tactical: z.string().optional(), // free text description
+    tactical: z.string().optional(),
   }).optional(),
 });
 
@@ -95,25 +95,25 @@ export const EquipmentSchema = z.object({
     type: z.enum(["Multirotor", "Aeroplane", "Helicopter", "Hybrid/VTOL", "LighterThanAir", "Other"]).optional(),
   }).optional(),
   specs: z.object({
-    spanM: z.number().optional(),           // max characteristic dimension
-    tomKg: z.number().optional(),           // take-off mass
-    maxSpeedMs: z.number().optional(),      // maximum speed (m/s)
+    spanM: z.number().optional(),
+    tomKg: z.number().optional(),
+    maxSpeedMs: z.number().optional(),
   }).optional(),
   identifiers: z.object({
     serial: z.string().optional(),
-    uaReg: z.string().optional(), // UA registration mark (if applicable)
+    uaReg: z.string().optional(),
   }).optional(),
   certificates: z.object({
-    tc: z.string().optional(),    // type certificate
-    dvr: z.string().optional(),   // design verification report
-    cofa: z.string().optional(),  // certificate of airworthiness
-    noise: z.string().optional(), // noise certificate
+    tc: z.string().optional(),
+    dvr: z.string().optional(),
+    cofa: z.string().optional(),
+    noise: z.string().optional(),
   }).optional(),
 });
 
 /** Branding */
 export const BrandingSchema = z.object({
-  color: HexColor, // empty → default gray in renderer
+  color: HexColor,
   logoUrl: UrlStr.optional(),
 });
 
@@ -130,8 +130,8 @@ export const RecommendationsSchema = z.object({
 
 /** Findings */
 export const FindingSchema = z.object({
-  area: z.string().min(1),
-  defect: z.string().min(1),
+  area: z.string().optional(),
+  defect: z.string().optional(),
   severity: z.enum(["Minor", "Moderate", "Severe"]).optional(),
   recommendation: z.enum(["Monitor", "Repair", "Replace", "Further investigation"]).optional(),
   note: z.string().optional(),
@@ -144,6 +144,7 @@ export const ImageSchema = z.object({
   url: UrlStr,
   thumb: UrlStr.optional(),
   filename: z.string().optional(),
+  note: z.string().optional(), // NEW: per-image note in EASY
 });
 
 export const VideoSchema = z.object({
@@ -153,9 +154,9 @@ export const VideoSchema = z.object({
 });
 
 export const MediaSchema = z.object({
-  images: z.array(ImageSchema).min(1).max(200),
+  images: z.array(ImageSchema).max(200).default([]), // allow zero
   videos: z.array(VideoSchema).max(3).default([]),
-});
+}).default({ images: [], videos: [] });
 
 /** Prepared by / compliance */
 export const PreparedBySchema = z.object({
@@ -165,27 +166,27 @@ export const PreparedBySchema = z.object({
 }).optional();
 
 export const ComplianceSchema = z.object({
-  omRef: z.string().optional(),        // operations manual reference
-  evidenceRef: z.string().optional(),  // compliance evidence file reference
-  eventsNote: z.string().optional(),   // events to be reported note
+  omRef: z.string().optional(),
+  evidenceRef: z.string().optional(),
+  eventsNote: z.string().optional(),
   insuranceConfirmed: z.boolean().optional(),
 });
 
 /** Scope and areas */
 export const ScopeSchema = z.object({
-  types: z.array(ScopeTypeEnum).default([]),
+  types: z.array(ScopeTypeEnum).default(["General"]),
 });
 
 export const IntakeSchema = z.object({
   mode: ModeEnum.default("easy"),
-  tier: TierEnum.default("raw"), // NEW FIELD
+  tier: TierEnum.default("raw"),
 
-  contact: ContactSchema,
+  contact: ContactSchema.optional(),
   operator: OperatorSchema.optional(),
   authorisation: AuthorisationSchema.optional(),
 
   site: SiteSchema.optional(),
-  inspection: InspectionSchema,
+  inspection: InspectionSchema.optional(),
   weather: WeatherSchema.optional(),
   flight: FlightSchema.optional(),
   constraints: ConstraintsSchema.optional(),
@@ -194,7 +195,7 @@ export const IntakeSchema = z.object({
   equipment: EquipmentSchema.optional(),
   branding: BrandingSchema.optional(),
 
-  scope: ScopeSchema.optional(),
+  scope: ScopeSchema.default({ types: ["General"] }).optional(),
   areas: z.array(z.string()).optional(),
 
   summary: SummarySchema.optional(),
@@ -202,7 +203,7 @@ export const IntakeSchema = z.object({
 
   findings: z.array(FindingSchema).optional(),
 
-  media: MediaSchema,
+  media: MediaSchema, // defaults to {images:[], videos:[]}
 
   preparedBy: PreparedBySchema,
   compliance: ComplianceSchema.optional(),
@@ -210,29 +211,30 @@ export const IntakeSchema = z.object({
   notes: z.string().optional(),
 })
 .superRefine((data, ctx) => {
-  // Enforce hex color format only if present (already handled), ensure images exist (handled by min)
-  // Mode-based required fields
+  // Tier-based requirement: FULL requires an email
+  if (data.tier === "full" && !data.contact?.email) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Email is required for FULL tier.",
+      path: ["contact", "email"],
+    });
+  }
+
+  // Advanced mode strict requirements (unchanged)
   if (data.mode === "advanced") {
     const missing: string[] = [];
 
-    // Operator registration
     if (!data.operator?.registration) missing.push("operator.registration");
-
-    // Equipment basic identity
     if (!data.equipment?.drone?.manufacturer) missing.push("equipment.drone.manufacturer");
     if (!data.equipment?.drone?.model) missing.push("equipment.drone.model");
-
-    // Site address
     if (!data.site?.address) missing.push("site.address");
 
-    // Scope + at least one area
     const typesLen = data.scope?.types?.length ?? 0;
     if (typesLen < 1) missing.push("scope.types[≥1]");
 
     const areasLen = data.areas?.length ?? 0;
     if (areasLen < 1) missing.push("areas[≥1]");
 
-    // Weather, flight basics, constraints.heightLimitM
     if (!data.weather) missing.push("weather");
     if (!data.flight?.type) missing.push("flight.type");
     if (data.constraints?.heightLimitM == null) missing.push("constraints.heightLimitM");
