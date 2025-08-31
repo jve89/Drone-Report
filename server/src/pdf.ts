@@ -148,20 +148,37 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           .join("")
       : `<p class="muted">No findings entered. Raw report shows media in appendix.</p>`;
 
-  const pages = chunkArray(images, 24).map((page, idx) => {
-    const cells = page
-      .map(
-        (img) => `
-      <figure class="cell">
-        <img src="${esc(img.thumb || img.url)}" alt="${esc(img.filename || "")}"/>
-        <figcaption>${esc(img.filename || "")}</figcaption>
-      </figure>`
-      )
+  // --- MEDIA APPENDIX: 3 items per page, each item 60/40 figure (inline styles to defeat external CSS) ---
+  const PAGE_SIZE = 3;
+  const imagePages = chunkArray(images, PAGE_SIZE).map((page, idx) => {
+    const figures = page
+      .map((img) => {
+        const fn = esc(img.filename || "");
+        const src = esc(img.thumb || img.url);
+        return `
+        <figure style="
+          display:grid;
+          grid-template-columns:3fr 2fr; /* 60/40 */
+          gap:12px;
+          align-items:start;
+          border:1px solid #E5E7EB;
+          border-radius:4px;
+          padding:8px;
+          margin:0 0 12px 0;
+          page-break-inside:avoid;
+          break-inside:avoid;
+        ">
+          <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
+          <figcaption style="font-size:11px;color:#6B7280;word-break:break-all;margin:0;">
+            ${fn || "&nbsp;"}
+          </figcaption>
+        </figure>`;
+      })
       .join("");
     return `
     <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
       <h2>Media appendix — page ${idx + 1}</h2>
-      <div class="grid-24">${cells}</div>
+      <div>${figures}</div>
     </section>`;
   });
 
@@ -223,7 +240,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     .replaceAll("{{SUMMARY}}", summaryHtml)
     .replaceAll("{{METHODOLOGY}}", methodologyHtml)
     .replaceAll("{{FINDINGS}}", findingsHtml)
-    .replaceAll("{{APPENDIX_PAGES}}", pages.join("\n"))
+    .replaceAll("{{APPENDIX_PAGES}}", imagePages.join("\n"))
     .replaceAll("{{VIDEOS}}", videosList)
     .replaceAll("{{COMPLIANCE}}", complianceHtml);
 

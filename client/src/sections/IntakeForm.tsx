@@ -3,12 +3,16 @@ import { createDraft } from "../lib/api";
 import { initUploadcare, pickSingle, pickMultiple } from "../lib/uploadcare";
 
 type Mode = "easy" | "advanced";
+type Tier = "raw" | "full";
+type InspectionType = "Roof" | "Facade" | "Solar" | "Insurance" | "Progress" | "Other";
 
 type ImageItem = { url: string; filename?: string; thumb?: string };
 type VideoItem = { url: string; filename?: string; thumb?: string };
 
 type FormState = {
+  tier: Tier;
   mode: Mode;
+  scope?: { types?: string[] };      // Step 2 uses [selected]
   contact: { email: string; project: string; company: string; name?: string; phone?: string };
   inspection: { date: string };
   site: { address?: string; country?: string; mapImageUrl?: string };
@@ -17,7 +21,6 @@ type FormState = {
   flight?: { type?: "Manual" | "Automated"; altitudeMinM?: number; altitudeMaxM?: number; airtimeMin?: number; crewCount?: number };
   weather?: { tempC?: number; windMs?: number; precip?: string; cloud?: string };
   constraints?: { heightLimitM?: number };
-  scope?: { types?: string[] };
   areas?: string[];
   summary?: { condition?: string; urgency?: string; topIssues?: string[] };
   findings?: Array<{ area: string; defect: string; severity?: string; recommendation?: string; note?: string; imageRefs?: string[] }>;
@@ -27,8 +30,12 @@ type FormState = {
   notes?: string;
 };
 
+const TYPES: InspectionType[] = ["Roof","Facade","Solar","Insurance","Progress","Other"];
+
 const initialState: FormState = {
+  tier: "raw",
   mode: "easy",
+  scope: { types: ["Roof"] },
   contact: { email: "", project: "", company: "" },
   inspection: { date: "" },
   site: {},
@@ -117,19 +124,60 @@ export default function IntakeForm() {
         <h2 className="text-2xl font-semibold mb-4">Create report</h2>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Mode toggle */}
+          {/* Step 1 — Tier */}
+          <div>
+            <label className="block font-medium mb-1">Report tier</label>
+            <div className="flex items-center gap-4 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="tier"
+                  checked={state.tier === "raw"}
+                  onChange={() => setState(s => ({ ...s, tier: "raw" }))}
+                />
+                Raw
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="tier"
+                  checked={state.tier === "full"}
+                  onChange={() => setState(s => ({ ...s, tier: "full" }))}
+                />
+                Full (same PDF now; flags manual work)
+              </label>
+            </div>
+          </div>
+
+          {/* Step 2 — Inspection type */}
+          <div className="flex items-center gap-3">
+            <label className="font-medium">Inspection type</label>
+            <select
+              className="border rounded px-2 py-1"
+              value={state.scope?.types?.[0] || "Roof"}
+              onChange={(e) => {
+                const v = e.target.value as InspectionType;
+                setState(s => ({ ...s, scope: { types: [v] } }));
+              }}
+            >
+              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span className="text-sm text-gray-500">Used for template framing.</span>
+          </div>
+
+          {/* Step 3 — Mode */}
           <div className="flex items-center gap-3">
             <label className="font-medium">Mode</label>
             <select
               className="border rounded px-2 py-1"
               value={state.mode}
-              onChange={(e) => setState(s => ({ ...s, mode: e.target.value as Mode }))}
+              onChange={(e) => setState(s => ({ ...s, mode: (e.target.value as Mode) }))}
             >
               <option value="easy">Easy</option>
               <option value="advanced">Advanced</option>
             </select>
             <span className="text-sm text-gray-500">
-              Advanced pre-fills more sections. Skeleton is identical.
+              Advanced shows additional optional fields.
             </span>
           </div>
 
@@ -212,26 +260,7 @@ export default function IntakeForm() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium">Scope types*</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {["Roof","Facade","Solar","Insurance","Progress","Other"].map(t => (
-                    <label key={t} className="inline-flex items-center gap-1 text-sm border px-2 py-1 rounded">
-                      <input
-                        type="checkbox"
-                        checked={!!state.scope?.types?.includes(t)}
-                        onChange={(e) => setState(s => {
-                          const curr = new Set(s.scope?.types || []);
-                          e.target.checked ? curr.add(t) : curr.delete(t);
-                          return { ...s, scope: { types: [...curr] } };
-                        })}
-                      />
-                      {t}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
+              {/* Areas */}
               <div>
                 <label className="block text-sm font-medium">Areas*</label>
                 <input

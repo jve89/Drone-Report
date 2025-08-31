@@ -44,6 +44,7 @@
 ├── package-lock.json
 ├── Procfile
 ├── README.md
+├── report.pdf
 ├── server
 │   ├── dist
 │   │   ├── index.js
@@ -56,6 +57,7 @@
 │   │   │   └── report.html
 │   │   └── utils
 │   │       ├── chunkMedia.js
+│   │       ├── mailer.js
 │   │       └── validate.js
 │   ├── package.json
 │   ├── src
@@ -69,6 +71,7 @@
 │   │   │   └── report.html
 │   │   └── utils
 │   │       ├── chunkMedia.ts
+│   │       ├── mailer.ts
 │   │       └── validate.ts
 │   └── tsconfig.json
 └── shared
@@ -88,4 +91,4 @@
     └── types
         └── intake.ts
 
-25 directories, 63 files
+25 directories, 66 files

@@ -24,6 +24,7 @@ function readyUploadcare(): Promise<any> {
 export async function initUploadcare() {
   ensureScript();
   (window as any).UPLOADCARE_PUBLIC_KEY = UCARE_PUBLIC_KEY;
+  (window as any).uploadcare?.start?.({ publicKey: UCARE_PUBLIC_KEY });
 }
 
 export async function pickSingle(): Promise<string | null> {
