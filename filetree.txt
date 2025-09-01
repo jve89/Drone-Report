@@ -2,8 +2,8 @@
 ├── client
 │   ├── dist
 │   │   ├── assets
-│   │   │   ├── index-4FR7vqFT.js
-│   │   │   └── index-BPXMZoJ-.css
+│   │   │   ├── index-BNqzvQ6v.js
+│   │   │   └── index-nHEkv3R2.css
 │   │   ├── index.html
 │   │   └── logo.svg
 │   ├── index.html
@@ -20,6 +20,8 @@
 │   │   │   ├── api.ts
 │   │   │   └── uploadcare.ts
 │   │   ├── main.tsx
+│   │   ├── pages
+│   │   │   └── Annotate.tsx
 │   │   ├── sections
 │   │   │   ├── Hero.tsx
 │   │   │   ├── HowItWorks.tsx
@@ -51,12 +53,14 @@
 │   │   ├── pdf.js
 │   │   ├── routes
 │   │   │   ├── createDraft.js
+│   │   │   ├── drafts.js
 │   │   │   ├── health.js
 │   │   │   └── reports.js
 │   │   ├── templates
 │   │   │   └── report.html
 │   │   └── utils
 │   │       ├── chunkMedia.js
+│   │       ├── draftsStore.js
 │   │       ├── mailer.js
 │   │       └── validate.js
 │   ├── package.json
@@ -65,12 +69,14 @@
 │   │   ├── pdf.ts
 │   │   ├── routes
 │   │   │   ├── createDraft.ts
+│   │   │   ├── drafts.ts
 │   │   │   ├── health.ts
 │   │   │   └── reports.ts
 │   │   ├── templates
 │   │   │   └── report.html
 │   │   └── utils
 │   │       ├── chunkMedia.ts
+│   │       ├── draftsStore.ts
 │   │       ├── mailer.ts
 │   │       └── validate.ts
 │   └── tsconfig.json
@@ -91,4 +97,4 @@
     └── types
         └── intake.ts
 
-25 directories, 66 files
+26 directories, 71 files

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createDraft } from "../lib/api";
+import { createDraftRecord } from "../lib/api";
 import { initUploadcare, pickSingle, pickMultiple } from "../lib/uploadcare";
 
 type InspectionType = "General" | "Roof" | "Facade" | "Solar" | "Insurance" | "Progress" | "Other";
@@ -41,7 +41,6 @@ export default function IntakeForm() {
   const [state, setState] = useState<FormState>(initialState);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => { initUploadcare(); }, []);
 
@@ -74,21 +73,14 @@ export default function IntakeForm() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErr(null); setOk(null);
+    setErr(null);
     try {
       setBusy(true);
       const payload = cleanEmpty(state);
-      const blob = await createDraft(payload);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${state.contact?.project || "report"}.pdf`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      setOk("PDF downloaded.");
+      const draftId = await createDraftRecord(payload);
+      window.location.href = `/annotate/${encodeURIComponent(draftId)}`;
     } catch (e: any) {
-      setErr(e?.message || "Failed to create draft.");
-    } finally {
+      setErr(e?.message || "Failed to start draft.");
       setBusy(false);
     }
   };
@@ -115,7 +107,7 @@ export default function IntakeForm() {
             <span className="text-sm text-gray-500">Affects framing later.</span>
           </div>
 
-          {/* Contact (all optional) */}
+          {/* Contact (optional) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium">Project</label>
@@ -222,14 +214,13 @@ export default function IntakeForm() {
 
           {/* Status */}
           {err && <div className="text-red-600 text-sm">{err}</div>}
-          {ok && <div className="text-green-700 text-sm">{ok}</div>}
 
           <button
             type="submit"
             disabled={busy}
             className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
           >
-            {busy ? "Generating…" : "Create PDF"}
+            {busy ? "Starting…" : "Start annotation"}
           </button>
         </form>
       </div>
