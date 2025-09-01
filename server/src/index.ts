@@ -8,6 +8,7 @@ import express, { NextFunction, Request, Response } from "express";
 import fs from "node:fs";
 import healthRouter from "./routes/health";
 import createDraftRouter from "./routes/createDraft";
+import draftsRouter from "./routes/drafts";
 
 const app = express();
 app.set("trust proxy", true);
@@ -16,6 +17,7 @@ app.use(express.json({ limit: "50mb" }));
 // API routes
 app.use("/api", healthRouter);
 app.use("/api", createDraftRouter);
+app.use("/api", draftsRouter);
 
 // Static serving: SERVE_DIR → server/public → client/dist
 const candidates = [
