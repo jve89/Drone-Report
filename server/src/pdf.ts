@@ -146,11 +146,10 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
             </div>`;
           })
           .join("")
-      : `<p class="muted">No findings entered. Raw report shows media in appendix.</p>`;
+      : `<p class="muted">No findings provided.</p>`;
 
   // --- MEDIA APPENDIX ---
-  const isEasy = (intake.mode ?? "easy") === "easy";
-  const PAGE_SIZE = isEasy ? 1 : 3;
+  const PAGE_SIZE = 1;
 
   const imagePages =
     images.length > 0

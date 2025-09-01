@@ -1,14 +1,12 @@
 import { z } from "zod";
 
 /** Basic enums */
-export const ModeEnum = z.enum(["easy", "advanced"]);
 export const ConditionEnum = z.enum(["Excellent", "Good", "Fair", "Poor"]);
 export const UrgencyEnum = z.enum(["None", "Low", "Medium", "High", "Critical"]);
 export const ScopeTypeEnum = z.enum(["General", "Roof", "Facade", "Solar", "Insurance", "Progress", "Other"]);
 export const FlightTypeEnum = z.enum(["Manual", "Automated"]);
 export const ARCEnum = z.enum(["ARC-a", "ARC-b", "ARC-c", "ARC-d"]);
 export const MitigationLevelEnum = z.enum(["none", "low", "medium", "high"]);
-export const TierEnum = z.enum(["raw", "full"]);
 
 /** Reusable primitives */
 const UrlStr = z.string().url();
@@ -48,7 +46,7 @@ export const SiteSchema = z.object({
 });
 
 export const InspectionSchema = z.object({
-  date: z.string().optional(), // allow blank; renderer will show "—" if missing
+  date: z.string().optional(), // renderer shows "—" if missing
   time: z.string().optional(),
 });
 
@@ -144,7 +142,7 @@ export const ImageSchema = z.object({
   url: UrlStr,
   thumb: UrlStr.optional(),
   filename: z.string().optional(),
-  note: z.string().optional(), // NEW: per-image note in EASY
+  note: z.string().optional(),
 });
 
 export const VideoSchema = z.object({
@@ -177,10 +175,8 @@ export const ScopeSchema = z.object({
   types: z.array(ScopeTypeEnum).default(["General"]),
 });
 
+/** Intake */
 export const IntakeSchema = z.object({
-  mode: ModeEnum.default("easy"),
-  tier: TierEnum.default("raw"),
-
   contact: ContactSchema.optional(),
   operator: OperatorSchema.optional(),
   authorisation: AuthorisationSchema.optional(),
@@ -209,45 +205,6 @@ export const IntakeSchema = z.object({
   compliance: ComplianceSchema.optional(),
 
   notes: z.string().optional(),
-})
-.superRefine((data, ctx) => {
-  // Tier-based requirement: FULL requires an email
-  if (data.tier === "full" && !data.contact?.email) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Email is required for FULL tier.",
-      path: ["contact", "email"],
-    });
-  }
-
-  // Advanced mode strict requirements (unchanged)
-  if (data.mode === "advanced") {
-    const missing: string[] = [];
-
-    if (!data.operator?.registration) missing.push("operator.registration");
-    if (!data.equipment?.drone?.manufacturer) missing.push("equipment.drone.manufacturer");
-    if (!data.equipment?.drone?.model) missing.push("equipment.drone.model");
-    if (!data.site?.address) missing.push("site.address");
-
-    const typesLen = data.scope?.types?.length ?? 0;
-    if (typesLen < 1) missing.push("scope.types[≥1]");
-
-    const areasLen = data.areas?.length ?? 0;
-    if (areasLen < 1) missing.push("areas[≥1]");
-
-    if (!data.weather) missing.push("weather");
-    if (!data.flight?.type) missing.push("flight.type");
-    if (data.constraints?.heightLimitM == null) missing.push("constraints.heightLimitM");
-    if (!data.preparedBy?.name) missing.push("preparedBy.name");
-
-    if (missing.length) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Advanced mode missing required fields: ${missing.join(", ")}`,
-        path: ["mode"],
-      });
-    }
-  }
 });
 
 export type Intake = z.infer<typeof IntakeSchema>;

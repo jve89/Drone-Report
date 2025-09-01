@@ -15,7 +15,7 @@ router.post("/create-draft", async (req, res, next) => {
     const html = await buildReportHtml(intake);
 
     const filenameBase =
-      (intake?.contact?.project?.trim().replace(/[^\w\-]+/g, "_")) || "report";
+      intake?.contact?.project?.trim().replace(/[^\w\-]+/g, "_") || "report";
     const pdfBuffer = await renderPdfViaGotenberg(html);
 
     // Respond to client first
@@ -26,18 +26,15 @@ router.post("/create-draft", async (req, res, next) => {
     );
     res.status(200).send(pdfBuffer);
 
-    // Fire-and-forget admin email
-    const tier = intake.tier || "raw";
-    const tag = tier === "full" ? "[FULL]" : "[RAW]";
-
+    // Fire-and-forget admin email (no tiers)
     const project = intake.contact?.project || "Untitled project";
     const company = intake.contact?.company || "—";
     const email = intake.contact?.email || "—";
     const date = intake.inspection?.date || "";
 
-    const subject = `${tag} ${project} — ${company}`;
+    const subject = `${project} — ${company}`;
     const body = `
-      <p>New ${tier.toUpperCase()} report generated.</p>
+      <p>New report generated.</p>
       <ul>
         <li><strong>Project:</strong> ${project}</li>
         <li><strong>Company:</strong> ${company}</li>

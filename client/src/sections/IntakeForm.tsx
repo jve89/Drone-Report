@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createDraft } from "../lib/api";
 import { initUploadcare, pickSingle, pickMultiple } from "../lib/uploadcare";
 
-type Mode = "easy" | "advanced";
-type Tier = "raw" | "full";
 type InspectionType = "General" | "Roof" | "Facade" | "Solar" | "Insurance" | "Progress" | "Other";
 
 type ImageItem = { url: string; filename?: string; thumb?: string; note?: string };
 type VideoItem = { url: string; filename?: string; thumb?: string };
 
 type FormState = {
-  tier: Tier;
-  mode: Mode;
   scope?: { types?: string[] };
   contact?: { email?: string; project?: string; company?: string; name?: string; phone?: string };
   inspection?: { date?: string };
@@ -33,8 +29,6 @@ type FormState = {
 const TYPES: InspectionType[] = ["General","Roof","Facade","Solar","Insurance","Progress","Other"];
 
 const initialState: FormState = {
-  tier: "raw",
-  mode: "easy",
   scope: { types: ["General"] },
   contact: { email: "", project: "", company: "" },
   inspection: { date: "" },
@@ -43,26 +37,6 @@ const initialState: FormState = {
   media: { images: [] },
 };
 
-function missingEasy(s: FormState): string[] {
-  // Only enforce email when FULL tier
-  const m: string[] = [];
-  if (s.tier === "full" && !s.contact?.email) m.push("Email (required for FULL)");
-  return m;
-}
-
-function missingAdvanced(s: FormState): string[] {
-  // Keep existing stricter checks for advanced mode
-  const m: string[] = [];
-  if (!s.site?.address) m.push("Site address");
-  if (!s.equipment?.drone?.manufacturer) m.push("Drone manufacturer");
-  if (!s.equipment?.drone?.model) m.push("Drone model");
-  if (!s.scope?.types || s.scope.types.length < 1) m.push("Scope type");
-  if (!s.areas || s.areas.length < 1) m.push("At least 1 area");
-  if (!s.constraints?.heightLimitM && s.constraints?.heightLimitM !== 0) m.push("Height limit");
-  if (!s.preparedBy?.name) m.push("Prepared by name");
-  return m;
-}
-
 export default function IntakeForm() {
   const [state, setState] = useState<FormState>(initialState);
   const [busy, setBusy] = useState(false);
@@ -70,10 +44,6 @@ export default function IntakeForm() {
   const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => { initUploadcare(); }, []);
-
-  const missing = useMemo(() => {
-    return state.mode === "easy" ? missingEasy(state) : missingAdvanced(state);
-  }, [state]);
 
   const onPickLogo = async () => {
     const url = await pickSingle();
@@ -91,7 +61,6 @@ export default function IntakeForm() {
     const files = await pickMultiple(200);
     const valid = files.filter(f => /^https?:\/\//i.test(f.url));
     if (!valid.length) return;
-    // preserve existing, append new up to 200
     setState(s => ({ ...s, media: { images: [...(s.media.images || []), ...valid].slice(0, 200) } }));
   };
 
@@ -106,11 +75,8 @@ export default function IntakeForm() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null); setOk(null);
-    const miss = missing;
-    if (miss.length) { setErr("Missing: " + miss.join(", ")); return; }
     try {
       setBusy(true);
-      // Trim empty strings to reduce noise
       const payload = cleanEmpty(state);
       const blob = await createDraft(payload);
       const url = URL.createObjectURL(blob);
@@ -133,32 +99,7 @@ export default function IntakeForm() {
         <h2 className="text-2xl font-semibold mb-4">Create report</h2>
 
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Step 1 — Tier */}
-          <div>
-            <label className="block font-medium mb-1">Report tier</label>
-            <div className="flex items-center gap-4 text-sm">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="tier"
-                  checked={state.tier === "raw"}
-                  onChange={() => setState(s => ({ ...s, tier: "raw" }))}
-                />
-                Raw
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="tier"
-                  checked={state.tier === "full"}
-                  onChange={() => setState(s => ({ ...s, tier: "full" }))}
-                />
-                Full (email required)
-              </label>
-            </div>
-          </div>
-
-          {/* Step 2 — Inspection type */}
+          {/* Inspection type */}
           <div className="flex items-center gap-3">
             <label className="font-medium">Inspection type</label>
             <select
@@ -171,24 +112,10 @@ export default function IntakeForm() {
             >
               {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <span className="text-sm text-gray-500">Used for template framing.</span>
+            <span className="text-sm text-gray-500">Affects framing later.</span>
           </div>
 
-          {/* Step 3 — Mode */}
-          <div className="flex items-center gap-3">
-            <label className="font-medium">Mode</label>
-            <select
-              className="border rounded px-2 py-1"
-              value={state.mode}
-              onChange={(e) => setState(s => ({ ...s, mode: (e.target.value as Mode) }))}
-            >
-              <option value="easy">Easy</option>
-              <option value="advanced">Advanced</option>
-            </select>
-            <span className="text-sm text-gray-500">Advanced adds pro fields.</span>
-          </div>
-
-          {/* Contact (all optional; email required only for FULL) */}
+          {/* Contact (all optional) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium">Project</label>
@@ -201,7 +128,7 @@ export default function IntakeForm() {
                 onChange={(e) => setState(s => ({ ...s, contact: { ...(s.contact || {}), company: e.target.value } }))} />
             </div>
             <div>
-              <label className="block text-sm font-medium">Email {state.tier === "full" ? "(required)" : "(optional)"}</label>
+              <label className="block text-sm font-medium">Email</label>
               <input className="w-full border rounded px-2 py-1" type="email" value={state.contact?.email || ""}
                 onChange={(e) => setState(s => ({ ...s, contact: { ...(s.contact || {}), email: e.target.value } }))} />
             </div>
@@ -244,7 +171,6 @@ export default function IntakeForm() {
               {state.media.images?.length ? <span className="text-xs">{state.media.images.length} selected</span> : <span className="text-xs text-gray-500">Optional</span>}
             </div>
 
-            {/* Per-image editor */}
             {state.media.images?.length > 0 && (
               <div className="mt-3 space-y-3">
                 {state.media.images.map((img, idx) => (
@@ -295,11 +221,6 @@ export default function IntakeForm() {
           </div>
 
           {/* Status */}
-          {missing.length > 0 && (
-            <div className="text-amber-700 text-sm">
-              {missing.join(", ")}
-            </div>
-          )}
           {err && <div className="text-red-600 text-sm">{err}</div>}
           {ok && <div className="text-green-700 text-sm">{ok}</div>}
 
@@ -308,7 +229,7 @@ export default function IntakeForm() {
             disabled={busy}
             className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
           >
-            {busy ? "Generating…" : "Create PDF draft"}
+            {busy ? "Generating…" : "Create PDF"}
           </button>
         </form>
       </div>
@@ -322,7 +243,7 @@ function cleanEmpty<T>(obj: T): T {
   if (Array.isArray(obj)) {
     const arr = obj.map(cleanEmpty).filter(v => !(v == null || (typeof v === "object" && Object.keys(v as any).length === 0)));
     return arr as unknown as T;
-    }
+  }
   if (typeof obj === "object") {
     const out: any = {};
     for (const [k, v] of Object.entries(obj as any)) {
