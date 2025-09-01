@@ -9,92 +9,57 @@
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif; color: #111827; margin: 0; }
   .container { width: 100%; max-width: 900px; margin: 0 auto; padding: 24px; }
+
   h1 { font-size: 28px; margin: 8px 0 4px; }
   h2 { font-size: 20px; margin: 0 0 12px; border-left: 4px solid var(--theme); padding-left: 8px; }
   h3 { font-size: 16px; margin: 12px 0 6px; }
   p { line-height: 1.5; margin: 8px 0; }
   .muted { color: #6B7280; }
   .small { font-size: 12px; }
+
   .badge { display: inline-block; padding: 2px 8px; font-size: 12px; border-radius: 999px; background: #F3F4F6; margin-right: 6px; }
   .badge.warn { background: #FEF3C7; }
   .badge.info { background: #DBEAFE; }
   .chip { display: inline-block; padding: 2px 8px; font-size: 12px; border-radius: 999px; background: #F3F4F6; margin: 0 6px 6px 0; }
   .chip.muted { background: #F9FAFB; color: #6B7280; border: 1px solid #E5E7EB; }
-  header.cover { padding: 32px 0 24px; border-bottom: 2px solid var(--theme); display: flex; align-items: center; gap: 16px; }
-  header.cover img.logo { height: 48px; width: auto; }
-  .meta { color: #374151; }
+
   .card { margin: 20px 0; padding: 16px; border: 1px solid #E5E7EB; border-radius: 8px; }
   .grid.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Cover */
+  .cover { padding: 48px 0 24px; }
+  .cover .top { display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center; }
+  .cover .top > :first-child { width: 96px; height: 64px; display: flex; align-items: center; justify-content: center; }
+  .cover img.logo { display: block; max-width: 100%; max-height: 100%; height: auto; width: auto; object-fit: contain; }
+  .cover .meta { color: #374151; }
+  .cover .counts { margin-top: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .cover .count { border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px; text-align: center; }
+  .cover .count .label { font-size: 12px; color: #6B7280; }
+  .cover .count .value { font-size: 18px; font-weight: 600; margin-top: 4px; }
+  .page-break { page-break-before: always; }
+
   .map img { width: 100%; height: auto; border: 1px solid #E5E7EB; border-radius: 8px; }
   table.kv { border-collapse: collapse; width: 100%; }
   table.kv th, table.kv td { font-size: 13px; text-align: left; padding: 4px 6px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+
   .finding { margin: 16px 0; padding: 12px; border: 1px dashed #E5E7EB; border-radius: 8px; }
   .badges { margin: 6px 0; }
-  .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
-  .thumb { width: 96px; height: 72px; object-fit: cover; border: 1px solid #E5E7EB; border-radius: 4px; }
-  .appendix-page { margin-top: 24px; }
-  .page-break { page-break-before: always; }
 
-  /* === MEDIA CARD SCOPED OVERRIDES === */
   #media * { box-sizing: border-box; }
-  /* Make ANY <figure> inside media a 2-col grid (robust to unknown inner classes) */
-  #media figure {
-    display: grid !important;
-    grid-template-columns: 3fr 2fr !important; /* 60/40 */
-    gap: 12px !important;
-    align-items: start !important;
-    margin: 0 !important;
-  }
-  #media figure > img {
-    width: 100% !important;
-    height: auto !important;
-    object-fit: contain !important;
-    border-radius: 3px !important;
-  }
-  #media figure > figcaption {
-    font-size: 11px !important;
-    color: #6B7280 !important;
-    margin: 0 !important;
-    word-break: break-all !important;
-  }
-  /* Make each top-level media item block avoid splitting and enforce 3 per page */
-  #media .cell, #media .media-item, #media .appendix-item, #media figure {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    border: 1px solid #E5E7EB;
-    border-radius: 4px;
-    padding: 8px;
-    margin-bottom: 12px;
-  }
-  #media .cell:nth-of-type(3n),
-  #media .media-item:nth-of-type(3n),
-  #media .appendix-item:nth-of-type(3n),
-  /* if items are just figures */
-  #media > *:nth-of-type(3n) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-  /* Kill any fixed thumbnail heights inside #media */
-  #media img[style*="height"], #media .thumb, #media .cell img {
-    height: auto !important;
-    object-fit: contain !important;
-  }
+  #media figure { display: grid !important; grid-template-columns: 3fr 2fr !important; gap: 12px !important; align-items: start !important; margin: 0 !important; }
+  #media figure > img { width: 100% !important; height: auto !important; object-fit: contain !important; border-radius: 3px !important; }
+  #media figure > figcaption { font-size: 11px !important; color: #6B7280 !important; margin: 0 !important; word-break: break-all !important; }
+  #media .cell, #media .media-item, #media .appendix-item, #media figure { page-break-inside: avoid !important; break-inside: avoid !important; border: 1px solid #E5E7EB; border-radius: 4px; padding: 8px; margin-bottom: 12px; }
+  #media .cell:nth-of-type(3n), #media .media-item:nth-of-type(3n), #media .appendix-item:nth-of-type(3n), #media > *:nth-of-type(3n) { page-break-after: always !important; break-after: page !important; }
+  #media img[style*="height"], #media .thumb, #media .cell img { height: auto !important; object-fit: contain !important; }
 
   footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 12px; }
 </style>
 </head>
 <body>
   <div class="container">
-    <header class="cover">
-      {{LOGO_TAG}}
-      <div>
-        <h1>{{PROJECT}}</h1>
-        <div class="meta">
-          <div><strong>Client:</strong> {{COMPANY}}</div>
-          <div><strong>Date:</strong> {{DATE}} · <strong>Location:</strong> {{LOCATION}}</div>
-        </div>
-      </div>
-    </header>
+    {{COVER}}
+    <div class="page-break"></div>
 
     {{SUMMARY}}
     {{METHODOLOGY}}
@@ -107,8 +72,6 @@
     <div class="card" id="media">
       <h2>Media appendix</h2>
       {{APPENDIX_PAGES}}
-      <h3>Videos</h3>
-      {{VIDEOS}}
     </div>
 
     <div class="card">

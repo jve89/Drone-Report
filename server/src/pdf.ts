@@ -21,6 +21,15 @@ async function loadTemplate(): Promise<string> {
   return fs.readFile(p, "utf8");
 }
 
+function severityBuckets(findings: any[]) {
+  const buckets: Record<string, number> = { Low: 0, Medium: 0, High: 0, Critical: 0 };
+  for (const f of findings || []) {
+    const s = (f?.severity ?? "").toString();
+    if (buckets[s] !== undefined) buckets[s]++;
+  }
+  return buckets;
+}
+
 /**
  * Build HTML by injecting intake fields into template.
  */
@@ -29,14 +38,54 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
 
   const color = themeColor(intake.branding?.color);
   const logoTag = intake.branding?.logoUrl ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo"/>` : "";
-  const mapUrl = intake.site?.mapImageUrl || "";
   const dateStr = fmt(intake.inspection?.date);
-  const project = esc(intake.contact?.project || "");
-  const company = esc(intake.contact?.company || "");
+  const project = esc(intake.contact?.project || "Inspection report");
+  const company = esc(intake.contact?.company || "—");
   const location = esc(intake.site?.address || "");
-  const videos = intake.media?.videos ?? [];
-  const images = intake.media?.images ?? [];
+  const inspectionType = esc((intake.scope?.types && intake.scope.types[0]) || "General");
 
+  const images = intake.media?.images ?? [];
+  // videos removed from layout in M1
+  const findings = (intake as any).findings || [];
+  const sev = severityBuckets(findings);
+  const totalImages = images.length;
+
+  // --- COVER PAGE ---
+  const coverHtml = `
+  <section class="cover">
+    <div class="top">
+      ${logoTag || `<div></div>`}
+      <div>
+        <h1>${project}</h1>
+        <div class="meta">
+          <div><strong>Client:</strong> ${company}</div>
+          <div><strong>Date:</strong> ${esc(dateStr)} · <strong>Location:</strong> ${location || "—"}</div>
+          <div><strong>Inspection type:</strong> ${inspectionType}</div>
+          <div><strong>Images:</strong> ${totalImages}</div>
+        </div>
+      </div>
+    </div>
+    <div class="counts">
+      <div class="count">
+        <div class="label">Low</div>
+        <div class="value">${sev.Low}</div>
+      </div>
+      <div class="count">
+        <div class="label">Medium</div>
+        <div class="value">${sev.Medium}</div>
+      </div>
+      <div class="count">
+        <div class="label">High</div>
+        <div class="value">${sev.High}</div>
+      </div>
+      <div class="count">
+        <div class="label">Critical</div>
+        <div class="value">${sev.Critical}</div>
+      </div>
+    </div>
+  </section>`;
+
+  const mapUrl = intake.site?.mapImageUrl || "";
   const summaryHtml =
     intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length
       ? `
@@ -121,27 +170,24 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     </div>
   </div>`;
 
-  const findings = intake.findings || [];
   const findingsHtml =
     findings.length > 0
       ? findings
-          .map((f) => {
-            const thumbs = (f.imageRefs || [])
-              .map((id) => {
-                const img = images.find((i) => i.id === id || i.filename === id || i.url === id);
-                if (!img) return "";
-                const src = img.thumb || img.url;
-                return `<img class="thumb" src="${esc(src)}" alt="${esc(img.filename || "image")}"/>`;
-              })
-              .join("");
+          .map((f: any) => {
+            const thumbs = (f.imageRefs || [f.imageUrl]).map((id: string) => {
+              const img = images.find((i) => i.id === id || i.filename === id || i.url === id);
+              if (!img) return "";
+              const src = img.thumb || img.url;
+              return `<img class="thumb" src="${esc(src)}" alt="${esc(img.filename || "image")}"/>`;
+            }).join("");
             return `
             <div class="finding">
-              <h3>${esc(f.area || "Area")} · ${esc(f.defect || "Observation")}</h3>
+              <h3>${esc((f.area || "Finding"))}</h3>
               <div class="badges">
                 ${f.severity ? `<span class="badge">${esc(f.severity)}</span>` : ""}
-                ${f.recommendation ? `<span class="badge info">${esc(f.recommendation)}</span>` : ""}
+                ${f.issue ? `<span class="badge info">${esc(f.issue)}</span>` : ""}
               </div>
-              ${f.note ? `<p>${esc(f.note)}</p>` : ""}
+              ${f.comment ? `<p>${esc(f.comment)}</p>` : ""}
               ${thumbs ? `<div class="thumbs">${thumbs}</div>` : ""}
             </div>`;
           })
@@ -150,16 +196,14 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
 
   // --- MEDIA APPENDIX ---
   const PAGE_SIZE = 1;
-
   const imagePages =
     images.length > 0
       ? chunkArray(images, PAGE_SIZE).map((page, idx) => {
-          const figures = page
-            .map((img, i) => {
-              const fn = esc(img.filename || "");
-              const note = esc((img as any).note || "");
-              const src = esc(img.thumb || img.url);
-              return `
+          const figures = page.map((img) => {
+            const fn = esc(img.filename || "");
+            const note = esc((img as any).note || "");
+            const src = esc(img.thumb || img.url);
+            return `
         <figure style="
           display:grid;
           grid-template-columns:3fr 2fr; /* 60/40 */
@@ -175,52 +219,27 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
           <figcaption style="font-size:11px;color:#374151;word-break:break-all;margin:0;">
             <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
-            ${
-              note
-                ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>`
-                : `<div style="color:#9CA3AF;">&nbsp;</div>`
-            }
+            ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
           </figcaption>
         </figure>`;
-            })
-            .join("");
+          }).join("");
           return `
     <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
       <h2>Media appendix — page ${idx + 1}</h2>
       <div>${figures}</div>
     </section>`;
         })
-      : [
-          `
-    <section class="appendix-page">
-      <h2>Media appendix</h2>
-      <p class="muted">No media supplied.</p>
-    </section>`,
-        ];
-
-  const videosList =
-    videos.length > 0
-      ? `<ul>${videos
-          .map(
-            (v) =>
-              `<li><strong>${esc(v.filename || "video")}</strong>: <a href="${esc(v.url)}">${esc(v.url)}</a></li>`
-          )
-          .join("")}</ul>`
-      : `<p class="muted">No videos.</p>`;
+      : [`<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`];
 
   const complianceHtml = `
-    <p><strong>Operator:</strong> ${esc(intake.operator?.name || "")} ${esc(
-    intake.operator?.registration || ""
-  )}</p>
+    <p><strong>Operator:</strong> ${esc(intake.operator?.name || "")} ${esc(intake.operator?.registration || "")}</p>
     ${
       intake.operator?.responsibleContact?.name ||
       intake.operator?.responsibleContact?.email ||
       intake.operator?.responsibleContact?.phone
-        ? `<p><strong>Responsible:</strong> ${esc(
-            intake.operator?.responsibleContact?.name || ""
-          )} ${esc(intake.operator?.responsibleContact?.email || "")} ${esc(
-            intake.operator?.responsibleContact?.phone || ""
-          )}</p>`
+        ? `<p><strong>Responsible:</strong> ${esc(intake.operator?.responsibleContact?.name || "")} ${esc(
+            intake.operator?.responsibleContact?.email || ""
+          )} ${esc(intake.operator?.responsibleContact?.phone || "")}</p>`
         : ""
     }
     ${
@@ -228,36 +247,23 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
         ? `<p><strong>Insurance:</strong> confirmed</p>`
         : `<p class="muted">Insurance not declared.</p>`
     }
-    ${
-      intake.compliance?.omRef
-        ? `<p><strong>OM ref:</strong> ${esc(intake.compliance.omRef)}</p>`
-        : ""
-    }
-    ${
-      intake.compliance?.evidenceRef
-        ? `<p><strong>Evidence:</strong> ${esc(intake.compliance.evidenceRef)}</p>`
-        : ""
-    }
-    ${
-      intake.compliance?.eventsNote
-        ? `<p><strong>Events note:</strong> ${esc(intake.compliance.eventsNote)}</p>`
-        : ""
-    }
+    ${intake.compliance?.omRef ? `<p><strong>OM ref:</strong> ${esc(intake.compliance.omRef)}</p>` : ""}
+    ${intake.compliance?.evidenceRef ? `<p><strong>Evidence:</strong> ${esc(intake.compliance.evidenceRef)}</p>` : ""}
+    ${intake.compliance?.eventsNote ? `<p><strong>Events note:</strong> ${esc(intake.compliance.eventsNote)}</p>` : ""}
     <p class="muted small">Documents retained ≥ 2 years per ops policy.</p>
   `;
 
   let html = tpl
     .replaceAll("{{THEME_COLOR}}", color)
+    .replaceAll("{{COVER}}", coverHtml)
     .replaceAll("{{PROJECT}}", project)
     .replaceAll("{{COMPANY}}", company)
     .replaceAll("{{DATE}}", esc(dateStr))
     .replaceAll("{{LOCATION}}", location || "—")
-    .replaceAll("{{LOGO_TAG}}", logoTag)
     .replaceAll("{{SUMMARY}}", summaryHtml)
     .replaceAll("{{METHODOLOGY}}", methodologyHtml)
     .replaceAll("{{FINDINGS}}", findingsHtml)
     .replaceAll("{{APPENDIX_PAGES}}", imagePages.join("\n"))
-    .replaceAll("{{VIDEOS}}", videosList)
     .replaceAll("{{COMPLIANCE}}", complianceHtml);
 
   return html;
