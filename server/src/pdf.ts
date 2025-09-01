@@ -3,36 +3,22 @@ import path from "node:path";
 import { chunkArray } from "./utils/chunkMedia";
 import type { Intake } from "@drone-report/shared/dist/types/intake";
 
-// Helpers
 function esc(s?: string) {
   return (s ?? "").replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as any)[c]
   );
 }
-function fmt(val?: unknown) {
-  if (val === undefined || val === null || val === "") return "—";
-  return String(val);
-}
-function themeColor(hex?: string) {
-  return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280";
-}
-async function loadTemplate(): Promise<string> {
-  const p = path.join(__dirname, "templates", "report.html");
-  return fs.readFile(p, "utf8");
-}
+function fmt(val?: unknown) { if (val === undefined || val === null || val === "") return "—"; return String(val); }
+function themeColor(hex?: string) { return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280"; }
+async function loadTemplate(): Promise<string> { const p = path.join(__dirname, "templates", "report.html"); return fs.readFile(p, "utf8"); }
 
 function severityBuckets(findings: any[]) {
   const buckets: Record<string, number> = { Low: 0, Medium: 0, High: 0, Critical: 0 };
-  for (const f of findings || []) {
-    const s = (f?.severity ?? "").toString();
-    if (buckets[s] !== undefined) buckets[s]++;
-  }
+  for (const f of findings || []) { const s = (f?.severity ?? "").toString(); if (buckets[s] !== undefined) buckets[s]++; }
   return buckets;
 }
+const SEV_ORDER: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, None: 0 };
 
-/**
- * Build HTML by injecting intake fields into template.
- */
 export async function buildReportHtml(intake: Intake): Promise<string> {
   const tpl = await loadTemplate();
 
@@ -45,12 +31,13 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const inspectionType = esc((intake.scope?.types && intake.scope.types[0]) || "General");
 
   const images = intake.media?.images ?? [];
-  // videos removed from layout in M1
   const findings = (intake as any).findings || [];
   const sev = severityBuckets(findings);
   const totalImages = images.length;
 
-  // --- COVER PAGE ---
+  const PAGE_SIZE = 1; // appendix: 1 image per page
+
+  // COVER
   const coverHtml = `
   <section class="cover">
     <div class="top">
@@ -66,43 +53,79 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
       </div>
     </div>
     <div class="counts">
-      <div class="count">
-        <div class="label">Low</div>
-        <div class="value">${sev.Low}</div>
-      </div>
-      <div class="count">
-        <div class="label">Medium</div>
-        <div class="value">${sev.Medium}</div>
-      </div>
-      <div class="count">
-        <div class="label">High</div>
-        <div class="value">${sev.High}</div>
-      </div>
-      <div class="count">
-        <div class="label">Critical</div>
-        <div class="value">${sev.Critical}</div>
-      </div>
+      <div class="count"><div class="label">Low</div><div class="value">${sev.Low}</div></div>
+      <div class="count"><div class="label">Medium</div><div class="value">${sev.Medium}</div></div>
+      <div class="count"><div class="label">High</div><div class="value">${sev.High}</div></div>
+      <div class="count"><div class="label">Critical</div><div class="value">${sev.Critical}</div></div>
     </div>
   </section>`;
 
-  const mapUrl = intake.site?.mapImageUrl || "";
-  const summaryHtml =
-    intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length
-      ? `
+  // SUMMARY
+  const hasSummary = Boolean(intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length);
+  const summaryBullets = (intake.summary?.topIssues || []).map(t => `<li>${esc(t)}</li>`).join("");
+  const summaryHtml = hasSummary
+    ? `
   <div class="card">
     <h2>Executive summary</h2>
     <div class="badges">
       ${intake.summary?.condition ? `<span class="badge">${esc(intake.summary.condition)}</span>` : ""}
       ${intake.summary?.urgency ? `<span class="badge warn">${esc(intake.summary.urgency)}</span>` : ""}
     </div>
-    ${
-      (intake.summary?.topIssues || [])
-        .map((t) => `<li>${esc(t)}</li>`)
-        .join("") || `<p class="muted">No summary provided.</p>`
-    }
+    ${summaryBullets ? `<ul class="bullets">${summaryBullets}</ul>` : `<p class="muted">No summary provided.</p>`}
   </div>`
-      : `<div class="card"><h2>Executive summary</h2><p class="muted">No summary provided.</p></div>`;
+    : `<div class="card"><h2>Executive summary</h2><p class="muted">No summary provided.</p></div>`;
 
+  // OVERVIEW TABLE
+  const imageIndex = new Map<string, number>(); // url -> index
+  images.forEach((img, idx) => { imageIndex.set(img.url, idx); });
+  const pageFor = (url?: string): string | number => {
+    if (!url || !imageIndex.has(url)) return "—";
+    const idx = imageIndex.get(url)!;
+    return Math.floor(idx / PAGE_SIZE) + 1;
+    };
+
+  const overviewRows = (findings as any[])
+    .map(f => {
+      const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
+      const img = images.find(i => i.url === url) || null;
+      return {
+        imageUrl: url,
+        filename: img?.filename || "",
+        severity: f.severity || "None",
+        issue: f.issue || "",
+        comment: f.comment || "",
+        page: pageFor(url),
+      };
+    })
+    .sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0));
+
+  const overviewHtml = overviewRows.length
+    ? `
+<table class="overview">
+  <thead>
+    <tr>
+      <th style="width:26%">Image</th>
+      <th style="width:12%">Severity</th>
+      <th style="width:22%">Issue</th>
+      <th>Comment</th>
+      <th style="width:8%">Page</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${overviewRows.map(r => `
+      <tr>
+        <td>${esc(r.filename || r.imageUrl || "")}</td>
+        <td>${esc(r.severity)}</td>
+        <td>${esc(r.issue)}</td>
+        <td>${esc(r.comment)}</td>
+        <td>${r.page}</td>
+      </tr>`).join("")}
+  </tbody>
+</table>`
+    : `<p class="muted">No annotations added.</p>`;
+
+  // METHODOLOGY (unchanged content, improved styles inherit)
+  const mapUrl = intake.site?.mapImageUrl || "";
   const equip = intake.equipment;
   const auth = intake.authorisation;
   const weather = intake.weather;
@@ -152,84 +175,60 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
           <tr><th>Altitude</th><td>${fmt(flight?.altitudeMinM)}–${fmt(flight?.altitudeMaxM)} m</td></tr>
           <tr><th>Airtime</th><td>${fmt(flight?.airtimeMin)} min</td></tr>
           <tr><th>Crew</th><td>${fmt(flight?.crewCount)}</td></tr>
-          <tr><th>Weather</th><td>${fmt(weather?.tempC)}°C, wind ${fmt(weather?.windMs)} m/s, ${fmt(
-    weather?.precip
-  )}, ${fmt(weather?.cloud)}</td></tr>
+          <tr><th>Weather</th><td>${fmt(weather?.tempC)}°C, wind ${fmt(weather?.windMs)} m/s, ${fmt(weather?.precip)}, ${fmt(weather?.cloud)}</td></tr>
         </table>
       </div>
       <div>
         <h3>Risk & Authorisation</h3>
-        <p><strong>Ground risk:</strong> ${fmt(risk?.ground?.characterisation)}; mitigations ${fmt(
-    risk?.ground?.mitigations
-  )}; ERP ${fmt(risk?.ground?.ERP)}</p>
-        <p><strong>Air risk (ARC):</strong> op ${fmt(risk?.air?.residualARC?.operational)}, adj ${fmt(
-    risk?.air?.residualARC?.adjacent
-  )}; strategic ${fmt(risk?.air?.strategic)}</p>
+        <p><strong>Ground risk:</strong> ${fmt(risk?.ground?.characterisation)}; mitigations ${fmt(risk?.ground?.mitigations)}; ERP ${fmt(risk?.ground?.ERP)}</p>
+        <p><strong>Air risk (ARC):</strong> op ${fmt(risk?.air?.residualARC?.operational)}, adj ${fmt(risk?.air?.residualARC?.adjacent)}; strategic ${fmt(risk?.air?.strategic)}</p>
         <p><strong>Authorisation:</strong> ${fmt(auth?.number)} ${auth?.expires ? `(exp ${esc(auth.expires)})` : ""}</p>
       </div>
     </div>
   </div>`;
 
-  const findingsHtml =
-    findings.length > 0
-      ? findings
-          .map((f: any) => {
-            const thumbs = (f.imageRefs || [f.imageUrl]).map((id: string) => {
-              const img = images.find((i) => i.id === id || i.filename === id || i.url === id);
-              if (!img) return "";
-              const src = img.thumb || img.url;
-              return `<img class="thumb" src="${esc(src)}" alt="${esc(img.filename || "image")}"/>`;
-            }).join("");
-            return `
-            <div class="finding">
-              <h3>${esc((f.area || "Finding"))}</h3>
-              <div class="badges">
-                ${f.severity ? `<span class="badge">${esc(f.severity)}</span>` : ""}
-                ${f.issue ? `<span class="badge info">${esc(f.issue)}</span>` : ""}
-              </div>
-              ${f.comment ? `<p>${esc(f.comment)}</p>` : ""}
-              ${thumbs ? `<div class="thumbs">${thumbs}</div>` : ""}
-            </div>`;
-          })
-          .join("")
-      : `<p class="muted">No findings provided.</p>`;
+  // Legacy simple findings list (kept until M4)
+  const findingsHtml = findings.length
+    ? findings.map((f: any) => {
+        const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
+        const img = images.find(i => i.url === url);
+        const src = img ? (img.thumb || img.url) : "";
+        const thumbTag = src ? `<img class="thumb" src="${esc(src)}" alt="${esc(img?.filename || "image")}"/>` : "";
+        return `
+        <div class="finding">
+          <h3>${esc(f.issue || "Finding")}</h3>
+          <div class="badges">
+            ${f.severity ? `<span class="badge">${esc(f.severity)}</span>` : ""}
+          </div>
+          ${f.comment ? `<p>${esc(f.comment)}</p>` : ""}
+          ${thumbTag ? `<div class="thumbs">${thumbTag}</div>` : ""}
+        </div>`;
+      }).join("")
+    : `<p class="muted">No findings provided.</p>`;
 
-  // --- MEDIA APPENDIX ---
-  const PAGE_SIZE = 1;
-  const imagePages =
-    images.length > 0
-      ? chunkArray(images, PAGE_SIZE).map((page, idx) => {
-          const figures = page.map((img) => {
-            const fn = esc(img.filename || "");
-            const note = esc((img as any).note || "");
-            const src = esc(img.thumb || img.url);
-            return `
-        <figure style="
-          display:grid;
-          grid-template-columns:3fr 2fr; /* 60/40 */
-          gap:12px;
-          align-items:start;
-          border:1px solid #E5E7EB;
-          border-radius:4px;
-          padding:8px;
-          margin:0 0 12px 0;
-          page-break-inside:avoid;
-          break-inside:avoid;
-        ">
-          <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
-          <figcaption style="font-size:11px;color:#374151;word-break:break-all;margin:0;">
-            <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
-            ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
-          </figcaption>
-        </figure>`;
-          }).join("");
+  // Appendix (1 image per page)
+  const imagePages = images.length
+    ? chunkArray(images, PAGE_SIZE).map((page, idx) => {
+        const figures = page.map((img) => {
+          const fn = esc(img.filename || "");
+          const note = esc((img as any).note || "");
+          const src = esc(img.thumb || img.url);
           return `
-    <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
-      <h2>Media appendix — page ${idx + 1}</h2>
-      <div>${figures}</div>
-    </section>`;
-        })
-      : [`<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`];
+      <figure style="display:grid;grid-template-columns:3fr 2fr;gap:12px;align-items:start;border:1px solid #E5E7EB;border-radius:4px;padding:8px;margin:0 0 12px 0;page-break-inside:avoid;break-inside:avoid;">
+        <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
+        <figcaption style="font-size:11px;color:#374151;word-break:break-word;margin:0;">
+          <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
+          ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
+        </figcaption>
+      </figure>`;
+        }).join("");
+        return `
+  <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
+    <h2>Media appendix — page ${idx + 1}</h2>
+    <div>${figures}</div>
+  </section>`;
+      })
+    : [`<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`];
 
   const complianceHtml = `
     <p><strong>Operator:</strong> ${esc(intake.operator?.name || "")} ${esc(intake.operator?.registration || "")}</p>
@@ -237,16 +236,10 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
       intake.operator?.responsibleContact?.name ||
       intake.operator?.responsibleContact?.email ||
       intake.operator?.responsibleContact?.phone
-        ? `<p><strong>Responsible:</strong> ${esc(intake.operator?.responsibleContact?.name || "")} ${esc(
-            intake.operator?.responsibleContact?.email || ""
-          )} ${esc(intake.operator?.responsibleContact?.phone || "")}</p>`
+        ? `<p><strong>Responsible:</strong> ${esc(intake.operator?.responsibleContact?.name || "")} ${esc(intake.operator?.responsibleContact?.email || "")} ${esc(intake.operator?.responsibleContact?.phone || "")}</p>`
         : ""
     }
-    ${
-      intake.compliance?.insuranceConfirmed
-        ? `<p><strong>Insurance:</strong> confirmed</p>`
-        : `<p class="muted">Insurance not declared.</p>`
-    }
+    ${intake.compliance?.insuranceConfirmed ? `<p><strong>Insurance:</strong> confirmed</p>` : `<p class="muted">Insurance not declared.</p>`}
     ${intake.compliance?.omRef ? `<p><strong>OM ref:</strong> ${esc(intake.compliance.omRef)}</p>` : ""}
     ${intake.compliance?.evidenceRef ? `<p><strong>Evidence:</strong> ${esc(intake.compliance.evidenceRef)}</p>` : ""}
     ${intake.compliance?.eventsNote ? `<p><strong>Events note:</strong> ${esc(intake.compliance.eventsNote)}</p>` : ""}
@@ -261,6 +254,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     .replaceAll("{{DATE}}", esc(dateStr))
     .replaceAll("{{LOCATION}}", location || "—")
     .replaceAll("{{SUMMARY}}", summaryHtml)
+    .replaceAll("{{OVERVIEW}}", overviewHtml)
     .replaceAll("{{METHODOLOGY}}", methodologyHtml)
     .replaceAll("{{FINDINGS}}", findingsHtml)
     .replaceAll("{{APPENDIX_PAGES}}", imagePages.join("\n"))
@@ -292,7 +286,6 @@ export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
       body: form as any,
       signal: controller.signal,
     });
-
     if (!resp.ok) {
       const msg = await safeText(resp as any);
       throw new Error(`Gotenberg error ${resp.status}: ${msg}`);
@@ -305,9 +298,6 @@ export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
 }
 
 async function safeText(r: Response) {
-  try {
-    return await r.text();
-  } catch {
-    return "<no-body>";
-  }
+  try { return await r.text(); } catch { return "<no-body>"; }
 }
+ 
