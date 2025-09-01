@@ -18,10 +18,10 @@ function severityBuckets(findings: any[]) {
   return buckets;
 }
 const SEV_ORDER: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, None: 0 };
+const PAGE_SIZE = 1; // 1 image per appendix page and one finding per detail page
 
-export async function buildReportHtml(intake: Intake): Promise<string> {
-  const tpl = await loadTemplate();
-
+// ===== Section builders (return HTML fragments) =====
+function coverSectionHtml(intake: Intake): string {
   const color = themeColor(intake.branding?.color);
   const logoTag = intake.branding?.logoUrl ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo"/>` : "";
   const dateStr = fmt(intake.inspection?.date);
@@ -35,10 +35,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const sev = severityBuckets(findings);
   const totalImages = images.length;
 
-  const PAGE_SIZE = 1; // appendix: 1 image per page
-
-  // COVER
-  const coverHtml = `
+  return `
   <section class="cover">
     <div class="top">
       ${logoTag || `<div></div>`}
@@ -59,11 +56,12 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
       <div class="count"><div class="label">Critical</div><div class="value">${sev.Critical}</div></div>
     </div>
   </section>`;
+}
 
-  // SUMMARY
+function summarySectionHtml(intake: Intake): string {
   const hasSummary = Boolean(intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length);
   const summaryBullets = (intake.summary?.topIssues || []).map(t => `<li>${esc(t)}</li>`).join("");
-  const summaryHtml = hasSummary
+  return hasSummary
     ? `
   <div class="card">
     <h2>Executive summary</h2>
@@ -74,32 +72,26 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     ${summaryBullets ? `<ul class="bullets">${summaryBullets}</ul>` : `<p class="muted">No summary provided.</p>`}
   </div>`
     : `<div class="card"><h2>Executive summary</h2><p class="muted">No summary provided.</p></div>`;
+}
 
-  // OVERVIEW TABLE
-  const imageIndex = new Map<string, number>(); // url -> index
-  images.forEach((img, idx) => { imageIndex.set(img.url, idx); });
-  const pageFor = (url?: string): string | number => {
-    if (!url || !imageIndex.has(url)) return "—";
-    const idx = imageIndex.get(url)!;
-    return Math.floor(idx / PAGE_SIZE) + 1;
+function overviewSectionHtml(intake: Intake): string {
+  const images = intake.media?.images ?? [];
+  const findings = (intake as any).findings || [];
+
+  const normalized = (findings as any[]).map((f) => {
+    const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
+    const img = images.find(x => x.url === url) || null;
+    return {
+      image: img?.filename || url || "",
+      severity: f.severity || "None",
+      issue: f.issue || "",
+      comment: f.comment || "",
+      // Detail page index maps 1:1 to image order for now
+      page: url ? (images.findIndex(x => x.url === url) + 1 || "—") : "—",
     };
+  }).sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0));
 
-  const overviewRows = (findings as any[])
-    .map(f => {
-      const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
-      const img = images.find(i => i.url === url) || null;
-      return {
-        imageUrl: url,
-        filename: img?.filename || "",
-        severity: f.severity || "None",
-        issue: f.issue || "",
-        comment: f.comment || "",
-        page: pageFor(url),
-      };
-    })
-    .sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0));
-
-  const overviewHtml = overviewRows.length
+  return normalized.length
     ? `
 <table class="overview">
   <thead>
@@ -112,9 +104,9 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     </tr>
   </thead>
   <tbody>
-    ${overviewRows.map(r => `
+    ${normalized.map(r => `
       <tr>
-        <td>${esc(r.filename || r.imageUrl || "")}</td>
+        <td>${esc(r.image)}</td>
         <td>${esc(r.severity)}</td>
         <td>${esc(r.issue)}</td>
         <td>${esc(r.comment)}</td>
@@ -123,8 +115,9 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   </tbody>
 </table>`
     : `<p class="muted">No annotations added.</p>`;
+}
 
-  // METHODOLOGY (unchanged content, improved styles inherit)
+function methodologySectionHtml(intake: Intake): string {
   const mapUrl = intake.site?.mapImageUrl || "";
   const equip = intake.equipment;
   const auth = intake.authorisation;
@@ -136,7 +129,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const scopeChips = (intake.scope?.types || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("");
   const areaChips = (intake.areas || []).map((t) => `<span class="chip muted">${esc(t)}</span>`).join("");
 
-  const methodologyHtml = `
+  return `
   <div class="card">
     <h2>Methodology</h2>
     <div class="grid two">
@@ -186,51 +179,10 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
       </div>
     </div>
   </div>`;
+}
 
-  // Legacy simple findings list (kept until M4)
-  const findingsHtml = findings.length
-    ? findings.map((f: any) => {
-        const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
-        const img = images.find(i => i.url === url);
-        const src = img ? (img.thumb || img.url) : "";
-        const thumbTag = src ? `<img class="thumb" src="${esc(src)}" alt="${esc(img?.filename || "image")}"/>` : "";
-        return `
-        <div class="finding">
-          <h3>${esc(f.issue || "Finding")}</h3>
-          <div class="badges">
-            ${f.severity ? `<span class="badge">${esc(f.severity)}</span>` : ""}
-          </div>
-          ${f.comment ? `<p>${esc(f.comment)}</p>` : ""}
-          ${thumbTag ? `<div class="thumbs">${thumbTag}</div>` : ""}
-        </div>`;
-      }).join("")
-    : `<p class="muted">No findings provided.</p>`;
-
-  // Appendix (1 image per page)
-  const imagePages = images.length
-    ? chunkArray(images, PAGE_SIZE).map((page, idx) => {
-        const figures = page.map((img) => {
-          const fn = esc(img.filename || "");
-          const note = esc((img as any).note || "");
-          const src = esc(img.thumb || img.url);
-          return `
-      <figure style="display:grid;grid-template-columns:3fr 2fr;gap:12px;align-items:start;border:1px solid #E5E7EB;border-radius:4px;padding:8px;margin:0 0 12px 0;page-break-inside:avoid;break-inside:avoid;">
-        <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
-        <figcaption style="font-size:11px;color:#374151;word-break:break-word;margin:0;">
-          <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
-          ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
-        </figcaption>
-      </figure>`;
-        }).join("");
-        return `
-  <section class="appendix-page ${idx > 0 ? "page-break" : ""}">
-    <h2>Media appendix — page ${idx + 1}</h2>
-    <div>${figures}</div>
-  </section>`;
-      })
-    : [`<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`];
-
-  const complianceHtml = `
+function complianceSectionHtml(intake: Intake): string {
+  return `
     <p><strong>Operator:</strong> ${esc(intake.operator?.name || "")} ${esc(intake.operator?.registration || "")}</p>
     ${
       intake.operator?.responsibleContact?.name ||
@@ -245,28 +197,146 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
     ${intake.compliance?.eventsNote ? `<p><strong>Events note:</strong> ${esc(intake.compliance.eventsNote)}</p>` : ""}
     <p class="muted small">Documents retained ≥ 2 years per ops policy.</p>
   `;
+}
+
+function detailPageHtml(intake: Intake, pageIndex1: number): string {
+  const images = intake.media?.images ?? [];
+  const findings = (intake as any).findings || [];
+
+  const findingByUrl = new Map<string, any>();
+  for (const f of findings) {
+    const url = f?.imageUrl || (Array.isArray(f?.imageRefs) ? f.imageRefs[0] : undefined);
+    if (url) findingByUrl.set(url, f);
+  }
+
+  const pages = images.map((img) => {
+    const f = findingByUrl.get(img.url) || {};
+    const fn = esc(img.filename || "");
+    const src = esc(img.thumb || img.url);
+    const note = esc((img as any).note || "");
+    const issue = esc(f.issue || "Finding");
+    const severity = esc(f.severity || "None");
+    const comment = esc(f.comment || "");
+    return `
+      <section class="detail-card">
+        <div class="grid detail">
+          <div>
+            <img class="detail-img" src="${src}" alt="${fn || "image"}" />
+          </div>
+          <div>
+            <h3>${issue}</h3>
+            <div class="badges">${severity && severity !== "None" ? `<span class="badge">${severity}</span>` : ""}</div>
+            <div class="fact"><b>Image:</b> ${fn || esc(img.url)}</div>
+            <div class="fact"><b>Comment:</b> ${comment || "—"}</div>
+            ${note ? `<div class="fact"><b>Notes:</b> ${note}</div>` : ""}
+          </div>
+        </div>
+      </section>`;
+  });
+
+  const idx = Math.min(Math.max(1, pageIndex1), Math.max(1, pages.length)) - 1;
+  return pages.length ? pages[idx] : `<p class="muted">No media supplied.</p>`;
+}
+
+function appendixPageHtml(intake: Intake, pageIndex1: number): string {
+  const images = intake.media?.images ?? [];
+  const chunks = chunkArray(images, PAGE_SIZE);
+  const idx = Math.min(Math.max(1, pageIndex1), Math.max(1, chunks.length)) - 1;
+  const page = chunks[idx] || [];
+
+  if (!page.length) return `<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`;
+
+  const figures = page.map((img) => {
+    const fn = esc(img.filename || "");
+    const note = esc((img as any).note || "");
+    const src = esc(img.thumb || img.url);
+    return `
+      <figure style="display:grid;grid-template-columns:3fr 2fr;gap:12px;align-items:start;border:1px solid #E5E7EB;border-radius:4px;padding:8px;margin:0 0 12px 0;page-break-inside:avoid;break-inside:avoid;">
+        <img src="${src}" alt="${fn}" style="width:100%;height:auto;object-fit:contain;border-radius:3px;" />
+        <figcaption style="font-size:11px;color:#374151;word-break:break-word;margin:0;">
+          <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
+          ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
+        </figcaption>
+      </figure>`;
+  }).join("");
+
+  return `
+  <section class="appendix-page">
+    <h2>Media appendix — page ${idx + 1}</h2>
+    <div>${figures}</div>
+  </section>`;
+}
+
+// Render a full doc from all sections (used by finalize)
+export async function buildReportHtml(intake: Intake): Promise<string> {
+  const tpl = await loadTemplate();
+
+  const color = themeColor(intake.branding?.color);
+  const coverHtml = coverSectionHtml(intake);
+  const summaryHtml = summarySectionHtml(intake);
+  const overviewHtml = overviewSectionHtml(intake);
+  const methodologyHtml = methodologySectionHtml(intake);
+
+  // Detailed annotations (all)
+  const images = intake.media?.images ?? [];
+  const allDetailPages = images.length
+    ? images.map((_img, idx) => `<section class="detail-card ${idx > 0 ? "page-break" : ""}">${detailPageHtml(intake, idx + 1)}</section>`)
+    : [`<p class="muted">No annotations added.</p>`];
+
+  // Appendix (all)
+  const chunks = chunkArray(images, PAGE_SIZE);
+  const allAppendixPages = chunks.length
+    ? chunks.map((_, idx) => `<section class="${idx > 0 ? "page-break" : ""}">${appendixPageHtml(intake, idx + 1)}</section>`)
+    : [`<section class="appendix-page"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`];
+
+  const complianceHtml = complianceSectionHtml(intake);
 
   let html = tpl
     .replaceAll("{{THEME_COLOR}}", color)
     .replaceAll("{{COVER}}", coverHtml)
-    .replaceAll("{{PROJECT}}", project)
-    .replaceAll("{{COMPANY}}", company)
-    .replaceAll("{{DATE}}", esc(dateStr))
-    .replaceAll("{{LOCATION}}", location || "—")
     .replaceAll("{{SUMMARY}}", summaryHtml)
     .replaceAll("{{OVERVIEW}}", overviewHtml)
     .replaceAll("{{METHODOLOGY}}", methodologyHtml)
-    .replaceAll("{{FINDINGS}}", findingsHtml)
-    .replaceAll("{{APPENDIX_PAGES}}", imagePages.join("\n"))
+    .replaceAll("{{DETAIL_PAGES}}", allDetailPages.join("\n"))
+    .replaceAll("{{APPENDIX_PAGES}}", allAppendixPages.join("\n"))
     .replaceAll("{{COMPLIANCE}}", complianceHtml);
 
   return html;
 }
 
-/**
- * Send HTML to Gotenberg and return a PDF buffer.
- * Reads env at call time to avoid stale values.
- */
+// Single-page preview renderer
+export async function buildPreviewPageHtml(intake: Intake, page: string): Promise<string> {
+  const tpl = await loadTemplate();
+  const color = themeColor(intake.branding?.color);
+
+  let cover = "", summary = "", overview = "", methodology = "", detail = "", appendix = "", compliance = "";
+
+  const mDetail = /^detail:(\d+)$/i.exec(page);
+  const mAppendix = /^appendix:(\d+)$/i.exec(page);
+
+  if (page === "cover") cover = coverSectionHtml(intake);
+  else if (page === "summary") summary = summarySectionHtml(intake);
+  else if (page === "overview") overview = overviewSectionHtml(intake);
+  else if (page === "methodology") methodology = methodologySectionHtml(intake);
+  else if (page === "compliance") compliance = complianceSectionHtml(intake);
+  else if (mDetail) detail = detailPageHtml(intake, Math.max(1, parseInt(mDetail[1], 10)));
+  else if (mAppendix) appendix = appendixPageHtml(intake, Math.max(1, parseInt(mAppendix[1], 10)));
+  else cover = coverSectionHtml(intake); // default
+
+  const html = tpl
+    .replaceAll("{{THEME_COLOR}}", color)
+    .replaceAll("{{COVER}}", cover)
+    .replaceAll("{{SUMMARY}}", summary)
+    .replaceAll("{{OVERVIEW}}", overview)
+    .replaceAll("{{METHODOLOGY}}", methodology)
+    .replaceAll("{{DETAIL_PAGES}}", detail)
+    .replaceAll("{{APPENDIX_PAGES}}", appendix)
+    .replaceAll("{{COMPLIANCE}}", compliance);
+
+  return html;
+}
+
+/** HTML -> PDF via Gotenberg */
 export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
   const base = (process.env.GOTENBERG_URL || "").replace(/\/+$/, "");
   if (!base) throw new Error("GOTENBERG_URL missing");
@@ -281,23 +351,12 @@ export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const resp = await fetch(url, {
-      method: "POST",
-      body: form as any,
-      signal: controller.signal,
-    });
-    if (!resp.ok) {
-      const msg = await safeText(resp as any);
-      throw new Error(`Gotenberg error ${resp.status}: ${msg}`);
-    }
+    const resp = await fetch(url, { method: "POST", body: form as any, signal: controller.signal });
+    if (!resp.ok) { const msg = await safeText(resp as any); throw new Error(`Gotenberg error ${resp.status}: ${msg}`); }
     const arrayBuffer = await resp.arrayBuffer();
     return Buffer.from(arrayBuffer);
   } finally {
     clearTimeout(timeout);
   }
 }
-
-async function safeText(r: Response) {
-  try { return await r.text(); } catch { return "<no-body>"; }
-}
- 
+async function safeText(r: Response) { try { return await r.text(); } catch { return "<no-body>"; } }

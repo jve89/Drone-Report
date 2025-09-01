@@ -10,6 +10,9 @@
     "build": "npm -w client run build && npm -w server run build",
     "preview": "npm -w client run preview",
     "build:server": "npm -w server run build",
-    "heroku-postbuild": "npm -w server run build && npm -w client run build"
+    "heroku-postbuild": "npm -w server run build && npm -w client run build",
+    "prepare": "npm -w server run build && npm -w client run build",
+    "start": "npm -w server run start",
+    "serve": "npm run prepare && npm -w server run start"
   }
 }
