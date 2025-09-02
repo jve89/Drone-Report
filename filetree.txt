@@ -2,8 +2,8 @@
 ├── client
 │   ├── dist
 │   │   ├── assets
-│   │   │   ├── index-BNqzvQ6v.js
-│   │   │   └── index-nHEkv3R2.css
+│   │   │   ├── index-DuLM5uFK.js
+│   │   │   └── index-hT_OPFWH.css
 │   │   ├── index.html
 │   │   └── logo.svg
 │   ├── index.html
@@ -55,6 +55,7 @@
 │   │   │   ├── createDraft.js
 │   │   │   ├── drafts.js
 │   │   │   ├── health.js
+│   │   │   ├── preview.js
 │   │   │   └── reports.js
 │   │   ├── templates
 │   │   │   └── report.html
@@ -71,6 +72,7 @@
 │   │   │   ├── createDraft.ts
 │   │   │   ├── drafts.ts
 │   │   │   ├── health.ts
+│   │   │   ├── preview.ts
 │   │   │   └── reports.ts
 │   │   ├── templates
 │   │   │   └── report.html
@@ -97,4 +99,4 @@
     └── types
         └── intake.ts
 
-26 directories, 71 files
+26 directories, 73 files
