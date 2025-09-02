@@ -171,13 +171,19 @@ export default function Header() {
           </div>
         </nav>
 
-        {/* Desktop CTA */}
-        <div className="hidden xl:block">
+        {/* Desktop auth CTAs */}
+        <div className="hidden xl:flex items-center gap-3">
           <a
-            href="#intake"
+            href="/login"
+            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Log in
+          </a>
+          <a
+            href="/signup"
             className="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
           >
-            Start a report
+            Sign up
           </a>
         </div>
 
@@ -248,13 +254,22 @@ export default function Header() {
             </nav>
           </details>
 
-          <a
-            href="#intake"
-            onClick={() => setMobileOpen(false)}
-            className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-indigo-600 text-white font-medium px-4 py-2 hover:bg-indigo-700 transition-colors"
-          >
-            Start a report
-          </a>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              className="inline-flex items-center justify-center rounded-md border border-gray-300 text-gray-700 font-medium px-4 py-2 hover:bg-gray-50 transition-colors"
+            >
+              Log in
+            </a>
+            <a
+              href="/signup"
+              onClick={() => setMobileOpen(false)}
+              className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white font-medium px-4 py-2 hover:bg-indigo-700 transition-colors"
+            >
+              Sign up
+            </a>
+          </div>
         </div>
       </div>
     </header>

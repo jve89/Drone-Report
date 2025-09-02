@@ -1,0 +1,45 @@
+{
+  "id": "wind-blade-v1",
+  "name": "Wind Turbine Blade",
+  "version": "1.0.0",
+  "pages": [
+    { "id": "cover", "name": "Cover", "kind": "cover", "blocks": [
+      { "id": "report_title", "type": "text", "rect": { "x": 10, "y": 15, "w": 80, "h": 8 }, "placeholder": "Blade Inspection Report" },
+      { "id": "client_name", "type": "text", "rect": { "x": 10, "y": 26, "w": 40, "h": 6 } },
+      { "id": "turbine_id", "type": "text", "rect": { "x": 10, "y": 33, "w": 40, "h": 6 }, "label": "Turbine ID" },
+      { "id": "date", "type": "date", "rect": { "x": 10, "y": 40, "w": 20, "h": 6 } },
+      { "id": "logo", "type": "image_slot", "rect": { "x": 70, "y": 8, "w": 20, "h": 10 }, "options": { "crop": true } },
+      { "id": "cover_image", "type": "image_slot", "rect": { "x": 10, "y": 58, "w": 80, "h": 32 }, "options": { "crop": true } }
+    ]},
+    { "id": "severity_legend", "name": "Severity Legend", "kind": "severity_legend", "blocks": [
+      { "id": "legend", "type": "legend", "rect": { "x": 10, "y": 10, "w": 80, "h": 80 } }
+    ]},
+    { "id": "issue_index", "name": "Issue Index", "kind": "issue_index", "blocks": [
+      { "id": "index_table", "type": "table", "rect": { "x": 10, "y": 12, "w": 80, "h": 76 }, "options": {
+        "columns": [
+          { "key": "id", "label": "#" },
+          { "key": "blade_id", "label": "Blade" },
+          { "key": "issue_type", "label": "Issue" },
+          { "key": "severity", "label": "Sev" },
+          { "key": "page_ref", "label": "Page" }
+        ]
+      } }
+    ]},
+    { "id": "detail", "name": "Detail", "kind": "detail", "repeatable": true, "blocks": [
+      { "id": "photo", "type": "image_slot", "rect": { "x": 8, "y": 10, "w": 58, "h": 62 }, "options": { "crop": true } },
+      { "id": "blade_id", "type": "text", "rect": { "x": 70, "y": 10, "w": 22, "h": 6 } },
+      { "id": "position_clock", "type": "text", "rect": { "x": 70, "y": 18, "w": 22, "h": 6 } },
+      { "id": "distance_from_root_m", "type": "number", "rect": { "x": 70, "y": 26, "w": 22, "h": 6 } },
+      { "id": "issue_type", "type": "select", "rect": { "x": 70, "y": 34, "w": 22, "h": 6 }, "options": { "choices": ["erosion", "crack", "delam", "impact"] } },
+      { "id": "severity", "type": "number", "rect": { "x": 70, "y": 42, "w": 22, "h": 6 } },
+      { "id": "dimensions", "type": "text", "rect": { "x": 70, "y": 50, "w": 22, "h": 6 } },
+      { "id": "recommendation", "type": "rich_text", "rect": { "x": 70, "y": 58, "w": 22, "h": 14 } },
+      { "id": "notes", "type": "rich_text", "rect": { "x": 8, "y": 74, "w": 84, "h": 16 } }
+    ], "freeformZones": [{ "x": 8, "y": 74, "w": 84, "h": 16 }]},
+    { "id": "media_appendix", "name": "Media Appendix", "kind": "media_appendix", "blocks": [] },
+    { "id": "signoff", "name": "Sign-off", "kind": "signoff", "blocks": [
+      { "id": "prepared_by", "type": "text", "rect": { "x": 10, "y": 20, "w": 35, "h": 6 } },
+      { "id": "approved_by", "type": "text", "rect": { "x": 55, "y": 20, "w": 35, "h": 6 } }
+    ] }
+  ]
+}

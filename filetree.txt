@@ -12,10 +12,23 @@
 │   ├── public
 │   │   └── logo.svg
 │   ├── src
+│   │   ├── api
+│   │   │   ├── drafts.ts
+│   │   │   └── templates.ts
 │   │   ├── App.tsx
+│   │   ├── auth
+│   │   │   ├── AuthGuard.tsx
+│   │   │   └── useSession.ts
 │   │   ├── components
 │   │   │   ├── Footer.tsx
 │   │   │   └── Header.tsx
+│   │   ├── editor
+│   │   │   ├── Canvas.tsx
+│   │   │   ├── Inspector.tsx
+│   │   │   ├── Navigator.tsx
+│   │   │   ├── panels
+│   │   │   │   └── MediaPanel.tsx
+│   │   │   └── Toolbar.tsx
 │   │   ├── lib
 │   │   │   ├── api.ts
 │   │   │   └── uploadcare.ts
@@ -28,11 +41,14 @@
 │   │   ├── sections
 │   │   │   ├── Hero.tsx
 │   │   │   ├── HowItWorks.tsx
-│   │   │   ├── IntakeForm.tsx
 │   │   │   ├── Pricing.tsx
 │   │   │   └── WhatYouGet.tsx
+│   │   ├── state
+│   │   │   └── editorStore.ts
 │   │   ├── styles
 │   │   │   └── tailwind.css
+│   │   ├── templates
+│   │   │   └── loader.ts
 │   │   └── vite-env.d.ts
 │   ├── tailwind.config.cjs
 │   ├── tsconfig.json
@@ -79,24 +95,33 @@
 │   │   │   ├── client.ts
 │   │   │   └── migrations
 │   │   │       ├── 001_users.sql
-│   │   │       └── 002_drafts.sql
+│   │   │       ├── 002_drafts.sql
+│   │   │       └── 005_drafts_ownership_and_data.sql
 │   │   ├── index.ts
+│   │   ├── middleware
+│   │   │   └── requireAuth.ts
+│   │   ├── pdf
+│   │   │   └── render.ts
 │   │   ├── pdf.ts
 │   │   ├── routes
 │   │   │   ├── auth.ts
-│   │   │   ├── createDraft.ts
 │   │   │   ├── drafts.ts
 │   │   │   ├── health.ts
 │   │   │   ├── preview.ts
-│   │   │   └── reports.ts
+│   │   │   ├── reports.ts
+│   │   │   └── templates.ts
 │   │   ├── services
 │   │   │   ├── authService.ts
+│   │   │   ├── draftService.ts
+│   │   │   ├── mediaService.ts
+│   │   │   ├── templateService.ts
 │   │   │   └── userService.ts
 │   │   ├── templates
 │   │   │   └── report.html
 │   │   └── utils
+│   │       ├── asyncHandler.ts
 │   │       ├── chunkMedia.ts
-│   │       ├── draftsStore.ts
+│   │       ├── id.ts
 │   │       ├── mailer.ts
 │   │       └── validate.ts
 │   └── tsconfig.json
@@ -112,9 +137,16 @@
     │   └── report.map.md
     ├── package.json
     ├── schema
-    │   └── intake.schema.ts
+    │   ├── intake.schema.ts
+    │   └── template.v1.json
+    ├── templates
+    │   ├── generic-building.json
+    │   ├── index.ts
+    │   ├── solar-pv.json
+    │   └── wind-blade.json
     ├── tsconfig.json
     └── types
-        └── intake.ts
+        ├── intake.ts
+        └── template.ts
 
-31 directories, 86 files
+40 directories, 109 files

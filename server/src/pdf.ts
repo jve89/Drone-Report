@@ -43,6 +43,9 @@ function coverSectionHtml(intake: Intake): string {
 
   return `
   <section class="cover" data-dr-select="cover">
+    <style>
+      .cover .counts .count .value{background:${color}}
+    </style>
     <div class="top">
       ${logoTag}
       <div>
@@ -148,7 +151,7 @@ function methodologySectionHtml(intake: Intake): string {
         <table class="kv">
           <tr><th>Manufacturer</th><td>${fmt(equip?.drone?.manufacturer)}</td></tr>
           <tr><th>Model</th><td>${fmt(equip?.drone?.model)}</td></tr>
-          <tr><th>Type</th><td>${fmt(equip?.drone?.type)}</td></tr>
+          <tr><th>Type</</td></tr>
           <tr><th>Span</th><td>${fmt(equip?.specs?.spanM)} m</td></tr>
           <tr><th>MTOM</th><td>${fmt(equip?.specs?.tomKg)} kg</td></tr>
           <tr><th>Max speed</th><td>${fmt(equip?.specs?.maxSpeedMs)} m/s</td></tr>
@@ -212,7 +215,7 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
   const img = images[pageIndex1 - 1];
   if (!img) return `<p class="muted">No media supplied.</p>`;
 
-  const f = findings.find(x => x.imageUrl === img.url) || {} as Finding;
+  const f = findings.find(x => x.imageUrl === img.url) || ({} as Finding);
 
   const fn = esc(img.filename || "");
   const src = esc(img.thumb || img.url);
@@ -223,10 +226,10 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
 
   const regions = (f.regions || []) as Region[];
   const chunks: Region[][] = [];
-  for (let i=0;i<regions.length;i+=TILES_PER_DETAIL_PAGE) chunks.push(regions.slice(i,i+TILES_PER_DETAIL_PAGE));
+  for (let i = 0; i < regions.length; i += TILES_PER_DETAIL_PAGE) chunks.push(regions.slice(i, i + TILES_PER_DETAIL_PAGE));
   const tiles = chunks[0] || [];
 
-  const tilesHtml = Array.from({length:TILES_PER_DETAIL_PAGE}).map((_,i)=>{
+  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE }).map((_, i) => {
     const r = tiles[i];
     if (!r) {
       return `
@@ -235,7 +238,7 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
         <div class="cap">No zoom</div>
       </div>`;
     }
-    const cap = `<span class="id">#${r.id}</span>${esc(r.label||"")}${r.note? " — "+esc(r.note):""}`;
+    const cap = `<span class="id">#${r.id}</span>${esc(r.label || "")}${r.note ? " — " + esc(r.note) : ""}`;
     return `
       <div class="tile" data-dr-select="detail:${pageIndex1}" data-dr-region="${r.id}">
         <div class="frame">
@@ -265,7 +268,7 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
           <div class="fact"><b>Image:</b> ${fn || esc(img.url)}</div>
           <div class="fact"><b>Comment:</b> ${comment || "—"}</div>
           ${note ? `<div class="fact"><b>Notes:</b> ${note}</div>` : ""}
-          <div class="fact"><b>Regions:</b> ${(f.regions||[]).length || 0}</div>
+          <div class="fact"><b>Regions:</b> ${(f.regions || []).length || 0}</div>
         </div>
       </div>
       <div class="tiles">${tilesHtml}</div>
@@ -279,16 +282,16 @@ function detailContinuationHtml(intake: Intake, pageIndex1: number, chunkIdx: nu
   const img = images[pageIndex1 - 1];
   if (!img) return "";
 
-  const f = findings.find(x => x.imageUrl === img.url) || {} as Finding;
+  const f = findings.find(x => x.imageUrl === img.url) || ({} as Finding);
   const src = esc(img.thumb || img.url);
 
   const regions = (f.regions || []) as Region[];
   const chunks: Region[][] = [];
-  for (let i=0;i<regions.length;i+=TILES_PER_DETAIL_PAGE) chunks.push(regions.slice(i,i+TILES_PER_DETAIL_PAGE));
+  for (let i = 0; i < regions.length; i += TILES_PER_DETAIL_PAGE) chunks.push(regions.slice(i, i + TILES_PER_DETAIL_PAGE));
   const tiles = chunks[chunkIdx] || [];
   if (!tiles.length) return "";
 
-  const tilesHtml = Array.from({length:TILES_PER_DETAIL_PAGE}).map((_,i)=>{
+  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE }).map((_, i) => {
     const r = tiles[i];
     if (!r) {
       return `
@@ -310,7 +313,7 @@ function detailContinuationHtml(intake: Intake, pageIndex1: number, chunkIdx: nu
                  this.style.transform='translate('+(-${r.rect.x}*sw)+'px,'+(-${r.rect.y}*sh)+'px)';
                " />
         </div>
-        <div class="cap"><span class="id">#${r.id}</span>${esc(r.label||"")}${r.note? " — "+esc(r.note):""}</div>
+        <div class="cap"><span class="id">#${r.id}</span>${esc(r.label || "")}${r.note ? " — " + esc(r.note) : ""}</div>
       </div>`;
   }).join("");
 
@@ -334,7 +337,7 @@ function appendixPageHtml(intake: Intake, pageIndex1: number): string {
     const note = esc((img as any).note || "");
     const src = esc(img.thumb || img.url);
     return `
-      <figure data-dr-select="appendix:${idx+1}">
+      <figure data-dr-select="appendix:${idx + 1}">
         <img src="${src}" alt="${fn}" />
         <figcaption>
           <div style="font-weight:600;margin:0 0 6px 0;">${fn || "&nbsp;"}</div>
@@ -415,7 +418,7 @@ export async function buildPreviewPageHtml(intake: Intake, page: string): Promis
     const findings = ((intake as any).findings || []) as Finding[];
     const f = img ? findings.find(x => x.imageUrl === img.url) : undefined;
     const contsCount = Math.max(0, Math.ceil((f?.regions?.length || 0) / TILES_PER_DETAIL_PAGE) - 1);
-    const conts = Array.from({length:contsCount}, (_,i)=>detailContinuationHtml(intake, n, i+1)).join("");
+    const conts = Array.from({ length: contsCount }, (_, i) => detailContinuationHtml(intake, n, i + 1)).join("");
     detail = base + conts;
   }
   else if (mAppendix) appendix = appendixPageHtml(intake, Math.max(1, parseInt(mAppendix[1], 10)));

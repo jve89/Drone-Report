@@ -1,0 +1,66 @@
+{
+  "id": "generic-building-v1",
+  "name": "Generic Building Inspection",
+  "version": "1.0.0",
+  "pages": [
+    {
+      "id": "cover",
+      "name": "Cover",
+      "kind": "cover",
+      "blocks": [
+        { "id": "report_title", "type": "text", "label": "Report title", "rect": { "x": 10, "y": 15, "w": 80, "h": 8 }, "placeholder": "Building Inspection Report" },
+        { "id": "client_name", "type": "text", "label": "Client", "rect": { "x": 10, "y": 26, "w": 40, "h": 6 } },
+        { "id": "site_name", "type": "text", "label": "Site", "rect": { "x": 10, "y": 33, "w": 40, "h": 6 } },
+        { "id": "date", "type": "date", "label": "Date", "rect": { "x": 10, "y": 40, "w": 20, "h": 6 } },
+        { "id": "inspector", "type": "text", "label": "Inspector", "rect": { "x": 10, "y": 47, "w": 40, "h": 6 } },
+        { "id": "logo", "type": "image_slot", "label": "Logo", "rect": { "x": 70, "y": 8, "w": 20, "h": 10 }, "options": { "crop": true, "aspect": 3 } },
+        { "id": "cover_image", "type": "image_slot", "label": "Cover image", "rect": { "x": 10, "y": 58, "w": 80, "h": 32 }, "options": { "crop": true } }
+      ]
+    },
+    {
+      "id": "exec_summary",
+      "name": "Executive Summary",
+      "kind": "exec_summary",
+      "blocks": [
+        { "id": "overview_text", "type": "rich_text", "label": "Overview", "rect": { "x": 10, "y": 10, "w": 80, "h": 25 } },
+        { "id": "counts_by_severity", "type": "table", "label": "Findings by severity", "rect": { "x": 10, "y": 38, "w": 80, "h": 18 }, "options": { "columns": [{ "key": "sev", "label": "Severity" }, { "key": "count", "label": "Count" }] } }
+      ],
+      "freeformZones": [{ "x": 10, "y": 60, "w": 80, "h": 30 }]
+    },
+    {
+      "id": "detail",
+      "name": "Detail",
+      "kind": "detail",
+      "repeatable": true,
+      "blocks": [
+        { "id": "photo", "type": "image_slot", "label": "Photo", "rect": { "x": 10, "y": 12, "w": 55, "h": 60 }, "options": { "crop": true } },
+        { "id": "issue_type", "type": "text", "label": "Issue", "rect": { "x": 68, "y": 12, "w": 22, "h": 6 } },
+        { "id": "severity", "type": "number", "label": "Severity 1-5", "rect": { "x": 68, "y": 20, "w": 22, "h": 6 } },
+        { "id": "notes", "type": "rich_text", "label": "Notes", "rect": { "x": 68, "y": 28, "w": 22, "h": 44 } }
+      ],
+      "freeformZones": [{ "x": 10, "y": 75, "w": 80, "h": 16 }]
+    },
+    {
+      "id": "media_appendix",
+      "name": "Media Appendix",
+      "kind": "media_appendix",
+      "blocks": []
+    },
+    {
+      "id": "compliance",
+      "name": "Compliance & Disclaimer",
+      "kind": "compliance",
+      "blocks": [{ "id": "legal_disclaimer", "type": "rich_text", "rect": { "x": 10, "y": 10, "w": 80, "h": 80 } }]
+    },
+    {
+      "id": "signoff",
+      "name": "Sign-off",
+      "kind": "signoff",
+      "blocks": [
+        { "id": "prepared_by", "type": "text", "rect": { "x": 10, "y": 20, "w": 35, "h": 6 } },
+        { "id": "approved_by", "type": "text", "rect": { "x": 55, "y": 20, "w": 35, "h": 6 } },
+        { "id": "sign_date", "type": "date", "rect": { "x": 10, "y": 30, "w": 20, "h": 6 } }
+      ]
+    }
+  ]
+}

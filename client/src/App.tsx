@@ -4,7 +4,6 @@ import Hero from "./sections/Hero";
 import HowItWorks from "./sections/HowItWorks";
 import WhatYouGet from "./sections/WhatYouGet";
 import Pricing from "./sections/Pricing";
-import IntakeForm from "./sections/IntakeForm";
 
 export default function App() {
   return (
@@ -15,7 +14,6 @@ export default function App() {
         <section id="what-you-get" className="scroll-mt-24"><WhatYouGet /></section>
         <section id="how-it-works" className="scroll-mt-24"><HowItWorks /></section>
         <section id="pricing" className="scroll-mt-24"><Pricing /></section>
-        <section id="intake" className="scroll-mt-24"><IntakeForm /></section>
 
         {/* Stubs */}
         <section id="case-studies" className="py-12 px-6 max-w-5xl mx-auto text-gray-500">Case studies coming soon.</section>

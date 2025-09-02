@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dr/templates/v1",
+  "type": "object",
+  "required": ["id", "name", "version", "pages"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "blocks"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "type": "string" },
+          "repeatable": { "type": "boolean" },
+          "freeformZones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["x", "y", "w", "h"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "w": { "type": "number" },
+                "h": { "type": "number" }
+              }
+            }
+          },
+          "blocks": {
+            "type": "array",
+            "items": { "type": "object", "required": ["id", "type", "rect"] }
+          }
+        }
+      }
+    }
+  }
+}

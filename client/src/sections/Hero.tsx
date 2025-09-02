@@ -8,13 +8,11 @@ export default function Hero() {
             Turn drone photos into client-ready reports.
           </h1>
 
-          {/* Subline */}
           <p className="mt-6 text-xl text-gray-600">
             Upload your images. Get a structured PDF with findings and recommendations.{" "}
             <span className="font-medium">Raw Draft or Polished—your choice.</span>
           </p>
 
-          {/* Badges */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
             <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
               24h turnaround
@@ -33,16 +31,16 @@ export default function Hero() {
           {/* CTA buttons */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4 md:justify-start">
             <a
-              href="#intake"
+              href="/signup"
               className="inline-flex items-center rounded-lg bg-black px-6 py-3 text-sm font-medium text-white hover:bg-gray-800"
             >
-              Start a report
+              Sign up
             </a>
             <a
-              href="#how-it-works"
+              href="/login"
               className="inline-flex items-center rounded-lg border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              See how it works
+              Log in
             </a>
           </div>
         </div>

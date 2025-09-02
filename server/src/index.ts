@@ -10,10 +10,10 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import healthRouter from "./routes/health";
-import createDraftRouter from "./routes/createDraft";
 import draftsRouter from "./routes/drafts";
 import previewRouter from "./routes/preview";
 import authRouter from "./routes/auth";
+import templatesRouter from "./routes/templates";
 
 const app = express();
 app.set("trust proxy", true);
@@ -25,10 +25,18 @@ app.use(cors({ origin: ORIGIN, credentials: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
+// Static uploads (dev/prod if provided)
+const UPLOAD_DIR =
+  process.env.UPLOAD_DIR ||
+  path.resolve(process.cwd(), "server", "src", "uploads");
+if (fs.existsSync(UPLOAD_DIR)) {
+  app.use("/uploads", express.static(UPLOAD_DIR));
+}
+
 // API routes
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
-app.use("/api", createDraftRouter);
+app.use("/api", templatesRouter);
 app.use("/api", draftsRouter);
 app.use("/api", previewRouter);
 
@@ -53,9 +61,6 @@ app.get("*", (req, res) => {
 });
 
 // Centralized error handler → JSON
-// - Zod/validation: 400
-// - Gotenberg/downstream: 502
-// - else: 500
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const message = String(err?.message || "internal error");
   const statusExplicit = Number(err?.status);

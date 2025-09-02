@@ -1,52 +1,82 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE ?? "").trim();
+const BASE_RAW = (import.meta.env.VITE_API_BASE ?? "").trim();
+export const API_BASE = BASE_RAW.replace(/\/+$/, ""); // strip trailing slash
 
-/** Legacy: generate PDF immediately (used by current IntakeForm) */
-export async function createDraft(payload: unknown): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/api/create-draft`, {
+const withCreds: RequestInit = { credentials: "include" };
+
+type AnyObj = Record<string, any>;
+
+function normDraft(json: AnyObj): AnyObj {
+  // If server already returns { payload }, keep it.
+  if (json && typeof json === "object" && json.payload) return json;
+
+  // Build a minimal intake payload from draft fields.
+  const mediaImages = Array.isArray(json?.media) ? json.media : [];
+  const templateId = typeof json?.templateId === "string" ? json.templateId : undefined;
+  const title = typeof json?.title === "string" ? json.title : undefined;
+
+  const payload: AnyObj = {
+    meta: { templateId: templateId ?? "", title: title ?? "" },
+    media: { images: mediaImages },
+    findings: Array.isArray(json?.annotations) ? json.annotations : [],
+    scope: { types: templateId ? [templateId] : [] },
+  };
+
+  return {
+    id: json?.id ?? "",
+    status: json?.status ?? "draft",
+    createdAt: json?.createdAt ?? json?.created_at ?? "",
+    updatedAt: json?.updatedAt ?? json?.updated_at ?? "",
+    payload,
+  };
+}
+
+/** Create a draft, returns its id */
+export async function createDraftRecord(input: { templateId: string; title?: string }): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/drafts`, {
+    ...withCreds,
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(input),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error(`Create draft failed: ${res.status} ${txt}`);
   }
-  return await res.blob();
-}
-
-/** New: create a draft record and get its id */
-export async function createDraftRecord(payload: unknown): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/drafts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Create draft record failed: ${res.status} ${txt}`);
-  }
   const json = await res.json();
-  const id = json?.draftId;
+  const id = json?.id || json?.draftId;
   if (!id || typeof id !== "string") throw new Error("Invalid create-draft response");
   return id;
 }
 
-/** Read a draft */
+/** List drafts */
+export async function listDrafts(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/api/drafts`, withCreds);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`List drafts failed: ${res.status} ${txt}`);
+  }
+  const arr = await res.json();
+  return Array.isArray(arr) ? arr.map(normDraft) : [];
+}
+
+/** Read a draft (normalized to include .payload for Annotate) */
 export async function getDraft(draftId: string): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}`);
+  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}`, withCreds);
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error(`Get draft failed: ${res.status} ${txt}`);
   }
-  return await res.json();
+  const json = await res.json();
+  return normDraft(json);
 }
 
-/** Patch-update a draft */
-export async function updateDraft(draftId: string, patch: unknown): Promise<void> {
+/** Patch-update a draft: send the intake payload; server should store it */
+export async function updateDraft(draftId: string, payload: unknown): Promise<void> {
   const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}`, {
+    ...withCreds,
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
@@ -54,14 +84,31 @@ export async function updateDraft(draftId: string, patch: unknown): Promise<void
   }
 }
 
-/** Finalize a draft to PDF */
-export async function finalizeDraftToPdf(draftId: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/finalize`, {
+/** Upload media files, returns media array */
+export async function uploadDraftMedia(draftId: string, files: File[]): Promise<any[]> {
+  const fd = new FormData();
+  files.forEach(f => fd.append("files", f));
+  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/media`, {
+    ...withCreds,
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Upload media failed: ${res.status} ${txt}`);
+  }
+  return await res.json();
+}
+
+/** Export HTML (server PDF can consume this) */
+export async function exportDraftHtml(draftId: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/export/pdf`, {
+    ...withCreds,
     method: "POST",
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`Finalize draft failed: ${res.status} ${txt}`);
+    throw new Error(`Export HTML failed: ${res.status} ${txt}`);
   }
-  return await res.blob();
+  return await res.text();
 }

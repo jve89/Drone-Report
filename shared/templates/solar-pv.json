@@ -1,0 +1,36 @@
+{
+  "id": "solar-pv-v1",
+  "name": "Solar PV",
+  "version": "1.0.0",
+  "pages": [
+    { "id": "cover", "name": "Cover", "kind": "cover", "blocks": [
+      { "id": "report_title", "type": "text", "rect": { "x": 10, "y": 15, "w": 80, "h": 8 }, "placeholder": "Solar PV Inspection" },
+      { "id": "client_name", "type": "text", "rect": { "x": 10, "y": 26, "w": 40, "h": 6 } },
+      { "id": "site_name", "type": "text", "rect": { "x": 10, "y": 33, "w": 40, "h": 6 } },
+      { "id": "date", "type": "date", "rect": { "x": 10, "y": 40, "w": 20, "h": 6 } },
+      { "id": "logo", "type": "image_slot", "rect": { "x": 70, "y": 8, "w": 20, "h": 10 }, "options": { "crop": true } },
+      { "id": "cover_image", "type": "image_slot", "rect": { "x": 10, "y": 58, "w": 80, "h": 32 }, "options": { "crop": true } }
+    ]},
+    { "id": "exec_summary", "name": "Executive Summary", "kind": "exec_summary", "blocks": [
+      { "id": "overview_text", "type": "rich_text", "rect": { "x": 10, "y": 10, "w": 80, "h": 25 } },
+      { "id": "loss_estimate", "type": "metric", "rect": { "x": 10, "y": 38, "w": 25, "h": 10 }, "options": { "unit": "%" } },
+      { "id": "counts_by_severity", "type": "table", "rect": { "x": 40, "y": 38, "w": 50, "h": 18 }, "options": {
+        "columns": [{ "key": "sev", "label": "Severity" }, { "key": "count", "label": "Count" }]
+      } }
+    ], "freeformZones": [{ "x": 10, "y": 60, "w": 80, "h": 30 }]},
+    { "id": "detail", "name": "Detail", "kind": "detail", "repeatable": true, "blocks": [
+      { "id": "photo", "type": "image_slot", "rect": { "x": 8, "y": 10, "w": 58, "h": 62 }, "options": { "crop": true } },
+      { "id": "module_id", "type": "text", "rect": { "x": 70, "y": 10, "w": 22, "h": 6 } },
+      { "id": "string_id", "type": "text", "rect": { "x": 70, "y": 18, "w": 22, "h": 6 } },
+      { "id": "anomaly", "type": "select", "rect": { "x": 70, "y": 26, "w": 22, "h": 6 }, "options": { "choices": ["hotspot", "PID", "crack"] } },
+      { "id": "temp_delta_C", "type": "number", "rect": { "x": 70, "y": 34, "w": 22, "h": 6 } },
+      { "id": "estimated_loss_pct", "type": "number", "rect": { "x": 70, "y": 42, "w": 22, "h": 6 } },
+      { "id": "notes", "type": "rich_text", "rect": { "x": 70, "y": 50, "w": 22, "h": 22 } }
+    ], "freeformZones": [{ "x": 8, "y": 74, "w": 84, "h": 16 }]},
+    { "id": "media_appendix", "name": "Media Appendix", "kind": "media_appendix", "blocks": [] },
+    { "id": "signoff", "name": "Sign-off", "kind": "signoff", "blocks": [
+      { "id": "prepared_by", "type": "text", "rect": { "x": 10, "y": 20, "w": 35, "h": 6 } },
+      { "id": "approved_by", "type": "text", "rect": { "x": 55, "y": 20, "w": 35, "h": 6 } }
+    ]}
+  ]
+}

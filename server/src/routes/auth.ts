@@ -1,3 +1,4 @@
+// server/src/routes/auth.ts
 import { Router } from "express";
 import { z } from "zod";
 import { createUser, findUserByEmail, verifyPassword, getUserById } from "../services/userService";
@@ -7,9 +8,11 @@ const router = Router();
 const Email = z.string().email().max(320);
 const Password = z.string().min(8).max(200);
 
+const COOKIE = process.env.COOKIE_NAME || "dr_session";
+
 function setCookie(res: any, token: string) {
   const isProd = process.env.NODE_ENV === "production";
-  res.cookie("dr_session", token, {
+  res.cookie(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: isProd,
@@ -43,17 +46,22 @@ router.post("/auth/login", async (req, res, next) => {
 });
 
 router.post("/auth/logout", (req, res) => {
-  res.clearCookie("dr_session", { path: "/" });
+  res.clearCookie(COOKIE, { path: "/" });
   res.status(204).end();
 });
 
 router.get("/auth/me", async (req: any, res) => {
-  const raw = (req.cookies && req.cookies.dr_session) || req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  const rawCookie = req.cookies?.[COOKIE];
+  const rawBearer = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  const raw = rawCookie || rawBearer;
   if (!raw) return res.status(401).json({ error: "unauthorized" });
+
   const payload = verifySession(raw);
-  if (!payload) return res.status(401).json({ error: "unauthorized" });
+  if (!payload?.sub) return res.status(401).json({ error: "unauthorized" });
+
   const user = await getUserById(payload.sub);
   if (!user) return res.status(401).json({ error: "unauthorized" });
+
   res.json({ user: { id: user.id, email: user.email } });
 });
 

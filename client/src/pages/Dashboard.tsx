@@ -1,51 +1,76 @@
+// client/src/pages/Dashboard.tsx
 import { useEffect, useState } from "react";
-import { API_BASE } from "../lib/api";
-
-type DraftRow = { id: string; updated_at: string; status: string; };
+import AuthGuard from "../auth/AuthGuard";
+import { listTemplates } from "../api/templates";
+import { listDrafts, createDraftRecord } from "../lib/api";
 
 export default function Dashboard() {
-  const [rows, setRows] = useState<DraftRow[]>([]);
-  const [err, setErr] = useState<string | null>(null);
+  return (
+    <AuthGuard>
+      <DashboardInner />
+    </AuthGuard>
+  );
+}
+
+function DashboardInner() {
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/drafts?mine=1`, { credentials: "include" });
-        if (!res.ok) throw new Error(`List failed: ${res.status}`);
-        const json = await res.json();
-        setRows(json.items || []);
-      } catch (e:any) {
-        setErr(e?.message || "Failed to load drafts");
-      }
-    })();
+    listDrafts().then(setDrafts).catch(() => setDrafts([]));
+    listTemplates().then(setTemplates).catch(() => setTemplates([]));
   }, []);
 
-  async function newDraft() {
-    const res = await fetch(`${API_BASE}/api/drafts`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: "{}" });
-    if (!res.ok) return alert("Failed to create draft");
-    const { draftId } = await res.json();
-    window.location.href = `/annotate/${draftId}`;
+  async function newReport(tid: string) {
+    const id = await createDraftRecord({ templateId: tid });
+    window.location.href = `/annotate/${id}`;
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Your drafts</h1>
-        <button className="bg-black text-white px-3 py-2 rounded" onClick={newDraft}>New draft</button>
+        <h1 className="text-xl font-semibold">Your reports</h1>
+        <button className="px-3 py-2 border rounded" onClick={() => setOpen(true)}>New report</button>
       </div>
-      {err && <div className="text-red-600 mb-3">{err}</div>}
-      <ul className="divide-y border rounded">
-        {rows.map(r => (
-          <li key={r.id} className="p-3 flex items-center justify-between">
-            <div>
-              <div className="font-mono text-sm">{r.id}</div>
-              <div className="text-xs text-gray-500">{new Date(r.updated_at).toLocaleString()}</div>
+
+      {drafts.length === 0 ? (
+        <div className="text-sm text-gray-500">No drafts yet.</div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          {drafts.map((d) => {
+            const title = d.payload?.meta?.title || d.title || "Untitled";
+            const templateId = d.payload?.meta?.templateId || d.templateId || "—";
+            const updated = d.updatedAt || d.updated_at;
+            return (
+              <a key={d.id} href={`/annotate/${d.id}`} className="border rounded p-3 hover:bg-gray-50">
+                <div className="text-sm font-medium">{title}</div>
+                <div className="text-xs text-gray-500">{updated ? new Date(updated).toLocaleString() : ""}</div>
+                <div className="text-xs text-gray-500">Template: {templateId}</div>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {open && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
+          <div className="bg-white rounded shadow p-4 w-[520px]">
+            <div className="text-sm font-medium mb-2">Choose a template</div>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {templates.map(t => (
+                <button key={t.id} className="border rounded p-3 text-left hover:bg-gray-50" onClick={() => newReport(t.id)}>
+                  <div className="text-sm font-medium">{t.name}</div>
+                  <div className="text-xs text-gray-500">{t.version}</div>
+                </button>
+              ))}
             </div>
-            <a href={`/annotate/${r.id}`} className="underline">Open</a>
-          </li>
-        ))}
-        {rows.length === 0 && <li className="p-4 text-gray-500 text-sm">No drafts yet.</li>}
-      </ul>
+            <div className="flex justify-end">
+              <button className="px-3 py-2 border rounded" onClick={() => setOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
