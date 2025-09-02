@@ -3,16 +3,50 @@ import { validateIntake } from "../utils/validate";
 import { draftsStore } from "../utils/draftsStore";
 import { buildReportHtml, renderPdfViaGotenberg } from "../pdf";
 import { sendAdminReportEmail } from "../utils/mailer";
+import { verifySession } from "../services/authService";
 
 const router = Router();
 
-/** Create a draft from an intake-like payload */
+function getUserId(req: any): string | null {
+  const raw =
+    (req.cookies && req.cookies.dr_session) ||
+    req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!raw) return null;
+  const payload = verifySession(raw);
+  return payload?.sub || null;
+}
+
+/** Create a draft from an intake-like payload. Attaches owner if logged in. */
 router.post("/drafts", (req, res, next) => {
   try {
-    const intake = validateIntake(req.body); // permissive schema
-    const draft = draftsStore.create(intake);
+    const intake = validateIntake(req.body || {}); // permissive
+    const userId = getUserId(req);
+    const draft = draftsStore.create(intake, userId || undefined);
     res.status(201).json({ draftId: draft.id });
   } catch (e) { next(e); }
+});
+
+/** List drafts for current user */
+router.get("/drafts", (req, res) => {
+  const mine = String(req.query.mine || "");
+  if (mine !== "1") return res.status(400).json({ error: "bad_request" });
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: "unauthorized" });
+  const rows = draftsStore.listByOwner(userId).map(d => ({
+    id: d.id,
+    updated_at: d.updatedAt,
+    status: d.status,
+  }));
+  res.json({ items: rows });
+});
+
+/** Claim a draft for current user */
+router.post("/drafts/:id/claim", (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: "unauthorized" });
+  const d = draftsStore.claim(req.params.id, userId);
+  if (!d) return res.status(404).json({ error: "not_found" });
+  res.json({ ok: true });
 });
 
 /** Read a draft */

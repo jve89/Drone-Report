@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 import express, { NextFunction, Request, Response } from "express";
 import fs from "node:fs";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 
 import healthRouter from "./routes/health";
 import createDraftRouter from "./routes/createDraft";
@@ -16,6 +17,11 @@ import authRouter from "./routes/auth";
 
 const app = express();
 app.set("trust proxy", true);
+
+// CORS for browser auth cookies
+const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+app.use(cors({ origin: ORIGIN, credentials: true }));
+
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
@@ -64,8 +70,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       ? { error: "renderer", message }
       : { error: "internal" };
 
+  console.error("[api error]", message, err?.stack || err);
+
   res.status(status).type("application/json").send(body);
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => console.log(`listening :${port}`));
+app.listen(port, () => console.log(`listening :${port}`, "CORS origin:", ORIGIN));

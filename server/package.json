@@ -13,8 +13,10 @@
   "dependencies": {
     "@drone-report/shared": "file:../shared",
     "@sendgrid/mail": "^8.1.1",
+    "@types/cors": "^2.8.19",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",

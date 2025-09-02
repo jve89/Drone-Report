@@ -1,5 +1,5 @@
 import { query } from "../db/client";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 
 export type User = { id: string; email: string; created_at: string };
 
