@@ -44,7 +44,7 @@ type DraftResponse = {
 const SEVERITIES = ["None", "Low", "Medium", "High", "Critical"] as const;
 const CONDITIONS = ["Excellent", "Good", "Fair", "Poor"];
 const URGENCY = ["None", "Low", "Medium", "High", "Critical"];
-const TYPES = ["General", "Roof", "Facade", "Solar", "Insurance", "Progress", "Other"];
+const TEMPLATES = ["General", "Roof", "Facade", "Solar", "Insurance", "Progress", "Other"] as const;
 const PAGE_SIZE = 1;
 
 type PageKey =
@@ -161,6 +161,11 @@ export default function Annotate() {
     setPage(pages[n].key);
   };
 
+  /* Template value from payload.scope.types[0] with default */
+  const template = (data?.payload?.scope?.types?.[0] as string) || "General";
+  const setTemplate = (t: string) =>
+    saveNested(cur => ({ ...cur, scope: { types: [t] } }));
+
   /* Panels */
   const RightPanel = () => {
     if (!data) return null;
@@ -194,11 +199,11 @@ export default function Annotate() {
                    value={site.address || ""}
                    onChange={e => saveNested(cur => ({ ...cur, site: { ...(cur.site || {}), address: e.target.value } }))} />
           </Labeled>
-          <Labeled label="Inspection type">
+          <Labeled label="Inspection type / Template">
             <select className="w-full border rounded px-2 py-1 text-sm"
                     value={(scope.types && scope.types[0]) || "General"}
                     onChange={e => saveNested(cur => ({ ...cur, scope: { types: [e.target.value] } }))}>
-              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </Labeled>
           <Labeled label="Logo URL">
@@ -444,27 +449,30 @@ export default function Annotate() {
               {data ? <> · {data.status} · {new Date(data.updatedAt).toLocaleString()}</> : null}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="border rounded px-2 py-1" onClick={() => {
-              const i = pages.findIndex(p => p.key === page);
-              const n = Math.max(0, i - 1);
-              setPage(pages[n].key);
-            }} disabled={pages.findIndex(p => p.key === page) <= 0}>Prev</button>
 
-            <select className="border rounded px-2 py-1 text-sm" value={page} onChange={e => setPage(e.target.value as PageKey)}>
-              {pages.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          {/* Template selector in top bar */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700">Template</label>
+            <select
+              className="border rounded px-2 py-1 text-sm"
+              value={template}
+              onChange={(e) => setTemplate(e.target.value)}
+            >
+              {TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
 
-            <button className="border rounded px-2 py-1" onClick={() => {
-              const i = pages.findIndex(p => p.key === page);
-              const n = Math.min(pages.length - 1, i + 1);
-              setPage(pages[n].key);
-            }} disabled={pages.findIndex(p => p.key === page) >= pages.length - 1}>Next</button>
-
             <div className="ml-4 flex items-center gap-2">
-              <button className="border rounded px-2 py-1" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>−</button>
-              <div className="w-16 text-center text-sm">{Math.round(zoom * 100)}%</div>
-              <button className="border rounded px-2 py-1" onClick={() => setZoom(z => Math.min(2, z + 0.1))}>+</button>
+              <button className="border rounded px-2 py-1" onClick={() => go(-1)} disabled={idx <= 0}>Prev</button>
+              <select className="border rounded px-2 py-1 text-sm" value={page} onChange={e => setPage(e.target.value as PageKey)}>
+                {pages.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+              <button className="border rounded px-2 py-1" onClick={() => go(1)} disabled={idx >= pages.length - 1}>Next</button>
+
+              <div className="ml-4 flex items-center gap-2">
+                <button className="border rounded px-2 py-1" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>−</button>
+                <div className="w-16 text-center text-sm">{Math.round(zoom * 100)}%</div>
+                <button className="border rounded px-2 py-1" onClick={() => setZoom(z => Math.min(2, z + 0.1))}>+</button>
+              </div>
             </div>
           </div>
         </div>

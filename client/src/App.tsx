@@ -1,10 +1,10 @@
-import Header from './components/Header'
-import Footer from './components/Footer'
-import Hero from './sections/Hero'
-import HowItWorks from './sections/HowItWorks'
-import WhatYouGet from './sections/WhatYouGet'
-import Pricing from './sections/Pricing'
-import IntakeForm from './sections/IntakeForm'
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import Hero from "./sections/Hero";
+import HowItWorks from "./sections/HowItWorks";
+import WhatYouGet from "./sections/WhatYouGet";
+import Pricing from "./sections/Pricing";
+import IntakeForm from "./sections/IntakeForm";
 
 export default function App() {
   return (
@@ -27,5 +27,5 @@ export default function App() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }
