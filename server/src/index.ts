@@ -6,17 +6,22 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 import express, { NextFunction, Request, Response } from "express";
 import fs from "node:fs";
+import cookieParser from "cookie-parser";
+
 import healthRouter from "./routes/health";
 import createDraftRouter from "./routes/createDraft";
 import draftsRouter from "./routes/drafts";
 import previewRouter from "./routes/preview";
+import authRouter from "./routes/auth";
 
 const app = express();
 app.set("trust proxy", true);
 app.use(express.json({ limit: "50mb" }));
+app.use(cookieParser());
 
 // API routes
 app.use("/api", healthRouter);
+app.use("/api", authRouter);
 app.use("/api", createDraftRouter);
 app.use("/api", draftsRouter);
 app.use("/api", previewRouter);
@@ -59,7 +64,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       ? { error: "renderer", message }
       : { error: "internal" };
 
-  // Keep consistent content type
   res.status(status).type("application/json").send(body);
 });
 

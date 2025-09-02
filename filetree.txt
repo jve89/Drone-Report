@@ -21,7 +21,6 @@
 │   │   │   └── uploadcare.ts
 │   │   ├── main.tsx
 │   │   ├── pages
-│   │   │   ├── AnnotatePage.tsx
 │   │   │   └── Annotate.tsx
 │   │   ├── sections
 │   │   │   ├── Hero.tsx
@@ -100,4 +99,4 @@
     └── types
         └── intake.ts
 
-26 directories, 74 files
+26 directories, 73 files

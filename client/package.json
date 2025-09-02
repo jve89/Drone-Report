@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@drone-report/shared": "file:../shared",
+    "@rolldown/pluginutils": "^1.0.0-beta.27",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
