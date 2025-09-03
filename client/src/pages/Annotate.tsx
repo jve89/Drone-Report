@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import AuthGuard from "../auth/AuthGuard";
-import { getDraft, patchDraft } from "../api/drafts";
+import { getDraft, updateDraft } from "../lib/api";
 import { loadTemplate } from "../templates/loader";
 import { useEditor } from "../state/editorStore";
 import Navigator from "../editor/Navigator";
@@ -29,23 +29,21 @@ function AnnotateInner() {
     let mounted = true;
     (async () => {
       const d = await getDraft(id!);
-      const t = await loadTemplate(d.templateId);
+      const t = await loadTemplate(d.payload?.meta?.templateId || d.templateId);
       if (!mounted) return;
       setDraft(d);
       setTemplate(t);
       setLoaded(true);
     })();
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
+    return () => { mounted = false; };
+  }, [id, setDraft, setTemplate]);
 
   // autosave
   useEffect(() => {
     if (!draft) return;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
-      await patchDraft(draft.id, { pageInstances: draft.pageInstances, media: draft.media });
+      await updateDraft(draft.id, { pageInstances: draft.pageInstances, media: draft.media });
     }, 800);
   }, [draft]);
 
