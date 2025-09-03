@@ -1,5 +1,5 @@
 // client/src/editor/panels/MediaPanel.tsx
-import { uploadMedia } from "../../api/drafts";
+import { uploadDraftMedia } from "../../lib/api";
 import { useEditor } from "../../state/editorStore";
 
 export default function MediaPanel() {
@@ -9,7 +9,7 @@ export default function MediaPanel() {
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const media = await uploadMedia(draft.id, files);
+    const media = await uploadDraftMedia(draft.id, files);
     setDraft({ ...draft, media });
   }
 
