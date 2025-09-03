@@ -11,11 +11,11 @@ const Password = z.string().min(8).max(200);
 const COOKIE = process.env.COOKIE_NAME || "dr_session";
 
 function setCookie(res: any, token: string) {
-  const isProd = process.env.NODE_ENV === "production";
+  // Cross-site in Gitpod/Vite requires SameSite=None; Secure
   res.cookie(COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
+    sameSite: "none",
+    secure: true,
     path: "/",
   });
 }
@@ -46,7 +46,8 @@ router.post("/auth/login", async (req, res, next) => {
 });
 
 router.post("/auth/logout", (req, res) => {
-  res.clearCookie(COOKIE, { path: "/" });
+  // Mirror attributes to ensure deletion in cross-site context
+  res.clearCookie(COOKIE, { path: "/", sameSite: "none", secure: true });
   res.status(204).end();
 });
 

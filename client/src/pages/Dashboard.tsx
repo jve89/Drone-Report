@@ -58,8 +58,20 @@ function DashboardInner() {
           <div className="bg-white rounded shadow p-4 w-[520px]">
             <div className="text-sm font-medium mb-2">Choose a template</div>
             <div className="grid grid-cols-2 gap-2 mb-4">
-              {templates.map(t => (
-                <button key={t.id} className="border rounded p-3 text-left hover:bg-gray-50" onClick={() => newReport(t.id)}>
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="border rounded p-3 text-left hover:bg-gray-50"
+                  onClick={async () => {
+                    try {
+                      await newReport(t.id);
+                    } catch (e: any) {
+                      console.error(e);
+                      alert(e?.message || "Failed to create draft");
+                    }
+                  }}
+                >
                   <div className="text-sm font-medium">{t.name}</div>
                   <div className="text-xs text-gray-500">{t.version}</div>
                 </button>
