@@ -25,13 +25,11 @@ app.use(cors({ origin: ORIGIN, credentials: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
-// Static uploads (dev/prod if provided)
-const UPLOAD_DIR =
-  process.env.UPLOAD_DIR ||
-  path.resolve(process.cwd(), "server", "src", "uploads");
-if (fs.existsSync(UPLOAD_DIR)) {
-  app.use("/uploads", express.static(UPLOAD_DIR));
-}
+// Static uploads (stable path: server/uploads or env override)
+const ROOT = path.resolve(__dirname, ".."); // points to /server/dist or /server/src
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve(ROOT, "uploads");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use("/uploads", express.static(UPLOAD_DIR));
 
 // API routes
 app.use("/api", healthRouter);

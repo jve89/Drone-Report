@@ -1,7 +1,7 @@
 // server/src/services/draftService.ts
-import db from "../db/client";
+import { db } from "../db/client";
 import { newId } from "../utils/id";
-import type { Draft, PageInstance, Template } from "../../../shared/types/template";
+import type { Draft, PageInstance, Template } from "@drone-report/shared/dist/types/template";
 
 type RawDraftRow = {
   id: string;
@@ -128,6 +128,6 @@ export async function patchDraft(userId: string, draftId: string, patch: any): P
 
 export async function removeDraft(userId: string, draftId: string): Promise<boolean> {
   const q = `DELETE FROM drafts WHERE id = $1 AND user_id = $2`;
-  const { rowCount } = await db.query(q, [draftId, userId]);
-  return rowCount > 0;
+  const res = await db.query(q, [draftId, userId]);
+  return (res.rowCount ?? 0) > 0;
 }

@@ -7,7 +7,7 @@ import { requireAuth, AuthedRequest } from "../middleware/requireAuth";
 import { getTemplate } from "../services/templateService";
 import { createDraft, getOwnedDraft, listDrafts, patchDraft, removeDraft } from "../services/draftService";
 import { ensureUploadDir, urlFor } from "../services/mediaService";
-import type { Draft, Media } from "../../../shared/types/template";
+import type { Draft, Media } from "@drone-report/shared/dist/types/template";
 import { renderDraftHTML } from "../pdf/render";
 
 const router = Router();
@@ -54,7 +54,7 @@ router.delete("/:id", asyncHandler(async (req: AuthedRequest, res) => {
 router.post("/:id/media", upload.array("files", 32), asyncHandler(async (req: AuthedRequest, res) => {
   const d = await getOwnedDraft(req.user!.id, req.params.id);
   if (!d) return res.status(404).json({ error: "not_found" });
-  const files = (req.files as Express.Multer.File[]) || [];
+  const files = ((req as any).files as Express.Multer.File[]) || [];
   const added: Media[] = files.map(f => ({
     id: f.filename,
     url: urlFor(path.basename(f.filename)),

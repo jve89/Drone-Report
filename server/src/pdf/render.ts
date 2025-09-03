@@ -1,5 +1,5 @@
 // server/src/pdf/render.ts
-import type { Draft } from "../../../shared/types/template";
+import type { Draft } from "@drone-report/shared/dist/types/template";
 
 // Minimal HTML export. PDF service can reuse this HTML.
 export function renderDraftHTML(draft: Draft): string {

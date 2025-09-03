@@ -2,8 +2,8 @@
 ├── client
 │   ├── dist
 │   │   ├── assets
-│   │   │   ├── index-CIM7ozON.css
-│   │   │   └── index-_teIMedO.js
+│   │   │   ├── index-BNsFgFp-.css
+│   │   │   └── index-m50ZEuY1.js
 │   │   ├── index.html
 │   │   └── logo.svg
 │   ├── index.html
@@ -71,6 +71,10 @@
 │   │   ├── db
 │   │   │   └── client.js
 │   │   ├── index.js
+│   │   ├── middleware
+│   │   │   └── requireAuth.js
+│   │   ├── pdf
+│   │   │   └── render.js
 │   │   ├── pdf.js
 │   │   ├── routes
 │   │   │   ├── auth.js
@@ -78,18 +82,27 @@
 │   │   │   ├── drafts.js
 │   │   │   ├── health.js
 │   │   │   ├── preview.js
-│   │   │   └── reports.js
+│   │   │   ├── reports.js
+│   │   │   └── templates.js
 │   │   ├── services
 │   │   │   ├── authService.js
+│   │   │   ├── draftService.js
+│   │   │   ├── mediaService.js
+│   │   │   ├── templateService.js
 │   │   │   └── userService.js
 │   │   ├── templates
 │   │   │   └── report.html
 │   │   └── utils
+│   │       ├── asyncHandler.js
 │   │       ├── chunkMedia.js
 │   │       ├── draftsStore.js
+│   │       ├── id.js
 │   │       ├── mailer.js
 │   │       └── validate.js
 │   ├── package.json
+│   ├── server
+│   │   └── src
+│   │       └── uploads
 │   ├── src
 │   │   ├── db
 │   │   │   ├── client.ts
@@ -130,9 +143,17 @@
     │   ├── schema
     │   │   ├── intake.schema.d.ts
     │   │   └── intake.schema.js
+    │   ├── templates
+    │   │   ├── generic-building.json
+    │   │   ├── index.d.ts
+    │   │   ├── index.js
+    │   │   ├── solar-pv.json
+    │   │   └── wind-blade.json
     │   └── types
     │       ├── intake.d.ts
-    │       └── intake.js
+    │       ├── intake.js
+    │       ├── template.d.ts
+    │       └── template.js
     ├── mapping
     │   └── report.map.md
     ├── package.json
@@ -149,4 +170,4 @@
         ├── intake.ts
         └── template.ts
 
-40 directories, 109 files
+46 directories, 124 files

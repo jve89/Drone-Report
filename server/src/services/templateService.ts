@@ -1,7 +1,7 @@
 // server/src/services/templateService.ts
 import path from "node:path";
 import fs from "node:fs";
-import type { Template } from "../../../shared/types/template";
+import type { Template } from "@drone-report/shared/dist/types/template";
 
 const ROOT = process.cwd();
 const TEMPLATES_DIR = path.resolve(ROOT, "shared", "templates");
