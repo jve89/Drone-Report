@@ -4,14 +4,17 @@ import { exportDraftHtml } from "../../lib/api";
 import { useEditor } from "../../state/editorStore";
 
 export default function ExportPanel() {
-  const { draft } = useEditor();
+  const { draft, template } = useEditor();
   const draftId = draft?.id;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!draftId) return null;
 
+  const blocked = !template;
+
   async function exportHtml() {
+    if (blocked) return;
     try {
       setBusy(true);
       setError(null);
@@ -32,7 +35,8 @@ export default function ExportPanel() {
         <button
           className="px-3 py-2 border rounded disabled:opacity-50"
           onClick={exportHtml}
-          disabled={busy}
+          disabled={busy || blocked}
+          title={blocked ? "Select a template to enable export" : undefined}
         >
           {busy ? "Exporting…" : "Export HTML"}
         </button>

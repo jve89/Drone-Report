@@ -13,17 +13,28 @@ export default function Canvas() {
     return <div className="p-6 text-gray-500">Loading editor…</div>;
   }
 
-  // Show an in-editor empty state when no template is selected.
+  // Empty state when no template.
   if (!template) {
+    function openTemplateDropdown() {
+      window.dispatchEvent(new CustomEvent("open-template-dropdown"));
+    }
     return (
       <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
         <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
           <div className="text-lg font-medium mb-2">Select a template to start</div>
           <p className="text-sm text-gray-600 mb-4">
-            The workspace will populate with the template’s front page and page stack.
+            The workspace will populate with the template’s page stack.
           </p>
-          <p className="text-sm text-gray-500">
-            Use the template selector in the editor’s top bar.
+          <div className="flex items-center justify-center">
+            <button
+              onClick={openTemplateDropdown}
+              className="px-3 py-2 border rounded hover:bg-gray-50"
+            >
+              Pick a template
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            You can change templates later. Current edits will be preserved where possible.
           </p>
         </div>
       </div>
