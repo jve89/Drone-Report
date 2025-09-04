@@ -6,17 +6,16 @@ const withCreds: RequestInit = { credentials: "include" };
 type AnyObj = Record<string, any>;
 
 function normDraft(json: AnyObj): AnyObj {
-  // If server already returns { payload }, keep it.
   if (json && typeof json === "object" && json.payload) return json;
 
-  // Build a minimal intake payload from draft fields.
-  const mediaImages = Array.isArray(json?.media) ? json.media : [];
+  const media = Array.isArray(json?.media) ? json.media : [];
+  const pageInstances = Array.isArray(json?.pageInstances) ? json.pageInstances : [];
   const templateId = typeof json?.templateId === "string" ? json.templateId : undefined;
   const title = typeof json?.title === "string" ? json.title : undefined;
 
   const payload: AnyObj = {
     meta: { templateId: templateId ?? "", title: title ?? "" },
-    media: { images: mediaImages },
+    media: { images: media },
     findings: Array.isArray(json?.annotations) ? json.annotations : [],
     scope: { types: templateId ? [templateId] : [] },
   };
@@ -26,7 +25,11 @@ function normDraft(json: AnyObj): AnyObj {
     status: json?.status ?? "draft",
     createdAt: json?.createdAt ?? json?.created_at ?? "",
     updatedAt: json?.updatedAt ?? json?.updated_at ?? "",
+    title: title ?? "",
+    templateId: templateId ?? "",
     payload,
+    media,
+    pageInstances,
   };
 }
 

@@ -1,11 +1,12 @@
+// server/src/index.ts
 import path from "node:path";
+import fs from "node:fs";
 import dotenv from "dotenv";
 
-// Load env from repo root .env (safe if missing on Heroku)
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+// --- Load env from repo root .env ---
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 import express, { NextFunction, Request, Response } from "express";
-import fs from "node:fs";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -35,7 +36,7 @@ app.use("/uploads", express.static(UPLOAD_DIR));
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
 app.use("/api", templatesRouter);
-app.use("/api", draftsRouter);
+app.use("/api/drafts", draftsRouter);   // <-- mount correctly here
 app.use("/api", previewRouter);
 
 // Static serving: SERVE_DIR → server/public → client/dist

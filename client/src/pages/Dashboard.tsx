@@ -1,5 +1,6 @@
 // client/src/pages/Dashboard.tsx
 import { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import AuthGuard from "../auth/AuthGuard";
 import { listTemplates } from "../api/templates";
 import { listDrafts, createDraftRecord } from "../lib/api";
@@ -16,6 +17,7 @@ function DashboardInner() {
   const [drafts, setDrafts] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     listDrafts().then(setDrafts).catch(() => setDrafts([]));
@@ -24,7 +26,7 @@ function DashboardInner() {
 
   async function newReport(tid: string) {
     const id = await createDraftRecord({ templateId: tid });
-    window.location.href = `/annotate/${id}`;
+    navigate(`/annotate/${id}`);
   }
 
   return (
@@ -43,11 +45,11 @@ function DashboardInner() {
             const templateId = d.payload?.meta?.templateId || d.templateId || "—";
             const updated = d.updatedAt || d.updated_at;
             return (
-              <a key={d.id} href={`/annotate/${d.id}`} className="border rounded p-3 hover:bg-gray-50">
+              <Link key={d.id} to={`/annotate/${d.id}`} className="border rounded p-3 hover:bg-gray-50">
                 <div className="text-sm font-medium">{title}</div>
                 <div className="text-xs text-gray-500">{updated ? new Date(updated).toLocaleString() : ""}</div>
                 <div className="text-xs text-gray-500">Template: {templateId}</div>
-              </a>
+              </Link>
             );
           })}
         </div>

@@ -3,7 +3,7 @@
 │   ├── dist
 │   │   ├── assets
 │   │   │   ├── index-BNsFgFp-.css
-│   │   │   └── index-m50ZEuY1.js
+│   │   │   └── index-BW0_nXFh.js
 │   │   ├── index.html
 │   │   └── logo.svg
 │   ├── index.html
@@ -13,7 +13,6 @@
 │   │   └── logo.svg
 │   ├── src
 │   │   ├── api
-│   │   │   ├── drafts.ts
 │   │   │   └── templates.ts
 │   │   ├── App.tsx
 │   │   ├── auth
@@ -78,11 +77,9 @@
 │   │   ├── pdf.js
 │   │   ├── routes
 │   │   │   ├── auth.js
-│   │   │   ├── createDraft.js
 │   │   │   ├── drafts.js
 │   │   │   ├── health.js
 │   │   │   ├── preview.js
-│   │   │   ├── reports.js
 │   │   │   └── templates.js
 │   │   ├── services
 │   │   │   ├── authService.js
@@ -95,7 +92,6 @@
 │   │   └── utils
 │   │       ├── asyncHandler.js
 │   │       ├── chunkMedia.js
-│   │       ├── draftsStore.js
 │   │       ├── id.js
 │   │       ├── mailer.js
 │   │       └── validate.js
@@ -121,7 +117,6 @@
 │   │   │   ├── drafts.ts
 │   │   │   ├── health.ts
 │   │   │   ├── preview.ts
-│   │   │   ├── reports.ts
 │   │   │   └── templates.ts
 │   │   ├── services
 │   │   │   ├── authService.ts
@@ -137,7 +132,8 @@
 │   │       ├── id.ts
 │   │       ├── mailer.ts
 │   │       └── validate.ts
-│   └── tsconfig.json
+│   ├── tsconfig.json
+│   └── uploads
 └── shared
     ├── dist
     │   ├── schema
@@ -170,4 +166,4 @@
         ├── intake.ts
         └── template.ts
 
-46 directories, 124 files
+47 directories, 119 files

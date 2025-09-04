@@ -3,8 +3,6 @@ import type { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 const COOKIE = process.env.COOKIE_NAME || "dr_session";
-const SECRET = process.env.SESSION_SECRET || process.env.JWT_SECRET || "change_me";
-const DEBUG = process.env.DEBUG_AUTH === "1";
 
 export type AuthedRequest = Request & { user?: { id: string } };
 
@@ -18,9 +16,14 @@ function readToken(req: Request): string | null {
 }
 
 export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+  // Read env lazily so dotenv has already run
+  const SECRET = process.env.SESSION_SECRET || process.env.JWT_SECRET || "change_me";
+  const DEBUG = process.env.DEBUG_AUTH === "1";
+
   const token = readToken(req);
 
   if (DEBUG) {
+    console.log("[requireAuth] SECRET.len", SECRET.length, "value starts with", SECRET.slice(0, 4));
     console.log("[auth] path:", req.method, req.originalUrl);
     console.log("[auth] cookie keys:", Object.keys(req.cookies || {}));
     console.log("[auth] COOKIE name expected:", COOKIE);
