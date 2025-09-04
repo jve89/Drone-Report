@@ -22,14 +22,19 @@
 │   │   │   ├── Footer.tsx
 │   │   │   └── Header.tsx
 │   │   ├── editor
+│   │   │   ├── blocks
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── Inspector.tsx
 │   │   │   ├── layout
 │   │   │   │   └── EditorShell.tsx
 │   │   │   ├── Navigator.tsx
+│   │   │   ├── onboarding
+│   │   │   │   ├── Coachmark.tsx
+│   │   │   │   └── FirstRunBanner.tsx
 │   │   │   ├── panels
 │   │   │   │   ├── ExportPanel.tsx
 │   │   │   │   ├── MediaPanel.tsx
+│   │   │   │   ├── StartChecklist.tsx
 │   │   │   │   └── TemplatePanel.tsx
 │   │   │   ├── TemplateDropdown.tsx
 │   │   │   └── Toolbar.tsx
@@ -166,6 +171,7 @@
     │   ├── intake.schema.ts
     │   └── template.v1.json
     ├── templates
+    │   ├── building-roof-v1.json
     │   ├── generic-building.json
     │   ├── index.ts
     │   ├── solar-pv.json
@@ -175,4 +181,4 @@
         ├── intake.ts
         └── template.ts
 
-49 directories, 126 files
+51 directories, 130 files

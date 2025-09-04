@@ -1,18 +1,7 @@
 // shared/types/template.ts
 export type Rect = { x: number; y: number; w: number; h: number }; // percents 0–100
 
-export type BlockType =
-  | "text"
-  | "rich_text"
-  | "image_slot"
-  | "table"
-  | "metric"
-  | "legend"
-  | "page_index"
-  | "map"
-  | "select"
-  | "number"
-  | "date";
+export type BlockType = "text" | "image_slot" | "table" | "badge" | "repeater";
 
 export type BlockBase = {
   id: string;
@@ -20,20 +9,43 @@ export type BlockBase = {
   rect: Rect;
   label?: string;
   placeholder?: string;
+  // type-specific options live here; values live in draft.pageInstances[].values[blockId]
   options?: Record<string, any>;
 };
 
-export type BlockText = BlockBase & { type: "text" | "rich_text" };
+export type BlockText = BlockBase & {
+  type: "text";
+  options?: { binding?: string; align?: "left" | "center" | "right" };
+};
+
 export type BlockImage = BlockBase & {
   type: "image_slot";
   options?: { crop?: boolean; minRes?: { w: number; h: number }; aspect?: number };
 };
+
 export type BlockTable = BlockBase & {
   type: "table";
-  options: { columns: { key: string; label: string }[]; maxRows?: number };
+  options: {
+    columns: { key: string; label: string; align?: "left" | "center" | "right" }[];
+    maxRows?: number;
+    dense?: boolean;
+  };
 };
 
-export type Block = BlockText | BlockImage | BlockTable | BlockBase;
+export type BlockBadge = BlockBase & {
+  type: "badge";
+  options?: { palette?: "gray" | "blue" | "amber" | "red" | "green" };
+};
+
+export type BlockRepeater = BlockBase & {
+  type: "repeater";
+  options?: {
+    datasource?: "findings"; // future: support other sources
+    previewCount?: number;   // editor-only preview of N items
+  };
+};
+
+export type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
 export type TemplatePage = {
   id: string;
@@ -41,17 +53,12 @@ export type TemplatePage = {
   kind:
     | "cover"
     | "exec_summary"
-    | "method_scope"
-    | "site_details"
-    | "severity_legend"
     | "issue_index"
     | "detail"
-    | "recommendations"
     | "media_appendix"
     | "compliance"
-    | "signoff";
+    | "toc";
   repeatable?: boolean;
-  freeformZones?: Rect[];
   blocks: Block[];
 };
 
@@ -62,36 +69,18 @@ export type Template = {
   pages: TemplatePage[];
 };
 
-export type Crop = { x: number; y: number; scale: number }; // relative to natural image size
-
-export type Media = { id: string; url: string; kind: "image" | "video"; filename?: string; thumb?: string };
-
-export type Annotation = {
+// Below types are shared hints for draft payloads used by templates
+export type Finding = {
   id: string;
-  mediaId: string;
-  note: string;
-  severity?: number;
-  x?: number;
-  y?: number;
-  createdAt: string;
+  photoUrl: string;
+  severity: "Low" | "Medium" | "High" | "Critical";
+  issue: string;
+  comment?: string;
+  location?: string;
+  timestamp?: string; // ISO
 };
 
-export type PageInstance = {
-  id: string;
-  templatePageId: string;
-  values: Record<string, any>;
-  userBlocks: Array<{ id: string; type: BlockType; rect: Rect; value?: any; options?: any }>;
-};
-
-export type Draft = {
-  id: string;
-  userId: string;
-  templateId: string;
-  title: string;
-  status: "draft" | "archived";
-  media: Media[];
-  annotations: Annotation[];
-  pageInstances: PageInstance[];
-  createdAt: string;
-  updatedAt: string;
+export type DraftPayload = {
+  meta?: { templateId?: string; title?: string };
+  findings?: Finding[];
 };

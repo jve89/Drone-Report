@@ -1,0 +1,87 @@
+{
+  "id": "building-roof-v1",
+  "name": "Building Roof Inspection",
+  "version": "1.0.0",
+  "pages": [
+    {
+      "id": "cover",
+      "name": "Cover",
+      "kind": "cover",
+      "blocks": [
+        { "id": "title", "type": "text", "rect": { "x": 10, "y": 20, "w": 80, "h": 10 }, "placeholder": "Project title" },
+        { "id": "subtitle", "type": "text", "rect": { "x": 10, "y": 31, "w": 80, "h": 6 }, "placeholder": "Client / Site" },
+        { "id": "hero", "type": "image_slot", "rect": { "x": 10, "y": 40, "w": 80, "h": 40 } }
+      ]
+    },
+    {
+      "id": "toc",
+      "name": "Table of Contents",
+      "kind": "toc",
+      "blocks": [
+        { "id": "toc_intro", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 6 }, "placeholder": "Contents" },
+        { "id": "toc_table", "type": "table", "rect": { "x": 10, "y": 18, "w": 80, "h": 70 }, "options": {
+          "columns": [
+            { "key": "section", "label": "Section" },
+            { "key": "page", "label": "Page" }
+          ]
+        } }
+      ]
+    },
+    {
+      "id": "exec",
+      "name": "Executive summary",
+      "kind": "exec_summary",
+      "blocks": [
+        { "id": "summary_text", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 20 }, "placeholder": "Executive summary..." },
+        { "id": "severity_badge", "type": "badge", "rect": { "x": 10, "y": 32, "w": 20, "h": 6 }, "label": "Overall severity", "options": { "palette": "amber" } }
+      ]
+    },
+    {
+      "id": "index",
+      "name": "Findings overview",
+      "kind": "issue_index",
+      "blocks": [
+        { "id": "index_table", "type": "table", "rect": { "x": 6, "y": 10, "w": 88, "h": 78 }, "options": {
+          "columns": [
+            { "key": "id", "label": "#" },
+            { "key": "severity", "label": "Severity" },
+            { "key": "issue", "label": "Issue" },
+            { "key": "location", "label": "Location" },
+            { "key": "page", "label": "Page" }
+          ],
+          "dense": true
+        } }
+      ]
+    },
+    {
+      "id": "detail",
+      "name": "Finding details",
+      "kind": "detail",
+      "blocks": [
+        { "id": "detail_repeater", "type": "repeater", "rect": { "x": 6, "y": 6, "w": 88, "h": 88 }, "options": { "datasource": "findings", "previewCount": 3 } }
+      ]
+    },
+    {
+      "id": "media",
+      "name": "Media appendix",
+      "kind": "media_appendix",
+      "blocks": [
+        { "id": "grid", "type": "table", "rect": { "x": 6, "y": 10, "w": 88, "h": 80 }, "options": {
+          "columns": [
+            { "key": "thumb", "label": "Photo" },
+            { "key": "filename", "label": "Filename" },
+            { "key": "note", "label": "Note" }
+          ]
+        } }
+      ]
+    },
+    {
+      "id": "compliance",
+      "name": "Compliance",
+      "kind": "compliance",
+      "blocks": [
+        { "id": "compliance_text", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 70 }, "placeholder": "Standards, methods, disclaimers..." }
+      ]
+    }
+    ]
+}

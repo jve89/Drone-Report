@@ -9,12 +9,13 @@ type EditorState = {
   draft: Draft | null;
   template: Template | null;
   pageIndex: number;
-
+  zoom: number; // 0.25–2
   _saveTimer: number | null;
 
   setDraft: (d: Draft) => void;
   setTemplate: (t: Template | null) => void;
   setPageIndex: (i: number) => void;
+  setZoom: (z: number) => void;
 
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
@@ -26,10 +27,16 @@ type EditorState = {
   saveDebounced: () => void;
 };
 
+function clampZoom(z: number) {
+  const n = Number.isFinite(z) ? z : 1;
+  return Math.min(2, Math.max(0.25, n));
+}
+
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
   template: null,
   pageIndex: 0,
+  zoom: 1,
   _saveTimer: null,
 
   setDraft: (draft) => set({ draft }),
@@ -40,6 +47,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     const clamped = Math.max(0, Math.min(pageIndex, Math.max(0, max)));
     set({ pageIndex: clamped });
   },
+  setZoom: (z) => set({ zoom: clampZoom(z) }),
 
   setValue: (pageId, blockId, value) =>
     set((s) => {
@@ -87,14 +95,39 @@ export const useEditor = create<EditorState>((set, get) => ({
       (d as any).payload = payload;
       (d as any).templateId = templateId || undefined;
 
+      // Initialize page instances and default values per block
       if ((!d.pageInstances || d.pageInstances.length === 0) && t && Array.isArray((t as any).pages)) {
-        const pages = (t as any).pages as Array<{ id: string }>;
-        d.pageInstances = pages.map((p) => ({
-          id: crypto.randomUUID(),
-          templatePageId: p.id,
-          values: {},
-          userBlocks: [],
-        }));
+        const pages = (t as any).pages as Array<{ id: string; blocks?: any[] }>;
+        d.pageInstances = pages.map((p) => {
+          const values: Record<string, unknown> = {};
+          (p.blocks || []).forEach((b: any) => {
+            switch (b.type) {
+              case "text":
+                values[b.id] = "";
+                break;
+              case "image_slot":
+                values[b.id] = "";
+                break;
+              case "table":
+                values[b.id] = [];
+                break;
+              case "badge":
+                values[b.id] = { label: "", color: "gray" };
+                break;
+              case "repeater":
+                values[b.id] = { count: 0 };
+                break;
+              default:
+                values[b.id] = "";
+            }
+          });
+          return {
+            id: crypto.randomUUID(),
+            templatePageId: p.id,
+            values,
+            userBlocks: [],
+          };
+        });
       }
 
       return { draft: d, pageIndex: 0 };
