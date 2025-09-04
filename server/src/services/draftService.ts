@@ -66,6 +66,26 @@ export async function createDraft(userId: string, template: Template, title?: st
   return toDraft(rows[0]);
 }
 
+// Create a draft without a template; no pages yet.
+export async function createDraftEmpty(userId: string, title?: string): Promise<Draft> {
+  const id = newId();
+
+  const base = {
+    meta: { templateId: "", title: title ?? "" },
+    media: [],
+    annotations: [],
+    pageInstances: [] as PageInstance[],
+  };
+
+  const q = `
+    INSERT INTO drafts (id, user_id, status, data, payload)
+    VALUES ($1, $2, 'draft', $3, $3)
+    RETURNING id, user_id, status, data, payload, created_at, updated_at
+  `;
+  const { rows } = await db.query(q, [id, userId, base]);
+  return toDraft(rows[0]);
+}
+
 export async function getOwnedDraft(userId: string, draftId: string): Promise<Draft | null> {
   const q = `
     SELECT id, user_id, status, data, payload, created_at, updated_at

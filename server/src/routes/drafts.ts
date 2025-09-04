@@ -5,7 +5,7 @@ import path from "node:path";
 import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth, AuthedRequest } from "../middleware/requireAuth";
 import { getTemplate } from "../services/templateService";
-import { createDraft, getOwnedDraft, listDrafts, patchDraft, removeDraft } from "../services/draftService";
+import { createDraft, createDraftEmpty, getOwnedDraft, listDrafts, patchDraft, removeDraft } from "../services/draftService";
 import { ensureUploadDir, urlFor } from "../services/mediaService";
 import type { Draft, Media } from "@drone-report/shared/dist/types/template";
 import { renderDraftHTML } from "../pdf/render";
@@ -22,6 +22,15 @@ router.get("/", asyncHandler(async (req: AuthedRequest, res) => {
 
 router.post("/", asyncHandler(async (req: AuthedRequest, res) => {
   const { templateId, title } = req.body || {};
+
+  // Allow creating an empty draft with no template
+  if (!templateId || String(templateId).trim() === "") {
+    const d = await createDraftEmpty(req.user!.id, title);
+    res.status(201).json(d);
+    return;
+  }
+
+  // If templateId is provided, validate and bootstrap pages from template
   const t = getTemplate(String(templateId));
   if (!t) return res.status(400).json({ error: "invalid_template" });
   const d = await createDraft(req.user!.id, t, title);
