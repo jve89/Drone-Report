@@ -5,6 +5,7 @@ import Toolbar from "../Toolbar";
 import Inspector from "../Inspector";
 import MediaPanel from "../panels/MediaPanel";
 import ExportPanel from "../panels/ExportPanel";
+import TemplatePanel from "../panels/TemplatePanel";
 
 export default function EditorShell() {
   return (
@@ -17,7 +18,12 @@ export default function EditorShell() {
           <MediaPanel />
           <ExportPanel />
         </div>
-        <Inspector />
+        <div className="w-72 border-l flex flex-col">
+          <TemplatePanel />
+          <div className="flex-1 min-h-0 overflow-auto">
+            <Inspector />
+          </div>
+        </div>
       </div>
     </div>
   );

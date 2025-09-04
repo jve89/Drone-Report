@@ -24,8 +24,11 @@
 │   │   ├── editor
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── Inspector.tsx
+│   │   │   ├── layout
+│   │   │   │   └── EditorShell.tsx
 │   │   │   ├── Navigator.tsx
 │   │   │   ├── panels
+│   │   │   │   ├── ExportPanel.tsx
 │   │   │   │   └── MediaPanel.tsx
 │   │   │   └── Toolbar.tsx
 │   │   ├── lib
@@ -36,7 +39,9 @@
 │   │   │   ├── Annotate.tsx
 │   │   │   ├── AuthLogin.tsx
 │   │   │   ├── AuthSignup.tsx
-│   │   │   └── Dashboard.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── DraftRow.tsx
+│   │   │   └── TemplatePicker.tsx
 │   │   ├── sections
 │   │   │   ├── Hero.tsx
 │   │   │   ├── HowItWorks.tsx
@@ -48,6 +53,9 @@
 │   │   │   └── tailwind.css
 │   │   ├── templates
 │   │   │   └── loader.ts
+│   │   ├── types
+│   │   │   ├── draft.ts
+│   │   │   └── template.ts
 │   │   └── vite-env.d.ts
 │   ├── tailwind.config.cjs
 │   ├── tsconfig.json
@@ -166,4 +174,4 @@
         ├── intake.ts
         └── template.ts
 
-47 directories, 119 files
+49 directories, 125 files

@@ -34,12 +34,15 @@ function normDraft(json: AnyObj): AnyObj {
 }
 
 /** Create a draft, returns its id */
-export async function createDraftRecord(input: { templateId: string; title?: string }): Promise<string> {
+export async function createDraftRecord(
+  input?: { templateId?: string; title?: string }
+): Promise<string> {
+  const body = JSON.stringify(input ?? {});
   const res = await fetch(`${API_BASE}/api/drafts`, {
     ...withCreds,
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body,
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");

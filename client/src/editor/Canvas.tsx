@@ -6,17 +6,29 @@ function pct(n: number) {
   return `${n}%`;
 }
 
-// minimal block type for editor rendering
-type Block = {
-  id: string;
-  type: string;
-  rect: { x: number; y: number; w: number; h: number };
-  placeholder?: string;
-};
-
 export default function Canvas() {
   const { draft, template, pageIndex, setValue } = useEditor();
-  if (!draft || !template) return <div className="p-6 text-gray-500">Loading editor…</div>;
+
+  if (!draft) {
+    return <div className="p-6 text-gray-500">Loading editor…</div>;
+  }
+
+  // Show an in-editor empty state when no template is selected.
+  if (!template) {
+    return (
+      <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
+        <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
+          <div className="text-lg font-medium mb-2">Select a template to start</div>
+          <p className="text-sm text-gray-600 mb-4">
+            The workspace will populate with the template’s front page and page stack.
+          </p>
+          <p className="text-sm text-gray-500">
+            Use the template selector in the editor’s top bar.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const pageInstances = draft.pageInstances || [];
   const pageInstance = pageInstances[pageIndex];
@@ -43,6 +55,7 @@ export default function Canvas() {
             background: "rgba(255,255,255,0.9)",
           };
           const value = pageInstance.values?.[b.id] ?? "";
+
           if (b.type === "image_slot") {
             const url = typeof value === "string" ? value : "";
             return (
@@ -68,7 +81,7 @@ export default function Canvas() {
               </div>
             );
           }
-          
+
           return (
             <div
               key={b.id}

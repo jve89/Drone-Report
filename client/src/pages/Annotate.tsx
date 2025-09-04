@@ -15,7 +15,7 @@ export default function Annotate() {
 
 function AnnotateInner() {
   const { id } = useParams();
-  const { draft, template, loadDraft, saveDebounced } = useEditor();
+  const { draft, loadDraft, saveDebounced } = useEditor();
 
   // load on mount or when id changes
   useEffect(() => {
@@ -27,7 +27,8 @@ function AnnotateInner() {
     if (draft) saveDebounced();
   }, [draft, saveDebounced]);
 
-  if (!draft || !template) return null;
+  // Render the shell even when no template is chosen yet.
+  if (!draft) return null;
 
   return <EditorShell />;
 }
