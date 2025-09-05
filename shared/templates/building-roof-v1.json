@@ -1,7 +1,7 @@
 {
   "id": "building-roof-v1",
   "name": "Building Roof Inspection",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "pages": [
     {
       "id": "cover",
@@ -19,12 +19,17 @@
       "kind": "toc",
       "blocks": [
         { "id": "toc_intro", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 6 }, "placeholder": "Contents" },
-        { "id": "toc_table", "type": "table", "rect": { "x": 10, "y": 18, "w": 80, "h": 70 }, "options": {
-          "columns": [
-            { "key": "section", "label": "Section" },
-            { "key": "page", "label": "Page" }
-          ]
-        } }
+        {
+          "id": "toc_table",
+          "type": "table",
+          "rect": { "x": 10, "y": 18, "w": 80, "h": 70 },
+          "options": {
+            "columns": [
+              { "key": "section", "label": "Section" },
+              { "key": "page", "label": "Page" }
+            ]
+          }
+        }
       ]
     },
     {
@@ -33,7 +38,9 @@
       "kind": "exec_summary",
       "blocks": [
         { "id": "summary_text", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 20 }, "placeholder": "Executive summary..." },
-        { "id": "severity_badge", "type": "badge", "rect": { "x": 10, "y": 32, "w": 20, "h": 6 }, "label": "Overall severity", "options": { "palette": "amber" } }
+        { "id": "kpi_total", "type": "text", "rect": { "x": 10, "y": 32, "w": 35, "h": 6 }, "value": "Total findings: {{count(findings)}}" },
+        { "id": "kpi_crit", "type": "text", "rect": { "x": 47, "y": 32, "w": 43, "h": 6 }, "value": "Critical (4–5): {{count(findings|severity>=4)}}" },
+        { "id": "severity_badge", "type": "badge", "rect": { "x": 10, "y": 40, "w": 30, "h": 6 }, "label": "Overall severity", "options": { "palette": "amber" } }
       ]
     },
     {
@@ -41,16 +48,29 @@
       "name": "Findings overview",
       "kind": "issue_index",
       "blocks": [
-        { "id": "index_table", "type": "table", "rect": { "x": 6, "y": 10, "w": 88, "h": 78 }, "options": {
-          "columns": [
-            { "key": "id", "label": "#" },
-            { "key": "severity", "label": "Severity" },
-            { "key": "issue", "label": "Issue" },
-            { "key": "location", "label": "Location" },
-            { "key": "page", "label": "Page" }
-          ],
-          "dense": true
-        } }
+        {
+          "id": "index_table",
+          "type": "table",
+          "rect": { "x": 6, "y": 10, "w": 88, "h": 78 },
+          "options": {
+            "columns": [
+              { "key": "id", "label": "#" },
+              { "key": "severity", "label": "Severity" },
+              { "key": "issue", "label": "Issue" },
+              { "key": "location", "label": "Location" },
+              { "key": "page", "label": "Page" }
+            ],
+            "dense": true
+          },
+          "bind": "findings|sort=-severity,updatedAt",
+          "rowTemplate": {
+            "id": "{{item.index}}",
+            "severity": "{{item.severity}}",
+            "issue": "{{item.title}}",
+            "location": "{{item.location}}",
+            "page": ""
+          }
+        }
       ]
     },
     {
@@ -58,7 +78,19 @@
       "name": "Finding details",
       "kind": "detail",
       "blocks": [
-        { "id": "detail_repeater", "type": "repeater", "rect": { "x": 6, "y": 6, "w": 88, "h": 88 }, "options": { "datasource": "findings", "previewCount": 3 } }
+        {
+          "id": "detail_repeater",
+          "type": "repeater",
+          "rect": { "x": 6, "y": 6, "w": 88, "h": 88 },
+          "bind": "findings|sort=-severity,createdAt",
+          "options": { "datasource": "findings", "previewCount": 3 },
+          "children": [
+            { "id": "f_title", "type": "text", "rect": { "x": 8, "y": 8, "w": 84, "h": 6 }, "value": "{{item.title}}" },
+            { "id": "f_sev", "type": "text", "rect": { "x": 8, "y": 15, "w": 84, "h": 6 }, "value": "Severity: {{item.severity}}" },
+            { "id": "f_desc", "type": "text", "rect": { "x": 8, "y": 22, "w": 84, "h": 20 }, "value": "{{item.description}}" },
+            { "id": "f_img", "type": "image_slot", "rect": { "x": 8, "y": 44, "w": 84, "h": 46 }, "source": "{{item.photo.url}}" }
+          ]
+        }
       ]
     },
     {
@@ -66,13 +98,18 @@
       "name": "Media appendix",
       "kind": "media_appendix",
       "blocks": [
-        { "id": "grid", "type": "table", "rect": { "x": 6, "y": 10, "w": 88, "h": 80 }, "options": {
-          "columns": [
-            { "key": "thumb", "label": "Photo" },
-            { "key": "filename", "label": "Filename" },
-            { "key": "note", "label": "Note" }
-          ]
-        } }
+        {
+          "id": "grid",
+          "type": "table",
+          "rect": { "x": 6, "y": 10, "w": 88, "h": 80 },
+          "options": {
+            "columns": [
+              { "key": "thumb", "label": "Photo" },
+              { "key": "filename", "label": "Filename" },
+              { "key": "note", "label": "Note" }
+            ]
+          }
+        }
       ]
     },
     {
@@ -83,5 +120,5 @@
         { "id": "compliance_text", "type": "text", "rect": { "x": 10, "y": 10, "w": 80, "h": 70 }, "placeholder": "Standards, methods, disclaimers..." }
       ]
     }
-    ]
+  ]
 }

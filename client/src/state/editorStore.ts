@@ -5,12 +5,38 @@ import type { Template } from "../types/template";
 import { getDraft, updateDraft } from "../lib/api";
 import { loadTemplate } from "../templates/loader";
 
+/** Local copies of shared types to avoid cross-package TS import issues in the client. */
+type Severity = 1 | 2 | 3 | 4 | 5;
+type Annotation = {
+  id: string;
+  kind: "box";
+  rect: { x: number; y: number; w: number; h: number }; // normalized 0..1
+  index: number; // visible label per photo
+};
+export type Finding = {
+  id: string;
+  title: string;
+  severity: Severity;
+  category?: string;
+  location?: string;
+  description?: string;
+  tags: string[];
+  photoId: string;           // primary photo
+  photoIds?: string[];       // optional extra photos (future)
+  annotations: Annotation[]; // v1 uses primary photo only
+  createdAt: string;         // ISO
+  updatedAt: string;         // ISO
+};
+
 type EditorState = {
   draft: Draft | null;
   template: Template | null;
   pageIndex: number;
   zoom: number; // 0.25–2
   _saveTimer: number | null;
+
+  // Findings
+  findings: Finding[];
 
   setDraft: (d: Draft) => void;
   setTemplate: (t: Template | null) => void;
@@ -20,6 +46,13 @@ type EditorState = {
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
+
+  // Findings CRUD
+  setFindings: (f: Finding[]) => void;
+  createFindingsFromPhotos: (photoIds: string[]) => void;
+  updateFinding: (id: string, patch: Partial<Finding>) => void;
+  deleteFinding: (id: string) => void;
+  reindexAnnotations: (photoId: string) => void;
 
   selectTemplate: (templateId: string) => Promise<void>;
 
@@ -32,12 +65,18 @@ function clampZoom(z: number) {
   return Math.min(2, Math.max(0.25, n));
 }
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
   template: null,
   pageIndex: 0,
   zoom: 1,
   _saveTimer: null,
+
+  findings: [],
 
   setDraft: (draft) => set({ draft }),
   setTemplate: (template) => set({ template }),
@@ -80,6 +119,73 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   repeatPage: (pageId) => get().duplicatePage(pageId),
 
+  // ---------- Findings ----------
+  setFindings: (f) => set({ findings: f }),
+
+  createFindingsFromPhotos: (photoIds) =>
+    set((s) => {
+      if (!s.draft || !photoIds?.length) return {};
+      const created: Finding[] = photoIds.map((pid) => ({
+        id: crypto.randomUUID(),
+        title: "",
+        severity: 3,
+        category: undefined,
+        location: undefined,
+        description: "",
+        tags: [],
+        photoId: pid,
+        photoIds: undefined,
+        annotations: [], // boxes added later
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }));
+      return { findings: [...s.findings, ...created] };
+    }),
+
+  updateFinding: (id, patch) =>
+    set((s) => {
+      const idx = s.findings.findIndex((f) => f.id === id);
+      if (idx < 0) return {};
+      const next = [...s.findings];
+      next[idx] = { ...next[idx], ...patch, updatedAt: nowIso() };
+      return { findings: next };
+    }),
+
+  deleteFinding: (id) =>
+    set((s) => {
+      const next = s.findings.filter((f) => f.id !== id);
+      return { findings: next };
+    }),
+
+  // Recompute sequential indices for annotations on a given photo
+  reindexAnnotations: (photoId) =>
+    set((s) => {
+      const next = s.findings.map((f) => {
+        if (f.photoId !== photoId) return f;
+        const anns = [...f.annotations].sort((a, b) => a.index - b.index);
+        // Flatten all annotation indices across *all* findings for this photo.
+        // We will renumber in a second pass.
+        return { ...f, annotations: anns };
+      });
+
+      // Collect all annotations for this photo to renumber 1..N
+      const all = next
+        .filter((f) => f.photoId === photoId)
+        .flatMap((f) => f.annotations.map((a) => ({ fId: f.id, a })));
+
+      all.forEach((entry, i) => {
+        entry.a.index = i + 1;
+      });
+
+      // Write back mutated indices
+      const final = next.map((f) => {
+        if (f.photoId !== photoId) return f;
+        return { ...f, updatedAt: nowIso() };
+      });
+      return { findings: final };
+    }),
+
+  // ---------- Template selection ----------
   selectTemplate: async (templateId: string) => {
     const t = templateId ? await loadTemplate(templateId) : null;
     set({ template: (t as Template) ?? null });
@@ -92,6 +198,10 @@ export const useEditor = create<EditorState>((set, get) => ({
       const meta = ((payload.meta as any) ?? {}) as Record<string, unknown>;
       meta.templateId = templateId || undefined;
       payload.meta = meta;
+      // ensure findings array exists in payload
+      if (!Array.isArray((payload as any).findings)) {
+        (payload as any).findings = [];
+      }
       (d as any).payload = payload;
       (d as any).templateId = templateId || undefined;
 
@@ -136,6 +246,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     get().saveDebounced();
   },
 
+  // ---------- Draft IO ----------
   loadDraft: async (id: string) => {
     const d = await getDraft(id);
     const tplId =
@@ -145,7 +256,16 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const t = tplId ? await loadTemplate(tplId) : null;
 
-    set({ draft: d as Draft, template: (t as Template) ?? null });
+    // Pull findings from payload if present
+    const payloadFindings: Finding[] = Array.isArray((d as any)?.payload?.findings)
+      ? ((d as any).payload.findings as Finding[])
+      : [];
+
+    set({
+      draft: d as Draft,
+      template: (t as Template) ?? null,
+      findings: payloadFindings,
+    });
 
     const max = (d.pageInstances?.length ?? 1) - 1;
     const clamped = Math.max(0, Math.min(get().pageIndex, Math.max(0, max)));
@@ -163,7 +283,12 @@ export const useEditor = create<EditorState>((set, get) => ({
           pageInstances: d.pageInstances,
           media: d.media,
         };
-        if ((d as any).payload) body.payload = (d as any).payload;
+
+        // Merge payload with findings
+        const currentPayload = ((d as any).payload ?? {}) as Record<string, unknown>;
+        const payload = { ...currentPayload, findings: get().findings };
+        body.payload = payload;
+
         if ((d as any).templateId) body.templateId = (d as any).templateId;
 
         await updateDraft(d.id, body);

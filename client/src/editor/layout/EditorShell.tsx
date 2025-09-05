@@ -1,5 +1,4 @@
 // client/src/editor/layout/EditorShell.tsx
-import Navigator from "../Navigator";
 import Canvas from "../Canvas";
 import Toolbar from "../Toolbar";
 import Inspector from "../Inspector";
@@ -12,6 +11,7 @@ import StartChecklist from "../panels/StartChecklist";
 import { useEditor } from "../../state/editorStore";
 import { Accordion, AccordionItem } from "../../components/Accordion";
 import ViewerControls from "../ViewerControls";
+import LeftPane from "../LeftPane";
 
 export default function EditorShell() {
   const { template } = useEditor();
@@ -23,8 +23,8 @@ export default function EditorShell() {
       <div className="flex flex-1 min-h-0 relative">
         {!template && <Coachmark />}
 
-        {/* Left: navigation */}
-        <Navigator />
+        {/* Left: document navigation + findings */}
+        <LeftPane />
 
         {/* Center: canvas + floating controls */}
         <div className="relative flex-1 min-w-0 flex flex-col overflow-auto">
