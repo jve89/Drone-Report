@@ -5,7 +5,7 @@ import { useEditor } from "../../state/editorStore";
 import type { Draft } from "../../types/draft";
 
 export default function ExportPanel() {
-  const { draft, template, zoom, setZoom, setDraft } = useEditor();
+  const { draft, template, setDraft } = useEditor();
   const draftId = draft?.id;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,13 +13,6 @@ export default function ExportPanel() {
 
   if (!draftId) return null;
   const blocked = !template;
-
-  function clamp(z: number) {
-    return Math.min(2, Math.max(0.25, z));
-  }
-  function onZoomDelta(delta: number) {
-    setZoom(clamp(Number((zoom + delta).toFixed(2))));
-  }
 
   async function exportHtml() {
     if (blocked) return;
@@ -41,11 +34,10 @@ export default function ExportPanel() {
     const files = Array.from(e.currentTarget.files || []);
     e.currentTarget.value = "";
     if (!files.length || !draft) return;
-    const current: Draft = draft;
     try {
       setBusy(true);
-      const media = await uploadDraftMedia(current.id, files);
-      setDraft({ ...current, media } as Draft);
+      const media = await uploadDraftMedia(draft.id, files);
+      setDraft({ ...draft, media } as Draft);
     } catch (e: any) {
       setError(e?.message || "Upload failed");
     } finally {
@@ -55,8 +47,8 @@ export default function ExportPanel() {
 
   return (
     <div className="sticky bottom-0 z-10 p-3 bg-white border-t">
-      <div className="flex items-center">
-        {/* Left: Media */}
+      <div className="flex items-center justify-between">
+        {/* Media */}
         <div className="flex items-center gap-2">
           <input
             ref={fileRef}
@@ -79,39 +71,7 @@ export default function ExportPanel() {
           </span>
         </div>
 
-        {/* Center: Zoom */}
-        <div className="flex-1 flex items-center justify-center gap-2">
-          <span className="text-xs text-gray-600">Zoom</span>
-          <button
-            className="px-2 py-1 border rounded text-sm"
-            onClick={() => onZoomDelta(-0.1)}
-            title="Zoom out"
-          >
-            −
-          </button>
-          <input
-            type="range"
-            min={0.25}
-            max={2}
-            step={0.05}
-            value={zoom}
-            onChange={(e) => setZoom(clamp(parseFloat(e.target.value)))}
-            className="w-40"
-            aria-label="Page zoom"
-          />
-          <button
-            className="px-2 py-1 border rounded text-sm"
-            onClick={() => onZoomDelta(+0.1)}
-            title="Zoom in"
-          >
-            +
-          </button>
-          <div className="w-12 text-right text-sm tabular-nums">
-            {Math.round(zoom * 100)}%
-          </div>
-        </div>
-
-        {/* Right: Export */}
+        {/* Export */}
         <div className="flex items-center gap-3">
           <button
             className="px-3 py-2 border rounded disabled:opacity-50"
@@ -126,7 +86,7 @@ export default function ExportPanel() {
       </div>
 
       <p className="text-xs text-gray-500 mt-2">
-        Add media, adjust zoom, then export. The PDF link in the top bar uses the same HTML.
+        Add media, then export. The PDF link in the top bar uses the same HTML.
       </p>
     </div>
   );

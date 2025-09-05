@@ -10,6 +10,8 @@ import FirstRunBanner from "../onboarding/FirstRunBanner";
 import Coachmark from "../onboarding/Coachmark";
 import StartChecklist from "../panels/StartChecklist";
 import { useEditor } from "../../state/editorStore";
+import { Accordion, AccordionItem } from "../../components/Accordion";
+import ViewerControls from "../ViewerControls";
 
 export default function EditorShell() {
   const { template } = useEditor();
@@ -20,18 +22,51 @@ export default function EditorShell() {
       <Toolbar />
       <div className="flex flex-1 min-h-0 relative">
         {!template && <Coachmark />}
+
+        {/* Left: navigation */}
         <Navigator />
-        <div className="flex-1 min-w-0 flex flex-col overflow-auto">
+
+        {/* Center: canvas + floating controls */}
+        <div className="relative flex-1 min-w-0 flex flex-col overflow-auto">
           <Canvas />
-          <MediaPanel />
-          <ExportPanel />
+          <ViewerControls />
         </div>
-        <div className="w-72 border-l flex flex-col">
-          <TemplatePanel />
-          {!template && <StartChecklist />}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <Inspector />
-          </div>
+
+        {/* Right: collapsible panels */}
+        <div className="w-80 border-l flex flex-col">
+          <Accordion storageKey="dr/rightPanels" singleOpen defaultOpenId="inspector">
+            <AccordionItem id="inspector" title="Inspector">
+              <div className="min-h-[200px] max-h-[50vh] overflow-auto">
+                <Inspector />
+              </div>
+            </AccordionItem>
+
+            <AccordionItem id="media" title="Media">
+              <div className="min-h-[160px] max-h-[50vh] overflow-auto">
+                <MediaPanel />
+              </div>
+            </AccordionItem>
+
+            <AccordionItem id="template" title="Template & Theme">
+              <div className="min-h-[120px] max-h-[40vh] overflow-auto">
+                <TemplatePanel />
+              </div>
+            </AccordionItem>
+
+            <AccordionItem id="export" title="Export">
+              <div className="min-h-[100px]">
+                <ExportPanel />
+              </div>
+            </AccordionItem>
+
+            {!template && (
+              <AccordionItem id="start" title="Getting started">
+                <div className="min-h-[120px] overflow-auto">
+                  <StartChecklist />
+                </div>
+              </AccordionItem>
+            )}
+          </Accordion>
         </div>
       </div>
     </div>

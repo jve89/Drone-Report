@@ -3,12 +3,11 @@ import { useEditor } from "../state/editorStore";
 import TemplateDropdown from "./TemplateDropdown";
 
 export default function Toolbar() {
-  const { draft, template, pageIndex, setPageIndex, repeatPage } = useEditor();
+  const { draft, template, pageIndex, setPageIndex } = useEditor();
   if (!draft) return null;
 
   const pageCount = draft.pageInstances?.length ?? 0;
   const hasPages = pageCount > 0;
-  const current = hasPages ? draft.pageInstances[pageIndex] : null;
 
   const blocked = !template;
   const navPrevDisabled = blocked || !hasPages || pageIndex <= 0;
@@ -45,19 +44,9 @@ export default function Toolbar() {
 
       <div className="flex-1" />
 
-      {/* Template selector always visible */}
       <TemplateDropdown />
 
       <div className="flex-1" />
-
-      <button
-        className="px-3 py-1 border rounded disabled:opacity-50"
-        onClick={() => current && repeatPage(current.id)}
-        title={current ? "Repeat current page" : "Select a template first"}
-        disabled={!current || blocked}
-      >
-        Repeat page
-      </button>
 
       <a
         className={`px-3 py-1 border rounded ${exportDisabled ? "pointer-events-none opacity-50" : ""}`}
