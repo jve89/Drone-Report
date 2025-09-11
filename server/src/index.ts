@@ -26,17 +26,17 @@ app.use(cors({ origin: ORIGIN, credentials: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
-// Static uploads (stable path: server/uploads or env override)
-const ROOT = path.resolve(__dirname, ".."); // points to /server/dist or /server/src
+// Static uploads (stable path relative to dist)
+const ROOT = path.resolve(__dirname, ".."); // server/dist
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve(ROOT, "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.use("/uploads", express.static(UPLOAD_DIR, { fallthrough: false }));
 
 // API routes
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
 app.use("/api", templatesRouter);
-app.use("/api/drafts", draftsRouter);   // <-- mount correctly here
+app.use("/api/drafts", draftsRouter);
 app.use("/api", previewRouter);
 
 // Static serving: SERVE_DIR → server/public → client/dist

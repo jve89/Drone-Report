@@ -31,6 +31,15 @@
 │   │   │   ├── layout
 │   │   │   │   └── EditorShell.tsx
 │   │   │   ├── LeftPane.tsx
+│   │   │   ├── media
+│   │   │   │   ├── ImportSessionStore.ts
+│   │   │   │   ├── PowerImportModal.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   ├── utils
+│   │   │   │   │   ├── grouping.ts
+│   │   │   │   │   └── virtualGrid.ts
+│   │   │   │   └── workers
+│   │   │   │       └── exifWorker.ts
 │   │   │   ├── Navigator.tsx
 │   │   │   ├── onboarding
 │   │   │   │   ├── Coachmark.tsx
@@ -51,7 +60,8 @@
 │   │   │       └── annotate.ts
 │   │   ├── lib
 │   │   │   ├── api.ts
-│   │   │   └── uploadcare.ts
+│   │   │   ├── uploadcare.ts
+│   │   │   └── zip.ts
 │   │   ├── main.tsx
 │   │   ├── pages
 │   │   │   ├── Annotate.tsx
@@ -125,6 +135,7 @@
 │   ├── server
 │   │   └── src
 │   │       └── uploads
+│   │           ├── 42e30ce2f8765836ca4ce0ba7dc62510
 │   │           └── 8bf09348b349349810b0ed1531502e15
 │   ├── src
 │   │   ├── db
@@ -165,17 +176,27 @@
     ├── dist
     │   ├── schema
     │   │   ├── intake.schema.d.ts
+    │   │   ├── intake.schema.d.ts.map
     │   │   └── intake.schema.js
     │   ├── templates
     │   │   ├── generic-building.json
     │   │   ├── index.d.ts
+    │   │   ├── index.d.ts.map
     │   │   ├── index.js
     │   │   ├── solar-pv.json
     │   │   └── wind-blade.json
     │   └── types
+    │       ├── finding.d.ts
+    │       ├── finding.d.ts.map
+    │       ├── finding.js
     │       ├── intake.d.ts
+    │       ├── intake.d.ts.map
     │       ├── intake.js
+    │       ├── media.d.ts
+    │       ├── media.d.ts.map
+    │       ├── media.js
     │       ├── template.d.ts
+    │       ├── template.d.ts.map
     │       └── template.js
     ├── mapping
     │   └── report.map.md
@@ -193,6 +214,7 @@
     └── types
         ├── finding.ts
         ├── intake.ts
+        ├── media.ts
         └── template.ts
 
-55 directories, 140 files
+58 directories, 159 files

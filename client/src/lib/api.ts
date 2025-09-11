@@ -118,3 +118,19 @@ export async function exportDraftHtml(draftId: string): Promise<string> {
   }
   return await res.text();
 }
+
+/** Delete a media item from a draft */
+export async function deleteDraftMedia(draftId: string, mediaId: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/media/${encodeURIComponent(mediaId)}`,
+    {
+      ...withCreds,
+      method: "DELETE",
+    }
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Delete media failed: ${res.status} ${txt}`);
+  }
+}
+
