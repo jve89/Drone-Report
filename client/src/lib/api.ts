@@ -106,6 +106,19 @@ export async function uploadDraftMedia(draftId: string, files: File[]): Promise<
   return await res.json();
 }
 
+/**  add near uploadDraftMedia export */
+export async function deleteDraftMedia(draftId: string, ids: string[]): Promise<{ removed: string[] }> {
+  const res = await fetch(`/api/drafts/${encodeURIComponent(draftId)}/media`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`deleteDraftMedia failed: ${res.status}`);
+  return res.json();
+}
+
+
 /** Export HTML (server PDF can consume this) */
 export async function exportDraftHtml(draftId: string): Promise<string> {
   const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/export/pdf`, {
@@ -118,19 +131,3 @@ export async function exportDraftHtml(draftId: string): Promise<string> {
   }
   return await res.text();
 }
-
-/** Delete a media item from a draft */
-export async function deleteDraftMedia(draftId: string, mediaId: string): Promise<void> {
-  const res = await fetch(
-    `${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/media/${encodeURIComponent(mediaId)}`,
-    {
-      ...withCreds,
-      method: "DELETE",
-    }
-  );
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Delete media failed: ${res.status} ${txt}`);
-  }
-}
-

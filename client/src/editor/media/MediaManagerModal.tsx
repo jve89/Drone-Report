@@ -5,6 +5,7 @@ import type { MediaItem } from "@drone-report/shared/types/media";
 import type { QueuedFile, ImportGroup } from "./types";
 import { useImportSession } from "./ImportSessionStore";
 import { groupByFolderOrTime } from "./utils/grouping";
+import { pickFilesViaFS, pickDirectoryViaFS } from "../../lib/pickers";
 
 export type MediaManagerModalProps = {
   draftId: string;
@@ -129,15 +130,52 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
         </div>
 
         <div className="p-3 border-b flex items-center gap-2">
-          <button className="px-2 py-1 border rounded hover:bg-gray-50" onClick={() => inputFilesRef.current?.click()}>Files</button>
-          <button className="px-2 py-1 border rounded hover:bg-gray-50" title="Chromium only" onClick={() => inputFolderRef.current?.click()}>Folder</button>
-          <button className="px-2 py-1 border rounded hover:bg-gray-50" onClick={() => inputZipRef.current?.click()}>ZIP</button>
+          <button
+            className="px-2 py-1 border rounded hover:bg-gray-50"
+            onClick={async () => {
+              const fs = await pickFilesViaFS({ allowZip: true, id: "dr-media-files" });
+              if (fs) { queueFiles(fs); return; }
+              inputFilesRef.current?.click(); // fallback for Safari/Firefox
+            }}
+          >
+            Files
+          </button>
+
+          <button
+            className="px-2 py-1 border rounded hover:bg-gray-50"
+            title="Chromium only"
+            onClick={async () => {
+              const fs = await pickDirectoryViaFS({ id: "dr-media-folder" });
+              if (fs) { queueFiles(fs); return; }
+              inputFolderRef.current?.click(); // fallback
+            }}
+          >
+            Folder
+          </button>
+
+          <button
+            className="px-2 py-1 border rounded hover:bg-gray-50"
+            onClick={async () => {
+              const fs = await pickFilesViaFS({ allowZip: true, id: "dr-media-zip" });
+              if (fs) { queueFiles(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))); return; }
+              inputZipRef.current?.click(); // fallback
+            }}
+          >
+            ZIP
+          </button>
+
           <input ref={inputFilesRef} type="file" multiple accept="image/*,.zip" onChange={onPick((fs) => queueFiles(fs))} className="hidden" />
           <input ref={inputFolderRef} type="file" multiple onChange={onPick((fs) => queueFiles(fs))} className="hidden" />
           <input ref={inputZipRef} type="file" accept=".zip" onChange={onPick((fs) => queueFiles(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))))} className="hidden" />
 
           <div className="ml-4 flex items-center gap-2">
-            <input type="text" placeholder="Search filename…" value={filter} onChange={(e) => setFilter(e.target.value)} className="px-2 py-1 border rounded" />
+            <input
+              type="text"
+              placeholder="Search filename…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="px-2 py-1 border rounded"
+            />
             <select value={view} onChange={(e) => setView(e.target.value as "grid" | "list")} className="px-2 py-1 border rounded">
               <option value="grid">Grid</option>
               <option value="list">List</option>
@@ -146,7 +184,11 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <button disabled={!files.length || isUploading} className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50" onClick={startUpload}>
+            <button
+              disabled={!files.length || isUploading}
+              className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50"
+              onClick={startUpload}
+            >
               {isUploading ? "Uploading…" : "Start upload"}
             </button>
           </div>
