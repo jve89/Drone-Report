@@ -1,18 +1,18 @@
-// client/src/editor/media/PowerImportModal.tsx
+// client/src/editor/media/MediaManagerModal.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { uploadDraftMedia } from "../../lib/api";
-import type { MediaItem } from "@drone-report/shared/types/media"; // ← use shared type
+import type { MediaItem } from "@drone-report/shared/types/media";
 import type { QueuedFile, ImportGroup } from "./types";
 import { useImportSession } from "./ImportSessionStore";
 import { groupByFolderOrTime } from "./utils/grouping";
 
-export type PowerImportModalProps = {
+export type MediaManagerModalProps = {
   draftId: string;
   onClose: () => void;
   onUploaded: (media: MediaItem[]) => void;
 };
 
-export default function PowerImportModal({ draftId, onClose, onUploaded }: PowerImportModalProps) {
+export default function MediaManagerModal({ draftId, onClose, onUploaded }: MediaManagerModalProps) {
   const inputFilesRef = useRef<HTMLInputElement>(null);
   const inputFolderRef = useRef<HTMLInputElement>(null);
   const inputZipRef = useRef<HTMLInputElement>(null);
@@ -76,7 +76,7 @@ export default function PowerImportModal({ draftId, onClose, onUploaded }: Power
     try {
       const payload: File[] = files.map((f) => f.file);
       const uploaded = (await uploadDraftMedia(draftId, payload)) as MediaItem[];
-      onUploaded(uploaded); // strong type
+      onUploaded(uploaded);
       clear();
       onClose();
     } finally {
@@ -124,7 +124,7 @@ export default function PowerImportModal({ draftId, onClose, onUploaded }: Power
         )}
 
         <div className="p-3 border-b flex items-center justify-between">
-          <div className="font-semibold">Power Import</div>
+          <div className="font-semibold">Media Manager</div>
           <button className="px-3 py-1 border rounded hover:bg-gray-50" onClick={onClose}>Close</button>
         </div>
 

@@ -4,7 +4,7 @@ import { uploadDraftMedia } from "../../lib/api";
 import { useEditor } from "../../state/editorStore";
 import { useMediaStore } from "../../state/mediaStore";
 import type { MediaItem } from "@drone-report/shared/types/media";
-import PowerImportModal from "../media/MediaManagerModal";
+import MediaManagerModal from "../media/MediaManagerModal";
 import { useVirtualGrid } from "../media/utils/virtualGrid";
 
 export default function MediaPanel() {
@@ -133,7 +133,7 @@ export default function MediaPanel() {
         <input ref={folderInputRef} type="file" multiple onChange={onChoose(handleUpload)} className="hidden" />
         <input ref={zipInputRef} type="file" accept=".zip" onChange={onChoose((fs) => handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))))} className="hidden" />
 
-        <button className="ml-auto px-2 py-1 rounded border hover:bg-gray-50" onClick={() => setIsOpen(true)} aria-label="Open Power Import" title="Open Power Import">
+        <button className="ml-auto px-2 py-1 rounded border hover:bg-gray-50" onClick={() => setIsOpen(true)} aria-label="Open Media Manager" title="Open Media Manager">
           Expand
         </button>
       </div>
@@ -171,9 +171,9 @@ export default function MediaPanel() {
         </div>
       )}
 
-      {/* Power modal */}
+      {/* Media Manager modal */}
       {isOpen && draft && (
-        <PowerImportModal
+        <MediaManagerModal
           draftId={draft.id}
           onClose={() => setIsOpen(false)}
           onUploaded={setItems}
