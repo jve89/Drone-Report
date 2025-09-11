@@ -7,10 +7,11 @@ import type { MediaItem } from "@drone-report/shared/types/media";
 import MediaManagerModal from "../media/MediaManagerModal";
 import { useVirtualGrid } from "../media/utils/virtualGrid";
 import { pickFilesViaFS, pickDirectoryViaFS } from "../../lib/pickers";
+import { normalizeUploadResponse, mediaSrc, pickJustUploaded } from "../media/utils/mediaResponse";
 
 export default function MediaPanel() {
   const { draft } = useEditor();
-  const { items, setItems, addItems, removeItems, query, setQuery } = useMediaStore();
+  const { items, addItems, removeItems, query, setQuery } = useMediaStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -29,7 +30,7 @@ export default function MediaPanel() {
 
   if (!draft) return null;
 
-  const renderable = useMemo(() => items.filter((m) => m && m.id && m.url), [items]);
+  const renderable = useMemo(() => items.filter((m) => m && m.id && mediaSrc(m)), [items]);
 
   const filtered = useMemo(() => {
     if (!query) return renderable;
@@ -41,8 +42,11 @@ export default function MediaPanel() {
     if (!files.length || !draft) return;
     setIsUploading(true);
     try {
-      const uploaded = (await uploadDraftMedia(draft.id, files)) as MediaItem[];
-      addItems(uploaded);
+      const before = new Set(items.map((x) => x.id));
+      const resp = await uploadDraftMedia(draft.id, files);
+      const all = normalizeUploadResponse(resp) as MediaItem[];
+      const picked = pickJustUploaded(all, files, before) as MediaItem[];
+      if (picked.length) addItems(picked);
     } finally {
       setIsUploading(false);
     }
@@ -56,7 +60,6 @@ export default function MediaPanel() {
       await cb(files);
     };
 
-  // Panel-level DnD
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
@@ -82,7 +85,6 @@ export default function MediaPanel() {
     };
   }, [panelRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Virtualized list
   const gridRef = useRef<HTMLDivElement>(null);
   const rowH = 96;
   const { start, end, onScroll } = useVirtualGrid({
@@ -94,18 +96,17 @@ export default function MediaPanel() {
 
   async function onDelete(id: string) {
     if (!draft) return;
+    removeItems([id]); // optimistic
     setBusyIds((s) => new Set(s).add(id));
     try {
       await deleteDraftMedia(draft.id, [id]);
-      removeItems([id]);
     } finally {
       setBusyIds((s) => { const n = new Set(s); n.delete(id); return n; });
     }
   }
 
   return (
-    <div ref={panelRef} className="border-t p-2 text-sm overflow-x-hidden relative">
-      {/* Toolbar */}
+    <div ref={panelRef} className="border-t p-2 text-sm relative h-full flex flex-col min-h-[300px] overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 mb-2 overflow-visible">
         <input
           type="text"
@@ -115,7 +116,6 @@ export default function MediaPanel() {
           className="min-w-[160px] flex-1 px-2 py-1 border rounded"
         />
 
-        {/* Split button */}
         <div className="relative overflow-visible">
           <div className="inline-flex">
             <button
@@ -124,17 +124,12 @@ export default function MediaPanel() {
               onClick={async () => {
                 const fs = await pickFilesViaFS({ allowZip: true, id: "dr-media-files" });
                 if (fs) { await handleUpload(fs); return; }
-                fileInputRef.current?.click(); // fallback
+                fileInputRef.current?.click();
               }}
             >
               Add media
             </button>
-            <button
-              className="px-2 py-1 rounded-r border-l-0 border hover:bg-gray-50"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
+            <button className="px-2 py-1 rounded-r border-l-0 border hover:bg-gray-50" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               ▾
             </button>
           </div>
@@ -178,7 +173,6 @@ export default function MediaPanel() {
           )}
         </div>
 
-        {/* Hidden inputs (fallbacks) */}
         <input ref={fileInputRef} type="file" multiple accept="image/*,.zip" onChange={onChoose(handleUpload)} className="hidden" />
         <input ref={folderInputRef} type="file" multiple onChange={onChoose(handleUpload)} className="hidden" />
         <input ref={zipInputRef} type="file" accept=".zip" onChange={onChoose((fs) => handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))))} className="hidden" />
@@ -190,8 +184,7 @@ export default function MediaPanel() {
 
       {isUploading && <div className="text-xs text-gray-600 mb-2">Uploading…</div>}
 
-      {/* Scrollable list */}
-      <div ref={gridRef} onScroll={onScroll} className="h-64 overflow-y-auto overflow-x-hidden border rounded p-2" role="list" aria-label="Media items">
+      <div ref={gridRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden border rounded p-2" role="list" aria-label="Media items">
         <div style={{ height: filtered.length * rowH }} className="relative">
           {filtered.slice(start, end).map((m, i) => {
             const index = start + i;
@@ -201,7 +194,20 @@ export default function MediaPanel() {
               <div key={m.id} className="absolute inset-x-0" style={{ top }} role="listitem">
                 <div className="flex items-center gap-3 pr-2">
                   <div className="flex-none w-20 h-20 border rounded overflow-hidden bg-white">
-                    <img src={m.thumb || m.url} alt={m.filename || m.id} className="w-full h-full object-cover" draggable={false} />
+                    <img
+                      src={mediaSrc(m)}
+                      alt={m.filename || m.id}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src =
+                          "data:image/svg+xml;utf8," +
+                          encodeURIComponent(
+                            `<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><rect width='100%' height='100%' fill='#f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#94a3b8' font-size='12'>no preview</text></svg>`
+                          );
+                      }}
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px]">{m.filename || "unnamed"}</div>
@@ -218,14 +224,12 @@ export default function MediaPanel() {
         {filtered.length === 0 && <div className="text-center text-xs text-gray-500 py-6">Drop files here or use “Add media”.</div>}
       </div>
 
-      {/* Drag overlay */}
       {dragOver && (
         <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded pointer-events-none flex items-center justify-center">
           <div className="px-3 py-1 bg-white/90 border rounded text-sm">Drop to add</div>
         </div>
       )}
 
-      {/* Media Manager modal */}
       {isOpen && draft && (
         <MediaManagerModal draftId={draft.id} onClose={() => setIsOpen(false)} onUploaded={addItems} />
       )}
@@ -246,7 +250,12 @@ async function extractFilesFromDataTransfer(dt: DataTransfer | null): Promise<Fi
     const entry = (it as any).webkitGetAsEntry && (it as any).webkitGetAsEntry();
     if (!entry) continue;
     if (entry.isFile) {
-      const p = new Promise<void>((resolve) => { entry.file((f: File) => { out.push(f); resolve(); }, () => resolve()); });
+      const p = new Promise<void>((resolve) => {
+        entry.file((f: File) => {
+          out.push(f);
+          resolve();
+        }, () => resolve());
+      });
       walkers.push(p);
     } else if (entry.isDirectory) {
       walkers.push(walkDirectory(entry, out));
@@ -264,9 +273,16 @@ function walkDirectory(dirEntry: any, sink: File[]): Promise<void> {
       reader.readEntries(
         (batch: any[]) => {
           if (!batch.length) {
-            const ops = entries.map((ent) => ent.isFile
-              ? new Promise<void>((res) => ent.file((f: File) => { sink.push(f); res(); }, () => res()))
-              : walkDirectory(ent, sink));
+            const ops = entries.map((ent) =>
+              ent.isFile
+                ? new Promise<void>((res) =>
+                    ent.file((f: File) => {
+                      sink.push(f);
+                      res();
+                    }, () => res())
+                  )
+                : walkDirectory(ent, sink)
+            );
             Promise.all(ops).then(() => resolve());
             return;
           }
