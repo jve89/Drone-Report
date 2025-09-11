@@ -19,25 +19,36 @@
 │   │   │   ├── AuthGuard.tsx
 │   │   │   └── useSession.ts
 │   │   ├── components
+│   │   │   ├── Accordion.tsx
 │   │   │   ├── Footer.tsx
 │   │   │   └── Header.tsx
 │   │   ├── editor
+│   │   │   ├── annotations
+│   │   │   │   └── Annotator.tsx
 │   │   │   ├── blocks
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── Inspector.tsx
 │   │   │   ├── layout
 │   │   │   │   └── EditorShell.tsx
+│   │   │   ├── LeftPane.tsx
 │   │   │   ├── Navigator.tsx
 │   │   │   ├── onboarding
 │   │   │   │   ├── Coachmark.tsx
 │   │   │   │   └── FirstRunBanner.tsx
 │   │   │   ├── panels
 │   │   │   │   ├── ExportPanel.tsx
+│   │   │   │   ├── FindingsPanel.tsx
 │   │   │   │   ├── MediaPanel.tsx
 │   │   │   │   ├── StartChecklist.tsx
 │   │   │   │   └── TemplatePanel.tsx
 │   │   │   ├── TemplateDropdown.tsx
-│   │   │   └── Toolbar.tsx
+│   │   │   ├── Toolbar.tsx
+│   │   │   └── ViewerControls.tsx
+│   │   ├── export
+│   │   │   ├── html
+│   │   │   │   └── renderBindings.ts
+│   │   │   └── images
+│   │   │       └── annotate.ts
 │   │   ├── lib
 │   │   │   ├── api.ts
 │   │   │   └── uploadcare.ts
@@ -58,6 +69,7 @@
 │   │   ├── styles
 │   │   │   └── tailwind.css
 │   │   ├── templates
+│   │   │   ├── bindings.ts
 │   │   │   └── loader.ts
 │   │   ├── types
 │   │   │   ├── draft.ts
@@ -113,6 +125,7 @@
 │   ├── server
 │   │   └── src
 │   │       └── uploads
+│   │           └── 8bf09348b349349810b0ed1531502e15
 │   ├── src
 │   │   ├── db
 │   │   │   ├── client.ts
@@ -178,7 +191,8 @@
     │   └── wind-blade.json
     ├── tsconfig.json
     └── types
+        ├── finding.ts
         ├── intake.ts
         └── template.ts
 
-51 directories, 130 files
+55 directories, 140 files
