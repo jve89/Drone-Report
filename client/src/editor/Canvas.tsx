@@ -1,7 +1,9 @@
 // client/src/editor/Canvas.tsx
-import React from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { useEditor } from "../state/editorStore";
 import { renderString, select } from "../templates/bindings";
+
+const DR_MEDIA_MIME = "application/x-dr-media";
 
 /** Local types (allow binding fields on blocks) */
 type Rect = { x: number; y: number; w: number; h: number };
@@ -32,7 +34,8 @@ function Frame({ rect, children }: { rect: Rect; children: React.ReactNode }) {
 }
 
 export default function Canvas() {
-  const { draft, template, pageIndex, setValue, zoom, findings } = useEditor();
+  const { draft, template, pageIndex, setValue, zoom, findings, insertImageAtPoint } = useEditor();
+  const pageRef = useRef<HTMLDivElement>(null);
 
   if (!draft) return <div className="p-6 text-gray-500">Loading editor…</div>;
 
@@ -58,17 +61,17 @@ export default function Canvas() {
   const tPage = template.pages.find((p: any) => p.id === pageInstance.templatePageId);
   if (!tPage) return <div className="p-6 text-gray-500">Template page not found</div>;
 
-  const blocks = ((tPage.blocks ?? []) as unknown) as Block[];
+  const blocks = (tPage.blocks ?? []) as Block[];
 
   const PAGE_W = 820;
   const PAGE_H = 1160;
 
   // Binding context
-  const ctx = {
+  const ctx = useMemo(() => ({
     run: (draft as any)?.payload?.meta ?? {},
     draft: draft as any,
     findings: findings as any[],
-  };
+  }), [draft, findings]);
 
   function renderBoundText(raw?: string) {
     if (!raw) return "";
@@ -118,10 +121,44 @@ export default function Canvas() {
     );
   }
 
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    if (!pageRef.current) return;
+    const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
+    if (!raw) return;
+    e.preventDefault();
+
+    let payload: { draftId: string; id: string; url: string; filename?: string; kind?: string } | null = null;
+    try { payload = JSON.parse(raw); } catch { payload = null; }
+    if (!payload) return;
+    if (payload.draftId !== draft.id) return;
+
+    const rect = pageRef.current.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const nx = Math.max(0, Math.min(100, (px / PAGE_W) * 100));
+    const ny = Math.max(0, Math.min(100, (py / PAGE_H) * 100));
+
+    // Insert into the image slot under the drop point, or nearest image slot.
+    const ok = insertImageAtPoint(pageInstance.id, { x: nx, y: ny }, { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" });
+    if (!ok) {
+      // Fallback: set first empty image_slot on the page
+      const firstImg = (tPage.blocks || []).find((b: any) => b.type === "image_slot") as BlockImage | undefined;
+      if (firstImg) setValue(pageInstance.id, firstImg.id, payload.url);
+    }
+  }, [draft?.id, insertImageAtPoint, pageInstance?.id, setValue, tPage?.blocks]);
+
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
       <div style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }} className="relative">
         <div
+          ref={pageRef}
           className="relative bg-white shadow"
           style={{
             width: PAGE_W,
@@ -129,8 +166,10 @@ export default function Canvas() {
             transform: `scale(${zoom})`,
             transformOrigin: "top left",
           }}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
         >
-          {blocks.map((b: Block) => {
+          {(blocks as Block[]).map((b) => {
             const v = (pageInstance.values as any)?.[b.id];
 
             switch (b.type) {

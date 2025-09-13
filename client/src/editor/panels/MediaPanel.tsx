@@ -9,8 +9,10 @@ import { useVirtualGrid } from "../media/utils/virtualGrid";
 import { pickFilesViaFS, pickDirectoryViaFS } from "../../lib/pickers";
 import { normalizeUploadResponse, mediaSrc, pickJustUploaded } from "../media/utils/mediaResponse";
 
+const DR_MEDIA_MIME = "application/x-dr-media";
+
 export default function MediaPanel() {
-  const { draft } = useEditor();
+  const { draft, pageIndex, insertImageAppend } = useEditor();
   const { items, addItems, removeItems, query, setQuery } = useMediaStore();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -27,6 +29,22 @@ export default function MediaPanel() {
   useEffect(() => {
     if (folderInputRef.current) folderInputRef.current.setAttribute("webkitdirectory", "");
   }, []);
+
+  // ---- NEW: keep media store scoped to current draft ----
+  useEffect(() => {
+    if (!draft) return;
+    const serverMedia = ((draft as any).media || []) as MediaItem[];
+    // If lists already match, skip churn.
+    const cur = new Set(items.map((m) => m.id));
+    const nxt = new Set(serverMedia.map((m) => m.id));
+    const identical = cur.size === nxt.size && [...cur].every((id) => nxt.has(id));
+    if (identical) return;
+
+    if (items.length) removeItems(items.map((m) => m.id));
+    if (serverMedia.length) addItems(serverMedia);
+    setQuery("");
+  }, [draft?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ------------------------------------------------------
 
   if (!draft) return null;
 
@@ -104,6 +122,23 @@ export default function MediaPanel() {
       setBusyIds((s) => { const n = new Set(s); n.delete(id); return n; });
     }
   }
+
+  function onDragStartMedia(ev: React.DragEvent, m: MediaItem) {
+    if (!draft) return;
+    const url = mediaSrc(m) || "";
+    if (!url) return;
+    const payload = {
+      draftId: draft.id,
+      id: m.id,
+      url,
+      filename: m.filename || m.id,
+      kind: m.kind || "image",
+    };
+    ev.dataTransfer.setData(DR_MEDIA_MIME, JSON.stringify(payload));
+    ev.dataTransfer.effectAllowed = "copy";
+  }
+
+  const currentPageId = draft.pageInstances[pageIndex]?.id || null;
 
   return (
     <div ref={panelRef} className="border-t p-2 text-sm relative h-full flex flex-col min-h-[300px] overflow-hidden">
@@ -192,12 +227,17 @@ export default function MediaPanel() {
             const busy = busyIds.has(m.id);
             return (
               <div key={m.id} className="absolute inset-x-0" style={{ top }} role="listitem">
-                <div className="flex items-center gap-3 pr-2">
-                  <div className="flex-none w-20 h-20 border rounded overflow-hidden bg-white">
+                <div
+                  className="flex items-center gap-3 pr-2"
+                  draggable
+                  onDragStart={(e) => onDragStartMedia(e, m)}
+                  title="Drag to canvas to insert"
+                >
+                  <div className="flex-none w-20 h-20 border rounded overflow-hidden bg-white relative">
                     <img
                       src={mediaSrc(m)}
                       alt={m.filename || m.id}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none select-none"
                       draggable={false}
                       onError={(e) => {
                         e.currentTarget.onerror = null;
@@ -208,14 +248,36 @@ export default function MediaPanel() {
                           );
                       }}
                     />
+                    <div className="absolute bottom-1 right-1 text-[10px] px-1 py-0.5 bg-white/90 border rounded">Drag</div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px]">{m.filename || "unnamed"}</div>
                     <div className="text-[11px] text-gray-500">{m.kind || "image"}</div>
                   </div>
-                  <button className="ml-auto px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50" onClick={() => onDelete(m.id)} disabled={busy}>
-                    {busy ? "…" : "Delete"}
-                  </button>
+
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      className="px-2 py-1 text-[12px] border rounded hover:bg-gray-50 disabled:opacity-50"
+                      disabled={!currentPageId || !mediaSrc(m)}
+                      onClick={() => {
+                        if (!currentPageId) return;
+                        const url = mediaSrc(m) || "";
+                        if (!url) return;
+                        insertImageAppend(currentPageId, {
+                          id: m.id,
+                          url,
+                          filename: m.filename || "",
+                          kind: m.kind || "image",
+                        });
+                      }}
+                      title="Insert on current page"
+                    >
+                      Insert
+                    </button>
+                    <button className="px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50" onClick={() => onDelete(m.id)} disabled={busy}>
+                      {busy ? "…" : "Delete"}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

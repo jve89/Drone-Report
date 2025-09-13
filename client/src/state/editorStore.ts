@@ -11,7 +11,7 @@ type Annotation = {
   id: string;
   kind: "box";
   rect: { x: number; y: number; w: number; h: number }; // normalized 0..1
-  index: number; // visible label per photo
+  index: number;
 };
 export type Finding = {
   id: string;
@@ -21,21 +21,20 @@ export type Finding = {
   location?: string;
   description?: string;
   tags: string[];
-  photoId: string;           // primary photo
-  photoIds?: string[];       // optional extra photos (future)
-  annotations: Annotation[]; // v1 uses primary photo only
-  createdAt: string;         // ISO
-  updatedAt: string;         // ISO
+  photoId: string;
+  photoIds?: string[];
+  annotations: Annotation[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 type EditorState = {
   draft: Draft | null;
   template: Template | null;
   pageIndex: number;
-  zoom: number; // 0.25–2
+  zoom: number;
   _saveTimer: number | null;
 
-  // Findings
   findings: Finding[];
 
   setDraft: (d: Draft) => void;
@@ -46,6 +45,17 @@ type EditorState = {
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
+
+  // Drag/drop + click insert
+  insertImageAtPoint: (
+    pageId: string,
+    pointPct: { x: number; y: number },
+    media: { id: string; url: string; filename?: string; kind?: string }
+  ) => boolean;
+  insertImageAppend: (
+    pageId: string,
+    media: { id: string; url: string; filename?: string; kind?: string }
+  ) => boolean;
 
   // Findings CRUD
   setFindings: (f: Finding[]) => void;
@@ -119,6 +129,63 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   repeatPage: (pageId) => get().duplicatePage(pageId),
 
+  // ---------- Insert helpers ----------
+  insertImageAtPoint: (pageId, pointPct, media) => {
+    const s = get();
+    const d = s.draft;
+    const t = s.template as any;
+    if (!d || !t) return false;
+
+    const pi = d.pageInstances.find((p) => p.id === pageId);
+    const tPage = t.pages.find((p: any) => p.id === pi?.templatePageId);
+    if (!pi || !tPage) return false;
+
+    const blocks = (tPage.blocks || []) as Array<{ id: string; type: string; rect: { x: number; y: number; w: number; h: number } }>;
+    const contains = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
+      x >= r.x && y >= r.y && x <= r.x + r.w && y <= r.y + r.h;
+
+    const under = blocks.filter((b) => b.type === "image_slot" && contains(b.rect, pointPct.x, pointPct.y));
+    const target = under[0] || (blocks.find((b) => b.type === "image_slot") as any);
+    if (!target) return false;
+
+    set((prev) => {
+      const nd: Draft = structuredClone(prev.draft!);
+      const npi = nd.pageInstances.find((p) => p.id === pageId)!;
+      if (!npi.values) npi.values = {};
+      (npi.values as any)[target.id] = media.url;
+      return { draft: nd };
+    });
+    s.saveDebounced();
+    return true;
+  },
+
+  insertImageAppend: (pageId, media) => {
+    const s = get();
+    const d = s.draft;
+    const t = s.template as any;
+    if (!d || !t) return false;
+
+    const pi = d.pageInstances.find((p) => p.id === pageId);
+    const tPage = t.pages.find((p: any) => p.id === pi?.templatePageId);
+    if (!pi || !tPage) return false;
+
+    const blocks = (tPage.blocks || []) as Array<{ id: string; type: string }>;
+    // Prefer first empty image_slot
+    const firstEmpty = blocks.find((b) => b.type === "image_slot" && !(pi.values as any)?.[b.id]);
+    const target = firstEmpty || (blocks.find((b) => b.type === "image_slot") as any);
+    if (!target) return false;
+
+    set((prev) => {
+      const nd: Draft = structuredClone(prev.draft!);
+      const npi = nd.pageInstances.find((p) => p.id === pageId)!;
+      if (!npi.values) npi.values = {};
+      (npi.values as any)[target.id] = media.url;
+      return { draft: nd };
+    });
+    s.saveDebounced();
+    return true;
+  },
+
   // ---------- Findings ----------
   setFindings: (f) => set({ findings: f }),
 
@@ -135,7 +202,7 @@ export const useEditor = create<EditorState>((set, get) => ({
         tags: [],
         photoId: pid,
         photoIds: undefined,
-        annotations: [], // boxes added later
+        annotations: [],
         createdAt: nowIso(),
         updatedAt: nowIso(),
       }));
@@ -157,18 +224,14 @@ export const useEditor = create<EditorState>((set, get) => ({
       return { findings: next };
     }),
 
-  // Recompute sequential indices for annotations on a given photo
   reindexAnnotations: (photoId) =>
     set((s) => {
       const next = s.findings.map((f) => {
         if (f.photoId !== photoId) return f;
         const anns = [...f.annotations].sort((a, b) => a.index - b.index);
-        // Flatten all annotation indices across *all* findings for this photo.
-        // We will renumber in a second pass.
         return { ...f, annotations: anns };
       });
 
-      // Collect all annotations for this photo to renumber 1..N
       const all = next
         .filter((f) => f.photoId === photoId)
         .flatMap((f) => f.annotations.map((a) => ({ fId: f.id, a })));
@@ -177,7 +240,6 @@ export const useEditor = create<EditorState>((set, get) => ({
         entry.a.index = i + 1;
       });
 
-      // Write back mutated indices
       const final = next.map((f) => {
         if (f.photoId !== photoId) return f;
         return { ...f, updatedAt: nowIso() };
@@ -198,14 +260,12 @@ export const useEditor = create<EditorState>((set, get) => ({
       const meta = ((payload.meta as any) ?? {}) as Record<string, unknown>;
       meta.templateId = templateId || undefined;
       payload.meta = meta;
-      // ensure findings array exists in payload
       if (!Array.isArray((payload as any).findings)) {
         (payload as any).findings = [];
       }
       (d as any).payload = payload;
       (d as any).templateId = templateId || undefined;
 
-      // Initialize page instances and default values per block
       if ((!d.pageInstances || d.pageInstances.length === 0) && t && Array.isArray((t as any).pages)) {
         const pages = (t as any).pages as Array<{ id: string; blocks?: any[] }>;
         d.pageInstances = pages.map((p) => {
@@ -256,7 +316,6 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const t = tplId ? await loadTemplate(tplId) : null;
 
-    // Pull findings from payload if present
     const payloadFindings: Finding[] = Array.isArray((d as any)?.payload?.findings)
       ? ((d as any).payload.findings as Finding[])
       : [];
@@ -284,7 +343,6 @@ export const useEditor = create<EditorState>((set, get) => ({
           media: d.media,
         };
 
-        // Merge payload with findings
         const currentPayload = ((d as any).payload ?? {}) as Record<string, unknown>;
         const payload = { ...currentPayload, findings: get().findings };
         body.payload = payload;

@@ -18,6 +18,20 @@ export default function Toolbar() {
     window.dispatchEvent(new CustomEvent("open-template-dropdown"));
   }
 
+  function backToReports() {
+    try {
+      const ref = document.referrer;
+      const sameOrigin = !!ref && new URL(ref).origin === window.location.origin;
+      if (sameOrigin) {
+        history.back();
+        return;
+      }
+    } catch {
+      // ignore URL parse errors
+    }
+    window.location.href = "/dashboard";
+  }
+
   return (
     <div className="h-12 border-b px-3 flex items-center gap-2 bg-white">
       <button
@@ -47,6 +61,14 @@ export default function Toolbar() {
       <TemplateDropdown />
 
       <div className="flex-1" />
+
+      <button
+        className="px-3 py-1 border rounded"
+        onClick={backToReports}
+        title="Back to your reports"
+      >
+        Back to reports
+      </button>
 
       <a
         className={`px-3 py-1 border rounded ${exportDisabled ? "pointer-events-none opacity-50" : ""}`}

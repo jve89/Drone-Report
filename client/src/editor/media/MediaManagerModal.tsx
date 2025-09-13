@@ -10,6 +10,8 @@ import { useEditor } from "../../state/editorStore";
 import { useMediaStore } from "../../state/mediaStore";
 import { normalizeUploadResponse, mediaSrc, pickJustUploaded } from "./utils/mediaResponse";
 
+const DR_MEDIA_MIME = "application/x-dr-media";
+
 export type MediaManagerModalProps = {
   draftId: string;
   onClose: () => void;
@@ -19,7 +21,7 @@ export type MediaManagerModalProps = {
 type Mode = "queue" | "library";
 
 export default function MediaManagerModal({ draftId, onClose, onUploaded }: MediaManagerModalProps) {
-  const { draft } = useEditor();
+  const { draft, pageIndex, insertImageAppend } = useEditor();
   const { items, addItems, removeItems } = useMediaStore();
   const [mode, setMode] = useState<Mode>("queue");
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -138,6 +140,23 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
   }, [modalRef.current, files, groups]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const library = useMemo(() => items.filter((m) => m && m.id && mediaSrc(m)), [items]);
+
+  function onDragStartMedia(ev: React.DragEvent, m: MediaItem) {
+    if (!draft) return;
+    const url = mediaSrc(m) || "";
+    if (!url) return;
+    const payload = {
+      draftId: draft.id,
+      id: m.id,
+      url,
+      filename: m.filename || m.id,
+      kind: m.kind || "image",
+    };
+    ev.dataTransfer.setData(DR_MEDIA_MIME, JSON.stringify(payload));
+    ev.dataTransfer.effectAllowed = "copy";
+  }
+
+  const currentPageId = draft?.pageInstances?.[pageIndex]?.id || null;
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex">
@@ -259,17 +278,22 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
                 </table>
               )
             ) : (
-              // Library mode mirrors light menu
               <div className="grid grid-cols-6 gap-3">
                 {library.map((m) => {
                   const busy = busyIds.has(m.id);
                   return (
-                    <div key={m.id} className="border rounded p-2">
-                      <div className="w-full h-28 border rounded overflow-hidden bg-white mb-2">
+                    <div
+                      key={m.id}
+                      className="border rounded p-2"
+                      draggable
+                      onDragStart={(e) => onDragStartMedia(e, m)}
+                      title="Drag to canvas to insert"
+                    >
+                      <div className="w-full h-28 border rounded overflow-hidden bg-white mb-2 relative">
                         <img
                           src={mediaSrc(m)}
                           alt={m.filename || m.id}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover pointer-events-none select-none"
                           draggable={false}
                           onError={(e) => {
                             e.currentTarget.onerror = null;
@@ -280,18 +304,40 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
                               );
                           }}
                         />
+                        <div className="absolute bottom-1 right-1 text-[10px] px-1 py-0.5 bg-white/90 border rounded">Drag</div>
                       </div>
+
                       <div className="text-[12px] truncate mb-1">{m.filename || "unnamed"}</div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-[11px] text-gray-500">{m.kind || "image"}</span>
-                        <button
-                          className="px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50"
-                          onClick={() => onDelete(m.id)}
-                          disabled={busy}
-                          aria-label={`Delete ${m.filename || m.id}`}
-                        >
-                          {busy ? "…" : "Delete"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-2 py-1 text-[12px] border rounded hover:bg-gray-50 disabled:opacity-50"
+                            disabled={!currentPageId || !mediaSrc(m)}
+                            onClick={() => {
+                              if (!currentPageId) return;
+                              const url = mediaSrc(m) || "";
+                              if (!url) return;
+                              insertImageAppend(currentPageId, {
+                                id: m.id,
+                                url,
+                                filename: m.filename || "",
+                                kind: m.kind || "image",
+                              });
+                            }}
+                            title="Insert on current page"
+                          >
+                            Insert
+                          </button>
+                          <button
+                            className="px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => onDelete(m.id)}
+                            disabled={busy}
+                            aria-label={`Delete ${m.filename || m.id}`}
+                          >
+                            {busy ? "…" : "Delete"}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
