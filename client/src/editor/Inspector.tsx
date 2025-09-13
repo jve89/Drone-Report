@@ -19,7 +19,7 @@ function isBadge(b: BlockBase): b is BlockBadge { return b.type === "badge"; }
 function isRepeater(b: BlockBase): b is BlockRepeater { return b.type === "repeater"; }
 
 export default function Inspector() {
-  const { draft, template, pageIndex, setValue } = useEditor();
+  const { draft, template, pageIndex, setValue, selectedBlockId, setSelectedBlock, guide, guideNext } = useEditor();
 
   if (!draft || !template) {
     return (
@@ -34,14 +34,23 @@ export default function Inspector() {
   const tPage = template.pages.find((p: any) => p.id === page.templatePageId);
   if (!tPage) return null;
 
-  const blocks = (tPage.blocks ?? []) as BlockBase[] as Block[];
+  const allBlocks = (tPage.blocks ?? []) as BlockBase[] as Block[];
+  const targetBlocks =
+    selectedBlockId ? allBlocks.filter((b) => b.id === selectedBlockId) : allBlocks;
 
   return (
     <div className="p-3 space-y-3">
       <div className="text-sm font-medium">Inspector</div>
 
-      {blocks.map((b) => {
+      {selectedBlockId && (
+        <div className="text-[11px] text-gray-500 -mt-1">Editing block: <code>{selectedBlockId}</code></div>
+      )}
+
+      {targetBlocks.map((b) => {
         const v = (page.values as any)?.[b.id];
+        const advanceIfActive = () => {
+          if (guide?.enabled && selectedBlockId === b.id) guideNext();
+        };
 
         if (isText(b)) {
           return (
@@ -50,7 +59,9 @@ export default function Inspector() {
               <input
                 className="w-full border rounded px-2 py-1 text-sm"
                 value={typeof v === "string" ? v : ""}
+                onFocus={() => setSelectedBlock(b.id)}
                 onChange={(e) => setValue(page.id, b.id, e.target.value)}
+                onBlur={advanceIfActive}
                 placeholder={b.placeholder || ""}
               />
             </div>
@@ -67,13 +78,17 @@ export default function Inspector() {
               <input
                 className="w-full border rounded px-2 py-1 text-sm"
                 value={label}
+                onFocus={() => setSelectedBlock(b.id)}
                 onChange={(e) => setValue(page.id, b.id, { ...val, label: e.target.value })}
+                onBlur={advanceIfActive}
                 placeholder="Label"
               />
               <select
                 className="w-full border rounded px-2 py-1 text-sm"
                 value={color}
+                onFocus={() => setSelectedBlock(b.id)}
                 onChange={(e) => setValue(page.id, b.id, { ...val, color: e.target.value })}
+                onBlur={advanceIfActive}
               >
                 <option value="gray">Gray</option>
                 <option value="blue">Blue</option>
@@ -108,11 +123,13 @@ export default function Inspector() {
                             <input
                               className="w-full border rounded px-1 py-0.5"
                               value={r?.[c.key] ?? ""}
+                              onFocus={() => setSelectedBlock(b.id)}
                               onChange={(e) => {
                                 const next = rows.slice();
                                 next[ri] = { ...(next[ri] || {}), [c.key]: e.target.value };
                                 setValue(page.id, b.id, next);
                               }}
+                              onBlur={advanceIfActive}
                             />
                           </td>
                         ))}
@@ -122,13 +139,16 @@ export default function Inspector() {
                 </table>
               </div>
               <div className="flex gap-2">
-                <button className="px-2 py-1 border rounded text-xs" onClick={() => setValue(page.id, b.id, rows.concat({}))}>
+                <button
+                  className="px-2 py-1 border rounded text-xs"
+                  onClick={() => { setSelectedBlock(b.id); setValue(page.id, b.id, rows.concat({})); }}
+                >
                   Add row
                 </button>
                 <button
                   className="px-2 py-1 border rounded text-xs disabled:opacity-50"
                   disabled={!rows.length}
-                  onClick={() => setValue(page.id, b.id, rows.slice(0, -1))}
+                  onClick={() => { setSelectedBlock(b.id); setValue(page.id, b.id, rows.slice(0, -1)); }}
                 >
                   Remove last
                 </button>
@@ -147,7 +167,9 @@ export default function Inspector() {
                 type="number" min={0}
                 className="w-full border rounded px-2 py-1 text-sm"
                 value={Number(val.count ?? 0)}
+                onFocus={() => setSelectedBlock(b.id)}
                 onChange={(e) => setValue(page.id, b.id, { ...val, count: Number(e.target.value || 0) })}
+                onBlur={advanceIfActive}
               />
             </div>
           );

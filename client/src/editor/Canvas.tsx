@@ -22,25 +22,30 @@ type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
 function pct(n: number) { return `${n}%`; }
 
-function Frame({ rect, children }: { rect: Rect; children: React.ReactNode }) {
+function Frame({ rect, active, children }: { rect: Rect; active: boolean; children: React.ReactNode }) {
   const style: React.CSSProperties = {
     position: "absolute",
     left: pct(rect.x), top: pct(rect.y),
     width: pct(rect.w), height: pct(rect.h),
-    border: "1px dashed #e5e7eb",
+    border: active ? "2px solid #3b82f6" : "1px dashed #e5e7eb",
+    boxShadow: active ? "0 0 0 3px rgba(59,130,246,0.2)" : undefined,
     padding: 8, overflow: "hidden", background: "rgba(255,255,255,0.9)",
+    borderRadius: 4,
   };
   return <div style={style}>{children}</div>;
 }
 
 export default function Canvas() {
-  const { draft, template, pageIndex, setValue, zoom, findings, insertImageAtPoint } = useEditor();
+  const {
+    draft, template, pageIndex, setValue, zoom, findings, insertImageAtPoint,
+    guide, selectedBlockId, setSelectedBlock, guideNext
+  } = useEditor();
   const pageRef = useRef<HTMLDivElement>(null);
 
   const PAGE_W = 820;
   const PAGE_H = 1160;
 
-  // Binding context (safe even if draft/findings undefined)
+  // Binding context
   const ctx = useMemo(() => ({
     run: (draft as any)?.payload?.meta ?? {},
     draft: draft as any,
@@ -78,9 +83,12 @@ export default function Canvas() {
     if (!ok) {
       const tPage = template?.pages.find((p: any) => p.id === pageInstance.templatePageId);
       const firstImg = (tPage?.blocks || []).find((b: any) => b.type === "image_slot") as BlockImage | undefined;
-      if (firstImg) setValue(pageInstance.id, firstImg.id, payload.url);
+      if (firstImg) {
+        setValue(pageInstance.id, firstImg.id, payload.url);
+        if (guide?.enabled && selectedBlockId === firstImg.id) guideNext();
+      }
     }
-  }, [draft?.id, pageIndex, insertImageAtPoint, setValue, template?.pages]);
+  }, [draft?.id, pageIndex, insertImageAtPoint, setValue, template?.pages, guide?.enabled, selectedBlockId, guideNext]);
 
   function renderBoundText(raw?: string) {
     if (!raw) return "";
@@ -130,10 +138,8 @@ export default function Canvas() {
     );
   }
 
-  // -------- Render branches (no conditional hooks) --------
-  if (!draft) {
-    return <div className="p-6 text-gray-500">Loading editor…</div>;
-  }
+  // -------- Render branches --------
+  if (!draft) return <div className="p-6 text-gray-500">Loading editor…</div>;
 
   if (!template) {
     function openTemplateDropdown() { window.dispatchEvent(new CustomEvent("open-template-dropdown")); }
@@ -176,23 +182,30 @@ export default function Canvas() {
         >
           {blocks.map((b: Block) => {
             const v = (pageInstance.values as any)?.[b.id];
+            const active = !!guide?.enabled && selectedBlockId === b.id;
 
             switch (b.type) {
               case "image_slot": {
                 const boundSrc = (b as BlockImage).source ? renderBoundText((b as BlockImage).source) : "";
                 const url = boundSrc || (typeof v === "string" ? v : "");
                 return (
-                  <Frame key={b.id} rect={b.rect}>
+                  <Frame key={b.id} rect={b.rect} active={active}>
                     {url ? (
-                      <img src={url} alt={b.id} className="w-full h-full object-cover" />
+                      <img
+                        src={url}
+                        alt={b.id}
+                        className="w-full h-full object-cover"
+                        onClick={() => setSelectedBlock(b.id)}
+                      />
                     ) : (
-                      <label className="text-sm text-gray-500 cursor-pointer">
+                      <label className="text-sm text-gray-500 cursor-pointer" onClick={() => setSelectedBlock(b.id)}>
                         <input
                           type="file" accept="image/*" className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0]; if (!file) return;
                             const localUrl = URL.createObjectURL(file);
                             setValue(pageInstance.id, b.id, localUrl);
+                            if (active) guideNext();
                           }}
                         />
                         Click to add image
@@ -206,7 +219,7 @@ export default function Canvas() {
                 const hasBinding = typeof (b as BlockText).value === "string";
                 const content = hasBinding ? renderBoundText((b as BlockText).value) : (typeof v === "string" && v) || b.placeholder || "";
                 return (
-                  <Frame key={b.id} rect={b.rect}>
+                  <Frame key={b.id} rect={b.rect} active={active}>
                     {hasBinding ? (
                       <div className="w-full h-full text-sm whitespace-pre-wrap">{content}</div>
                     ) : (
@@ -214,7 +227,11 @@ export default function Canvas() {
                         contentEditable
                         suppressContentEditableWarning
                         className="w-full h-full outline-none"
-                        onBlur={(e) => setValue(pageInstance.id, b.id, e.currentTarget.textContent || "")}
+                        onFocus={() => setSelectedBlock(b.id)}
+                        onBlur={(e) => {
+                          setValue(pageInstance.id, b.id, e.currentTarget.textContent || "");
+                          if (active) guideNext();
+                        }}
                       >
                         {content}
                       </div>
@@ -235,7 +252,7 @@ export default function Canvas() {
                   green: "bg-green-200 text-green-800",
                 };
                 return (
-                  <Frame key={b.id} rect={b.rect}>
+                  <Frame key={b.id} rect={b.rect} active={active}>
                     <span className={`inline-block px-2 py-1 rounded text-xs ${palette[color] || palette.gray}`}>{label}</span>
                   </Frame>
                 );
@@ -245,7 +262,7 @@ export default function Canvas() {
                 const rows: any[] = Array.isArray(v) ? v : [];
                 const cols = (b.options?.columns ?? []) as { key: string; label: string }[];
                 return (
-                  <Frame key={b.id} rect={b.rect}>
+                  <Frame key={b.id} rect={b.rect} active={active}>
                     <div className="overflow-auto w-full h-full">
                       <table className="min-w-full text-xs border">
                         <thead className="bg-gray-50">
@@ -266,7 +283,7 @@ export default function Canvas() {
 
               case "repeater": {
                 return (
-                  <Frame key={b.id} rect={b.rect}>
+                  <Frame key={b.id} rect={b.rect} active={active}>
                     {renderRepeater(b as BlockRepeater)}
                   </Frame>
                 );

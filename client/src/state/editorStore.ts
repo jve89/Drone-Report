@@ -28,6 +28,13 @@ export type Finding = {
   updatedAt: string;
 };
 
+type GuideState = {
+  enabled: boolean;
+  stepIndex: number;
+};
+
+type Step = { pageId: string; blockId: string; help?: string };
+
 type EditorState = {
   draft: Draft | null;
   template: Template | null;
@@ -35,12 +42,21 @@ type EditorState = {
   zoom: number;
   _saveTimer: number | null;
 
+  // Wizard + selection
+  selectedBlockId: string | null;
+  guide: GuideState;
+
+  // Derived
+  steps: Step[];
+
   findings: Finding[];
 
   setDraft: (d: Draft) => void;
   setTemplate: (t: Template | null) => void;
   setPageIndex: (i: number) => void;
   setZoom: (z: number) => void;
+
+  setSelectedBlock: (blockId: string | null) => void;
 
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
@@ -64,6 +80,15 @@ type EditorState = {
   deleteFinding: (id: string) => void;
   reindexAnnotations: (photoId: string) => void;
 
+  // Guide controls
+  enableGuide: () => void;
+  disableGuide: () => void;
+  guidePrev: () => void;
+  guideNext: () => void;
+  guideSkip: () => void;
+  setGuideStep: (i: number) => void;
+  recomputeSteps: () => void;
+
   selectTemplate: (templateId: string) => Promise<void>;
 
   loadDraft: (id: string) => Promise<void>;
@@ -79,6 +104,20 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function computeSteps(tpl: Template | null): Step[] {
+  if (!tpl) return [];
+  const out: Step[] = [];
+  for (const p of tpl.pages || []) {
+    for (const b of (p.blocks || []) as any[]) {
+      // Use blocks that declare help text to form the guided flow
+      if (typeof b.help === "string" && b.help.trim().length > 0) {
+        out.push({ pageId: p.id, blockId: b.id, help: b.help });
+      }
+    }
+  }
+  return out;
+}
+
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
   template: null,
@@ -86,17 +125,34 @@ export const useEditor = create<EditorState>((set, get) => ({
   zoom: 1,
   _saveTimer: null,
 
+  selectedBlockId: null,
+  guide: { enabled: false, stepIndex: 0 },
+  steps: [],
+
   findings: [],
 
   setDraft: (draft) => set({ draft }),
-  setTemplate: (template) => set({ template }),
+  setTemplate: (template) =>
+    set((s) => {
+      const steps = computeSteps(template);
+      const next: Partial<EditorState> = { template, steps };
+      // If guide was enabled and steps changed, clamp stepIndex
+      if (s.guide.enabled) {
+        next.guide = { ...s.guide, stepIndex: Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1)) };
+      }
+      return next as any;
+    }),
+
   setPageIndex: (pageIndex) => {
     const d = get().draft;
     const max = (d?.pageInstances?.length ?? 1) - 1;
     const clamped = Math.max(0, Math.min(pageIndex, Math.max(0, max)));
     set({ pageIndex: clamped });
   },
+
   setZoom: (z) => set({ zoom: clampZoom(z) }),
+
+  setSelectedBlock: (blockId) => set({ selectedBlockId: blockId }),
 
   setValue: (pageId, blockId, value) =>
     set((s) => {
@@ -106,7 +162,24 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!pi) return {};
       if (!pi.values) pi.values = {};
       (pi.values as Record<string, unknown>)[blockId] = value;
-      return { draft: d };
+
+      const next: Partial<EditorState> = { draft: d, selectedBlockId: blockId };
+
+      // Auto-advance if guided and editing current step's block
+      if (s.guide.enabled && s.steps.length) {
+        const cur = s.steps[s.guide.stepIndex];
+        if (cur && cur.blockId === blockId) {
+          const nextIdx = Math.min(s.guide.stepIndex + 1, s.steps.length - 1);
+          next.guide = { enabled: true, stepIndex: nextIdx };
+          // Jump page if needed
+          const target = s.steps[nextIdx];
+          if (target && s.draft) {
+            const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
+            if (idx >= 0) next.pageIndex = idx;
+          }
+        }
+      }
+      return next as any;
     }),
 
   duplicatePage: (pageId) =>
@@ -153,7 +226,21 @@ export const useEditor = create<EditorState>((set, get) => ({
       const npi = nd.pageInstances.find((p) => p.id === pageId)!;
       if (!npi.values) npi.values = {};
       (npi.values as any)[target.id] = media.url;
-      return { draft: nd };
+
+      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id };
+      if (prev.guide.enabled && prev.steps.length) {
+        const cur = prev.steps[prev.guide.stepIndex];
+        if (cur && cur.blockId === target.id) {
+          const ni = Math.min(prev.guide.stepIndex + 1, prev.steps.length - 1);
+          next.guide = { enabled: true, stepIndex: ni };
+          const tgt = prev.steps[ni];
+          if (tgt) {
+            const idx = nd.pageInstances.findIndex((p) => p.templatePageId = tgt.pageId);
+            if (idx >= 0) next.pageIndex = idx;
+          }
+        }
+      }
+      return next as any;
     });
     s.saveDebounced();
     return true;
@@ -170,7 +257,6 @@ export const useEditor = create<EditorState>((set, get) => ({
     if (!pi || !tPage) return false;
 
     const blocks = (tPage.blocks || []) as Array<{ id: string; type: string }>;
-    // Prefer first empty image_slot
     const firstEmpty = blocks.find((b) => b.type === "image_slot" && !(pi.values as any)?.[b.id]);
     const target = firstEmpty || (blocks.find((b) => b.type === "image_slot") as any);
     if (!target) return false;
@@ -180,7 +266,21 @@ export const useEditor = create<EditorState>((set, get) => ({
       const npi = nd.pageInstances.find((p) => p.id === pageId)!;
       if (!npi.values) npi.values = {};
       (npi.values as any)[target.id] = media.url;
-      return { draft: nd };
+
+      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id };
+      if (prev.guide.enabled && prev.steps.length) {
+        const cur = prev.steps[prev.guide.stepIndex];
+        if (cur && cur.blockId === target.id) {
+          const ni = Math.min(prev.guide.stepIndex + 1, prev.steps.length - 1);
+          next.guide = { enabled: true, stepIndex: ni };
+          const tgt = prev.steps[ni];
+          if (tgt) {
+            const idx = nd.pageInstances.findIndex((p) => p.templatePageId === tgt.pageId);
+            if (idx >= 0) next.pageIndex = idx;
+          }
+        }
+      }
+      return next as any;
     });
     s.saveDebounced();
     return true;
@@ -247,6 +347,73 @@ export const useEditor = create<EditorState>((set, get) => ({
       return { findings: final };
     }),
 
+  // ---------- Guide controls ----------
+  enableGuide: () =>
+    set((s) => {
+      const steps = s.steps.length ? s.steps : computeSteps(s.template);
+      const stepIndex = Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1));
+      const next: Partial<EditorState> = { guide: { enabled: true, stepIndex }, steps };
+      // Jump to step page
+      const target = steps[stepIndex];
+      if (target && s.draft) {
+        const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
+        if (idx >= 0) next.pageIndex = idx;
+      }
+      return next as any;
+    }),
+
+  disableGuide: () => set({ guide: { enabled: false, stepIndex: 0 }, selectedBlockId: null }),
+
+  guidePrev: () =>
+    set((s) => {
+      if (!s.steps.length) return {};
+      const i = Math.max(0, s.guide.stepIndex - 1);
+      const next: Partial<EditorState> = { guide: { enabled: s.guide.enabled, stepIndex: i } };
+      const target = s.steps[i];
+      if (target && s.draft) {
+        const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
+        if (idx >= 0) next.pageIndex = idx;
+      }
+      return next as any;
+    }),
+
+  guideNext: () =>
+    set((s) => {
+      if (!s.steps.length) return {};
+      const i = Math.min(s.steps.length - 1, s.guide.stepIndex + 1);
+      const next: Partial<EditorState> = { guide: { enabled: s.guide.enabled, stepIndex: i } };
+      const target = s.steps[i];
+      if (target && s.draft) {
+        const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
+        if (idx >= 0) next.pageIndex = idx;
+      }
+      return next as any;
+    }),
+
+  guideSkip: () => get().guideNext(),
+
+  setGuideStep: (i) =>
+    set((s) => {
+      const clamped = Math.max(0, Math.min(i, Math.max(0, s.steps.length - 1)));
+      const next: Partial<EditorState> = { guide: { enabled: s.guide.enabled, stepIndex: clamped } };
+      const target = s.steps[clamped];
+      if (target && s.draft) {
+        const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
+        if (idx >= 0) next.pageIndex = idx;
+      }
+      return next as any;
+    }),
+
+  recomputeSteps: () =>
+    set((s) => {
+      const steps = computeSteps(s.template);
+      const next: Partial<EditorState> = { steps };
+      if (s.guide.enabled) {
+        next.guide = { enabled: true, stepIndex: Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1)) };
+      }
+      return next as any;
+    }),
+
   // ---------- Template selection ----------
   selectTemplate: async (templateId: string) => {
     const t = templateId ? await loadTemplate(templateId) : null;
@@ -300,7 +467,25 @@ export const useEditor = create<EditorState>((set, get) => ({
         });
       }
 
-      return { draft: d, pageIndex: 0 };
+      // Initialize guide on template choose
+      const steps = computeSteps(get().template);
+      const guideEnabled = steps.length > 0;
+      const next: Partial<EditorState> = {
+        draft: d,
+        pageIndex: 0,
+        steps,
+        guide: { enabled: guideEnabled, stepIndex: 0 },
+        selectedBlockId: guideEnabled ? steps[0]?.blockId ?? null : null,
+      };
+
+      // Jump to first step page if exists
+      if (guideEnabled) {
+        const first = steps[0];
+        const idx = d.pageInstances.findIndex((p) => p.templatePageId === first.pageId);
+        if (idx >= 0) next.pageIndex = idx;
+      }
+
+      return next as any;
     });
 
     get().saveDebounced();
@@ -320,10 +505,15 @@ export const useEditor = create<EditorState>((set, get) => ({
       ? ((d as any).payload.findings as Finding[])
       : [];
 
+    const steps = computeSteps(t as Template | null);
+
     set({
       draft: d as Draft,
       template: (t as Template) ?? null,
       findings: payloadFindings,
+      steps,
+      guide: { enabled: false, stepIndex: 0 },
+      selectedBlockId: null,
     });
 
     const max = (d.pageInstances?.length ?? 1) - 1;
