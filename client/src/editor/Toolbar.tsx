@@ -74,6 +74,7 @@ export default function Toolbar() {
         className={`px-3 py-1 border rounded ${exportDisabled ? "pointer-events-none opacity-50" : ""}`}
         href={!exportDisabled ? `/api/drafts/${draft.id}/export/pdf` : undefined}
         target="_blank"
+        rel="noopener"
         title={exportDisabled ? "Select a template first" : "Export PDF"}
         onClick={(e) => {
           if (exportDisabled) {
