@@ -9,6 +9,7 @@ export type BlockBase = {
   rect: Rect;
   label?: string;
   placeholder?: string;
+  help?: string; // drives Guided Wizard steps
   // type-specific options live here; values live in draft.pageInstances[].values[blockId]
   options?: Record<string, any>;
 };
@@ -40,8 +41,8 @@ export type BlockBadge = BlockBase & {
 export type BlockRepeater = BlockBase & {
   type: "repeater";
   options?: {
-    datasource?: "findings"; // future: support other sources
-    previewCount?: number;   // editor-only preview of N items
+    datasource?: "findings";
+    previewCount?: number;
   };
 };
 
