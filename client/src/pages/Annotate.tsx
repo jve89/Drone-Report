@@ -14,20 +14,18 @@ export default function Annotate() {
 }
 
 function AnnotateInner() {
-  const { id } = useParams();
+  const params = useParams();
+  const draftId = (params.id || (params as any).draftId) as string | undefined;
   const { draft, loadDraft, saveDebounced } = useEditor();
 
-  // load on mount or when id changes
   useEffect(() => {
-    if (id) loadDraft(id);
-  }, [id, loadDraft]);
+    if (draftId) loadDraft(draftId);
+  }, [draftId, loadDraft]);
 
-  // autosave whenever draft changes
   useEffect(() => {
     if (draft) saveDebounced();
   }, [draft, saveDebounced]);
 
-  // Render the shell even when no template is chosen yet.
   if (!draft) return null;
 
   return <EditorShell />;

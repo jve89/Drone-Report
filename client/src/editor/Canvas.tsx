@@ -37,41 +37,50 @@ export default function Canvas() {
   const { draft, template, pageIndex, setValue, zoom, findings, insertImageAtPoint } = useEditor();
   const pageRef = useRef<HTMLDivElement>(null);
 
-  if (!draft) return <div className="p-6 text-gray-500">Loading editor…</div>;
-
-  if (!template) {
-    function openTemplateDropdown() { window.dispatchEvent(new CustomEvent("open-template-dropdown")); }
-    return (
-      <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
-        <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
-          <div className="text-lg font-medium mb-2">Select a template to start</div>
-          <p className="text-sm text-gray-600 mb-4">The workspace will populate with the template’s page stack.</p>
-          <div className="flex items-center justify-center">
-            <button onClick={openTemplateDropdown} className="px-3 py-2 border rounded hover:bg-gray-50">Pick a template</button>
-          </div>
-          <p className="text-xs text-gray-500 mt-3">You can change templates later.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const pageInstance = draft.pageInstances?.[pageIndex];
-  if (!pageInstance) return <div className="p-6 text-gray-500">No page to display</div>;
-
-  const tPage = template.pages.find((p: any) => p.id === pageInstance.templatePageId);
-  if (!tPage) return <div className="p-6 text-gray-500">Template page not found</div>;
-
-  const blocks = (tPage.blocks ?? []) as Block[];
-
   const PAGE_W = 820;
   const PAGE_H = 1160;
 
-  // Binding context
+  // Binding context (safe even if draft/findings undefined)
   const ctx = useMemo(() => ({
     run: (draft as any)?.payload?.meta ?? {},
     draft: draft as any,
-    findings: findings as any[],
+    findings: (findings as any[]) ?? [],
   }), [draft, findings]);
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    if (!pageRef.current) return;
+    const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
+    if (!raw) return;
+    e.preventDefault();
+
+    let payload: { draftId: string; id: string; url: string; filename?: string; kind?: string } | null = null;
+    try { payload = JSON.parse(raw); } catch { payload = null; }
+    if (!payload) return;
+    if (!draft?.id || payload.draftId !== draft.id) return;
+
+    const rect = pageRef.current.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const nx = Math.max(0, Math.min(100, (px / PAGE_W) * 100));
+    const ny = Math.max(0, Math.min(100, (py / PAGE_H) * 100));
+
+    const pageInstance = draft.pageInstances?.[pageIndex];
+    if (!pageInstance) return;
+
+    const ok = insertImageAtPoint?.(pageInstance.id, { x: nx, y: ny }, { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" });
+    if (!ok) {
+      const tPage = template?.pages.find((p: any) => p.id === pageInstance.templatePageId);
+      const firstImg = (tPage?.blocks || []).find((b: any) => b.type === "image_slot") as BlockImage | undefined;
+      if (firstImg) setValue(pageInstance.id, firstImg.id, payload.url);
+    }
+  }, [draft?.id, pageIndex, insertImageAtPoint, setValue, template?.pages]);
 
   function renderBoundText(raw?: string) {
     if (!raw) return "";
@@ -121,38 +130,34 @@ export default function Canvas() {
     );
   }
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
+  // -------- Render branches (no conditional hooks) --------
+  if (!draft) {
+    return <div className="p-6 text-gray-500">Loading editor…</div>;
+  }
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    if (!pageRef.current) return;
-    const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
-    if (!raw) return;
-    e.preventDefault();
+  if (!template) {
+    function openTemplateDropdown() { window.dispatchEvent(new CustomEvent("open-template-dropdown")); }
+    return (
+      <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
+        <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
+          <div className="text-lg font-medium mb-2">Select a template to start</div>
+          <p className="text-sm text-gray-600 mb-4">The workspace will populate with the template’s page stack.</p>
+          <div className="flex items-center justify-center">
+            <button onClick={openTemplateDropdown} className="px-3 py-2 border rounded hover:bg-gray-50">Pick a template</button>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">You can change templates later.</p>
+        </div>
+      </div>
+    );
+  }
 
-    let payload: { draftId: string; id: string; url: string; filename?: string; kind?: string } | null = null;
-    try { payload = JSON.parse(raw); } catch { payload = null; }
-    if (!payload) return;
-    if (payload.draftId !== draft.id) return;
+  const pageInstance = draft.pageInstances?.[pageIndex];
+  if (!pageInstance) return <div className="p-6 text-gray-500">No page to display</div>;
 
-    const rect = pageRef.current.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const nx = Math.max(0, Math.min(100, (px / PAGE_W) * 100));
-    const ny = Math.max(0, Math.min(100, (py / PAGE_H) * 100));
+  const tPage = template.pages.find((p: any) => p.id === pageInstance.templatePageId);
+  if (!tPage) return <div className="p-6 text-gray-500">Template page not found</div>;
 
-    // Insert into the image slot under the drop point, or nearest image slot.
-    const ok = insertImageAtPoint(pageInstance.id, { x: nx, y: ny }, { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" });
-    if (!ok) {
-      // Fallback: set first empty image_slot on the page
-      const firstImg = (tPage.blocks || []).find((b: any) => b.type === "image_slot") as BlockImage | undefined;
-      if (firstImg) setValue(pageInstance.id, firstImg.id, payload.url);
-    }
-  }, [draft?.id, insertImageAtPoint, pageInstance?.id, setValue, tPage?.blocks]);
+  const blocks = (tPage.blocks ?? []) as Block[];
 
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
@@ -169,7 +174,7 @@ export default function Canvas() {
           onDragOver={onDragOver}
           onDrop={onDrop}
         >
-          {(blocks as Block[]).map((b) => {
+          {blocks.map((b: Block) => {
             const v = (pageInstance.values as any)?.[b.id];
 
             switch (b.type) {

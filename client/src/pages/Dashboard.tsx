@@ -22,7 +22,6 @@ function DashboardInner() {
 
   async function newReport() {
     try {
-      // no templateId yet; template will be chosen inside editor
       const id = await createDraftRecord();
       navigate(`/annotate/${id}`);
     } catch (e: any) {
@@ -45,7 +44,11 @@ function DashboardInner() {
       ) : (
         <div className="grid grid-cols-3 gap-4">
           {drafts.map((d) => (
-            <DraftRow key={d.id} draft={d} />
+            <DraftRow
+              key={d.id}
+              draft={d}
+              onDeleted={(id) => setDrafts((cur) => cur.filter((x) => x.id !== id))}
+            />
           ))}
         </div>
       )}

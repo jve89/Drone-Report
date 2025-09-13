@@ -22,25 +22,25 @@ export default function Navigator() {
     window.localStorage.setItem(key, mode);
   }, [draft?.id, mode]);
 
-  const pageCount = draft?.pageInstances?.length ?? 0;
-  const hasPages = !!draft && !!template && pageCount > 0;
-  const current = hasPages ? draft!.pageInstances[pageIndex] : null;
-
-  if (!draft || !template) return null;
-
+  // Always call hooks
   const items = useMemo(() => {
+    if (!draft || !template) return [];
     return draft.pageInstances.map((pi: any, i: number) => {
       const tp = template.pages.find((p: any) => p.id === pi.templatePageId);
       return { idx: i, id: pi.id, name: tp?.name ?? `Page ${i + 1}` };
     });
-  }, [draft.pageInstances, template.pages]);
+  }, [draft, template]);
 
-  function duplicateCurrent() {
-    if (current) repeatPage(current.id);
-  }
+  const pageCount = draft?.pageInstances?.length ?? 0;
+  const hasPages = !!draft && !!template && pageCount > 0;
+  const current = hasPages ? draft!.pageInstances[pageIndex] : null;
+
+  // Render guards only AFTER hooks
+  if (!draft) return <div className="p-2 text-xs text-gray-500">Loading…</div>;
+  if (!template) return <div className="p-2 text-xs text-gray-500">Select a template to see pages.</div>;
 
   return (
-    <div className="flex flex-col min-w-0"> {/* width-fluid inside LeftPane */}
+    <div className="flex flex-col min-w-0">
       {/* Header */}
       <div className="px-2 py-2 border-b bg-white">
         <div className="flex items-center justify-between min-w-0">
@@ -103,11 +103,11 @@ export default function Navigator() {
         )}
       </div>
 
-      {/* Footer with + duplicate */}
+      {/* Footer */}
       <div className="p-2 border-t bg-white">
         <button
           className="w-full px-3 py-2 text-sm border rounded disabled:opacity-50"
-          onClick={duplicateCurrent}
+          onClick={() => current && repeatPage(current.id)}
           disabled={!current}
           title={current ? "Duplicate current page" : "Select a page"}
         >

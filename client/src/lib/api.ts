@@ -76,7 +76,7 @@ export async function getDraft(draftId: string): Promise<any> {
   return normDraft(json);
 }
 
-/** Patch-update a draft: send the intake payload; server should store it */
+/** Patch-update a draft */
 export async function updateDraft(draftId: string, payload: unknown): Promise<void> {
   const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}`, {
     ...withCreds,
@@ -90,7 +90,19 @@ export async function updateDraft(draftId: string, payload: unknown): Promise<vo
   }
 }
 
-/** Upload media files, returns media array */
+/** Delete a draft */
+export async function deleteDraft(draftId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}`, {
+    ...withCreds,
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Delete draft failed: ${res.status} ${txt}`);
+  }
+}
+
+/** Upload media files */
 export async function uploadDraftMedia(draftId: string, files: File[]): Promise<any[]> {
   const fd = new FormData();
   files.forEach(f => fd.append("files", f));
@@ -106,7 +118,6 @@ export async function uploadDraftMedia(draftId: string, files: File[]): Promise<
   return await res.json();
 }
 
-/**  add near uploadDraftMedia export */
 export async function deleteDraftMedia(draftId: string, mediaId: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/drafts/${encodeURIComponent(draftId)}/media/${encodeURIComponent(mediaId)}`, {
     ...withCreds,
