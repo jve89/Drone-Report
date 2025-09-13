@@ -104,7 +104,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
     removeItems([id]); // optimistic
     setBusyIds((s) => new Set(s).add(id));
     try {
-      await deleteDraftMedia(draft.id, [id]);
+      await deleteDraftMedia(draft.id, id);
     } finally {
       setBusyIds((s) => { const n = new Set(s); n.delete(id); return n; });
     }

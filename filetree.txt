@@ -33,10 +33,12 @@
 │   │   │   ├── LeftPane.tsx
 │   │   │   ├── media
 │   │   │   │   ├── ImportSessionStore.ts
-│   │   │   │   ├── PowerImportModal.tsx
+│   │   │   │   ├── MediaManagerModal.tsx
 │   │   │   │   ├── types.ts
 │   │   │   │   ├── utils
 │   │   │   │   │   ├── grouping.ts
+│   │   │   │   │   ├── mediaResponse.ts
+│   │   │   │   │   ├── mediaThumb.ts
 │   │   │   │   │   └── virtualGrid.ts
 │   │   │   │   └── workers
 │   │   │   │       └── exifWorker.ts
@@ -60,6 +62,7 @@
 │   │   │       └── annotate.ts
 │   │   ├── lib
 │   │   │   ├── api.ts
+│   │   │   ├── pickers.ts
 │   │   │   ├── uploadcare.ts
 │   │   │   └── zip.ts
 │   │   ├── main.tsx
@@ -75,7 +78,8 @@
 │   │   │   ├── Pricing.tsx
 │   │   │   └── WhatYouGet.tsx
 │   │   ├── state
-│   │   │   └── editorStore.ts
+│   │   │   ├── editorStore.ts
+│   │   │   └── mediaStore.ts
 │   │   ├── styles
 │   │   │   └── tailwind.css
 │   │   ├── templates
@@ -83,6 +87,7 @@
 │   │   │   └── loader.ts
 │   │   ├── types
 │   │   │   ├── draft.ts
+│   │   │   ├── fs-access.d.ts
 │   │   │   └── template.ts
 │   │   └── vite-env.d.ts
 │   ├── tailwind.config.cjs
@@ -164,6 +169,40 @@
 │   │   │   └── userService.ts
 │   │   ├── templates
 │   │   │   └── report.html
+│   │   ├── uploads
+│   │   │   ├── 844b2457-f791-4276-b32b-819ba6014688
+│   │   │   │   ├── 02c84a2b6a120e98.png
+│   │   │   │   ├── 13603d62a1a5f113.png
+│   │   │   │   ├── 1b18b0b8df8a272e.png
+│   │   │   │   ├── 1dc947e9db05b4f0.png
+│   │   │   │   ├── 1ff13733da56a9ef.png
+│   │   │   │   ├── 34d5488fdef35ff2.png
+│   │   │   │   ├── 3b65c43d6d80b525.png
+│   │   │   │   ├── 4db77c04b868426b.png
+│   │   │   │   ├── 4fb0986529a66248.png
+│   │   │   │   ├── 54cd4ff284b61482.png
+│   │   │   │   ├── 570cb0e09de967b7.png
+│   │   │   │   ├── 5cd1215b5444c8af.png
+│   │   │   │   ├── 69220b8f096db429.png
+│   │   │   │   ├── 72cdc5c80ccf70bf.png
+│   │   │   │   ├── 7bc674217e125ed8.png
+│   │   │   │   ├── 8c245e65310f65f4.png
+│   │   │   │   ├── 8c2b5328ad789495.png
+│   │   │   │   ├── a745435e6a7a6e05.png
+│   │   │   │   ├── b0ca67d6d97a703f.png
+│   │   │   │   ├── b48d02eb05c50908.png
+│   │   │   │   ├── b58899e1643644c7.png
+│   │   │   │   ├── b63b9b12f9291f56.png
+│   │   │   │   ├── c6450e36dc41a956.png
+│   │   │   │   ├── e1e71aee959bac3d.png
+│   │   │   │   ├── e3674928e899bc11.png
+│   │   │   │   ├── e3ae94aa7b8f09bf.png
+│   │   │   │   ├── ec92c887b93875b1.png
+│   │   │   │   ├── fb153e0601f0b4a3.png
+│   │   │   │   └── ff88f4874976606c.png
+│   │   │   └── ba04749c-9a36-4b4c-b306-43b686f7a23d
+│   │   │       ├── 6f3800be046d497c.jpeg
+│   │   │       └── fcef0c1c42f2ca99.jpeg
 │   │   └── utils
 │   │       ├── asyncHandler.ts
 │   │       ├── chunkMedia.ts
@@ -186,6 +225,9 @@
     │   │   ├── solar-pv.json
     │   │   └── wind-blade.json
     │   └── types
+    │       ├── draft.d.ts
+    │       ├── draft.d.ts.map
+    │       ├── draft.js
     │       ├── finding.d.ts
     │       ├── finding.d.ts.map
     │       ├── finding.js
@@ -212,9 +254,10 @@
     │   └── wind-blade.json
     ├── tsconfig.json
     └── types
+        ├── draft.ts
         ├── finding.ts
         ├── intake.ts
         ├── media.ts
         └── template.ts
 
-58 directories, 159 files
+61 directories, 199 files
