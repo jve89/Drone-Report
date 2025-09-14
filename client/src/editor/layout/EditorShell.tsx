@@ -12,6 +12,7 @@ import { useEditor } from "../../state/editorStore";
 import { Accordion, AccordionItem } from "../../components/Accordion";
 import ViewerControls from "../ViewerControls";
 import LeftPane from "../LeftPane";
+import ElementsPanel from "../blocks/ElementsPanel";
 
 export default function EditorShell() {
   const { template } = useEditor();
@@ -34,7 +35,13 @@ export default function EditorShell() {
 
         {/* Right: collapsible panels */}
         <div className="w-80 border-l flex flex-col">
-          <Accordion storageKey="dr/rightPanels" singleOpen defaultOpenId="inspector">
+          <Accordion storageKey="dr/rightPanels" singleOpen defaultOpenId="elements">
+            <AccordionItem id="elements" title="Elements">
+              <div className="min-h-[100px] max-h-[40vh] overflow-auto">
+                <ElementsPanel />
+              </div>
+            </AccordionItem>
+
             <AccordionItem id="inspector" title="Inspector">
               <div className="min-h-[200px] max-h-[50vh] overflow-auto">
                 <Inspector />

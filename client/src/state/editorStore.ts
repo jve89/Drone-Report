@@ -28,12 +28,25 @@ export type Finding = {
   updatedAt: string;
 };
 
+/** User-defined overlay elements placed by the editor. Percent units 0..100. */
+export type UserBlock = {
+  id: string;
+  type: "text"; // future: "image_slot" | "checkbox" | ...
+  rect: { x: number; y: number; w: number; h: number }; // 0–100
+  value?: string;
+};
+
 type GuideState = {
   enabled: boolean;
   stepIndex: number;
 };
 
 type Step = { pageId: string; blockId: string; help?: string };
+
+/** Insert tool state for Elements panel. */
+type ToolState =
+  | { mode: "idle"; kind?: undefined }
+  | { mode: "insert"; kind: "text" };
 
 type EditorState = {
   draft: Draft | null;
@@ -43,8 +56,12 @@ type EditorState = {
   _saveTimer: number | null;
 
   // Wizard + selection
-  selectedBlockId: string | null;
+  selectedBlockId: string | null; // template block selection
+  selectedUserBlockId: string | null; // user overlay selection
   guide: GuideState;
+
+  // Insert tool
+  tool: ToolState;
 
   // Derived
   steps: Step[];
@@ -56,14 +73,15 @@ type EditorState = {
   setPageIndex: (i: number) => void;
   setZoom: (z: number) => void;
 
-  setSelectedBlock: (blockId: string | null) => void;
+  setSelectedBlock: (blockId: string | null) => void; // template block select
+  selectUserBlock: (id: string | null) => void; // user block select
 
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
-  deletePage: (pageId: string) => void; // added
+  deletePage: (pageId: string) => void;
 
-  // Drag/drop + click insert
+  // Drag/drop + click insert into template image slots
   insertImageAtPoint: (
     pageId: string,
     pointPct: { x: number; y: number },
@@ -89,6 +107,13 @@ type EditorState = {
   guideSkip: () => void;
   setGuideStep: (i: number) => void;
   recomputeSteps: () => void;
+
+  // Elements tool controls
+  startInsert: (kind: "text") => void;
+  cancelInsert: () => void;
+  placeUserBlock: (rectPct: { x: number; y: number; w: number; h: number }) => string | null;
+  updateUserBlock: (id: string, patch: Partial<UserBlock>) => void;
+  deleteUserBlock: (id: string) => void;
 
   selectTemplate: (templateId: string) => Promise<void>;
 
@@ -119,6 +144,17 @@ function computeSteps(tpl: Template | null): Step[] {
   return out;
 }
 
+function clamp01(x: number) {
+  return Math.max(0, Math.min(100, x));
+}
+function clampRectPct(r: { x: number; y: number; w: number; h: number }) {
+  const w = clamp01(r.w);
+  const h = clamp01(r.h);
+  const x = clamp01(Math.min(r.x, 100 - w));
+  const y = clamp01(Math.min(r.y, 100 - h));
+  return { x, y, w, h };
+}
+
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
   template: null,
@@ -127,7 +163,9 @@ export const useEditor = create<EditorState>((set, get) => ({
   _saveTimer: null,
 
   selectedBlockId: null,
+  selectedUserBlockId: null,
   guide: { enabled: false, stepIndex: 0 },
+  tool: { mode: "idle" },
   steps: [],
 
   findings: [],
@@ -154,6 +192,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   setZoom: (z) => set({ zoom: clampZoom(z) }),
 
   setSelectedBlock: (blockId) => set({ selectedBlockId: blockId }),
+  selectUserBlock: (id) => set({ selectedUserBlockId: id }),
 
   setValue: (pageId, blockId, value) =>
     set((s) => {
@@ -427,6 +466,65 @@ export const useEditor = create<EditorState>((set, get) => ({
       return next as any;
     }),
 
+  // ---------- Elements tool ----------
+  startInsert: (kind) => set({ tool: { mode: "insert", kind }, selectedUserBlockId: null }),
+  cancelInsert: () => set({ tool: { mode: "idle" } }),
+
+  placeUserBlock: (rectPct) => {
+    const s = get();
+    if (!s.draft) return null;
+    const pageIdx = s.pageIndex;
+    const d: Draft = structuredClone(s.draft);
+    const pi = d.pageInstances?.[pageIdx];
+    if (!pi) return null;
+    if (!Array.isArray((pi as any).userBlocks)) (pi as any).userBlocks = [];
+
+    if (s.tool.mode !== "insert" || s.tool.kind !== "text") return null;
+
+    const id = crypto.randomUUID();
+    const rect = clampRectPct(rectPct);
+    const block: UserBlock = { id, type: "text", rect, value: "" };
+
+    (pi as any).userBlocks = [...(pi as any).userBlocks, block];
+
+    set({ draft: d, tool: { mode: "idle" }, selectedUserBlockId: id });
+    s.saveDebounced();
+    return id;
+  },
+
+  updateUserBlock: (id, patch) => {
+    const s = get();
+    set((state) => {
+      if (!state.draft) return {};
+      const d: Draft = structuredClone(state.draft);
+      const pi = d.pageInstances?.[state.pageIndex];
+      if (!pi || !Array.isArray((pi as any).userBlocks)) return {};
+      const list = (pi as any).userBlocks as UserBlock[];
+      const i = list.findIndex((b) => b.id === id);
+      if (i < 0) return {};
+      const nextRect = patch.rect
+        ? clampRectPct({ ...(list[i].rect || { x: 0, y: 0, w: 0, h: 0 }), ...patch.rect })
+        : list[i].rect;
+      const updated: UserBlock = { ...list[i], ...patch, rect: nextRect };
+      const nextList = [...list]; nextList[i] = updated; (pi as any).userBlocks = nextList;
+      return { draft: d };
+    });
+    s.saveDebounced();
+  },
+
+  deleteUserBlock: (id) =>
+    set((s) => {
+      if (!s.draft) return {};
+      const d: Draft = structuredClone(s.draft);
+      const pi = d.pageInstances?.[s.pageIndex];
+      if (!pi || !Array.isArray((pi as any).userBlocks)) return {};
+      const nextList = (pi as any).userBlocks.filter((b: UserBlock) => b.id !== id);
+      (pi as any).userBlocks = nextList;
+      const next: Partial<EditorState> = { draft: d };
+      if (s.selectedUserBlockId === id) next.selectedUserBlockId = null;
+      return next as any;
+    }),
+
   // ---------- Template selection ----------
   selectTemplate: async (templateId: string) => {
     const t = templateId ? await loadTemplate(templateId) : null;
@@ -436,51 +534,47 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!s.draft) return {};
       const d: Draft = structuredClone(s.draft);
 
+      // sync payload meta
       const payload = ((d as any).payload ?? {}) as Record<string, unknown>;
       const meta = ((payload.meta as any) ?? {}) as Record<string, unknown>;
       meta.templateId = templateId || undefined;
       payload.meta = meta;
-      if (!Array.isArray((payload as any).findings)) {
-        (payload as any).findings = [];
-      }
+      if (!Array.isArray((payload as any).findings)) (payload as any).findings = [];
       (d as any).payload = payload;
       (d as any).templateId = templateId || undefined;
 
-      if ((!d.pageInstances || d.pageInstances.length === 0) && t && Array.isArray((t as any).pages)) {
+      // decide whether to rebuild pageInstances
+      const newPageIds = new Set<string>((t as any)?.pages?.map((p: any) => p.id) ?? []);
+      const hasMismatch =
+        !Array.isArray(d.pageInstances) ||
+        d.pageInstances.length === 0 ||
+        d.pageInstances.some((pi: any) => !newPageIds.has(pi.templatePageId));
+
+      if (hasMismatch && t && Array.isArray((t as any).pages)) {
         const pages = (t as any).pages as Array<{ id: string; blocks?: any[] }>;
         d.pageInstances = pages.map((p) => {
           const values: Record<string, unknown> = {};
           (p.blocks || []).forEach((b: any) => {
             switch (b.type) {
-              case "text":
-                values[b.id] = "";
-                break;
-              case "image_slot":
-                values[b.id] = "";
-                break;
-              case "table":
-                values[b.id] = [];
-                break;
-              case "badge":
-                values[b.id] = { label: "", color: "gray" };
-                break;
-              case "repeater":
-                values[b.id] = { count: 0 };
-                break;
-              default:
-                values[b.id] = "";
+              case "text": values[b.id] = ""; break;
+              case "image_slot": values[b.id] = ""; break;
+              case "table": values[b.id] = []; break;
+              case "badge": values[b.id] = { label: "", color: "gray" }; break;
+              case "repeater": values[b.id] = { count: 0 }; break;
+              default: values[b.id] = "";
             }
           });
-          return {
-            id: crypto.randomUUID(),
-            templatePageId: p.id,
-            values,
-            userBlocks: [],
-          };
+          return { id: crypto.randomUUID(), templatePageId: p.id, values, userBlocks: [] };
         });
+      } else {
+        // keep existing instances but ensure userBlocks arrays exist
+        d.pageInstances = d.pageInstances.map((pi: any) => ({
+          ...pi,
+          userBlocks: Array.isArray(pi.userBlocks) ? pi.userBlocks : [],
+        }));
       }
 
-      // Initialize guide on template choose
+      // guide + selection init
       const steps = computeSteps(get().template);
       const guideEnabled = steps.length > 0;
       const next: Partial<EditorState> = {
@@ -489,9 +583,10 @@ export const useEditor = create<EditorState>((set, get) => ({
         steps,
         guide: { enabled: guideEnabled, stepIndex: 0 },
         selectedBlockId: guideEnabled ? steps[0]?.blockId ?? null : null,
+        selectedUserBlockId: null,
+        tool: { mode: "idle" },
       };
 
-      // Jump to first step page if exists
       if (guideEnabled) {
         const first = steps[0];
         const idx = d.pageInstances.findIndex((p) => p.templatePageId === first.pageId);
@@ -520,6 +615,14 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const steps = computeSteps(t as Template | null);
 
+    // Normalize userBlocks on each page instance
+    if (Array.isArray((d as any)?.pageInstances)) {
+      (d as any).pageInstances = (d as any).pageInstances.map((pi: any) => ({
+        ...pi,
+        userBlocks: Array.isArray(pi.userBlocks) ? pi.userBlocks : [],
+      }));
+    }
+
     set({
       draft: d as Draft,
       template: (t as Template) ?? null,
@@ -527,6 +630,8 @@ export const useEditor = create<EditorState>((set, get) => ({
       steps,
       guide: { enabled: false, stepIndex: 0 },
       selectedBlockId: null,
+      selectedUserBlockId: null,
+      tool: { mode: "idle" },
     });
 
     const max = (d.pageInstances?.length ?? 1) - 1;

@@ -11,6 +11,14 @@ type BlockBadge = BlockBase & { type: "badge"; options?: { palette?: string } };
 type BlockRepeater = BlockBase & { type: "repeater"; options?: { previewCount?: number } };
 type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
+/** User element type */
+type UserBlock = {
+  id: string;
+  type: "text";
+  rect: { x: number; y: number; w: number; h: number };
+  value?: string;
+};
+
 /** Type guards */
 function isText(b: BlockBase): b is BlockText { return b.type === "text"; }
 function isImage(b: BlockBase): b is BlockImage { return b.type === "image_slot"; }
@@ -19,7 +27,12 @@ function isBadge(b: BlockBase): b is BlockBadge { return b.type === "badge"; }
 function isRepeater(b: BlockBase): b is BlockRepeater { return b.type === "repeater"; }
 
 export default function Inspector() {
-  const { draft, template, pageIndex, setValue, selectedBlockId, setSelectedBlock, guide, guideNext } = useEditor();
+  const {
+    draft, template, pageIndex,
+    setValue, selectedBlockId, setSelectedBlock, guide, guideNext,
+    // User elements
+    selectedUserBlockId, selectUserBlock, updateUserBlock, deleteUserBlock,
+  } = useEditor();
 
   if (!draft || !template) {
     return (
@@ -34,6 +47,68 @@ export default function Inspector() {
   const tPage = template.pages.find((p: any) => p.id === page.templatePageId);
   if (!tPage) return null;
 
+  // If a user element is selected, show its panel and short-circuit.
+  if (selectedUserBlockId) {
+    const list: UserBlock[] = Array.isArray((page as any).userBlocks) ? (page as any).userBlocks : [];
+    const ub = list.find((b) => b.id === selectedUserBlockId);
+    if (!ub) {
+      // stale selection
+      selectUserBlock(null);
+    } else {
+      return (
+        <div className="p-3 space-y-3">
+          <div className="text-sm font-medium">Inspector</div>
+          <div className="text-[11px] text-gray-500 -mt-1">
+            Editing element: <code>{ub.type}</code>
+          </div>
+
+          {ub.type === "text" && (
+            <>
+              <div className="space-y-1">
+                <div className="text-xs text-gray-600">Text</div>
+                <textarea
+                  className="w-full border rounded px-2 py-1 text-sm min-h-[80px]"
+                  value={ub.value || ""}
+                  onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
+                  placeholder="Type here…"
+                />
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {(["x", "y", "w", "h"] as const).map((k) => (
+                  <div key={k}>
+                    <div className="text-[11px] text-gray-500 uppercase">{k}</div>
+                    <input
+                      type="number"
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      min={0}
+                      max={100}
+                      value={Number(ub.rect[k]).toString()}
+                      onChange={(e) => {
+                        const num = Number(e.target.value || 0);
+                        updateUserBlock(ub.id, { rect: { ...ub.rect, [k]: num } });
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
+                  onClick={() => { deleteUserBlock(ub.id); selectUserBlock(null); }}
+                >
+                  Delete element
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // Template inspector as before
   const allBlocks = (tPage.blocks ?? []) as BlockBase[] as Block[];
   const targetBlocks =
     selectedBlockId ? allBlocks.filter((b) => b.id === selectedBlockId) : allBlocks;

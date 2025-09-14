@@ -1,8 +1,15 @@
+export type UserBlock = {
+  id: string;
+  type: "text"; // future: "image_slot" | "checkbox" | ...
+  rect: { x: number; y: number; w: number; h: number }; // 0–100
+  value?: string;
+};
+
 export type PageInstance = {
   id: string;
   templatePageId: string;
   values?: Record<string, unknown>;
-  userBlocks?: unknown[];
+  userBlocks?: UserBlock[];
 };
 
 export type Draft = {

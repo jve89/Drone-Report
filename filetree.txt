@@ -266,6 +266,7 @@
     │   ├── intake.schema.ts
     │   └── template.v1.json
     ├── templates
+    │   ├── blank.json
     │   ├── building-roof-v1.json
     │   ├── generic-building.json
     │   ├── index.ts
@@ -279,4 +280,4 @@
         ├── media.ts
         └── template.ts
 
-66 directories, 213 files
+66 directories, 214 files
