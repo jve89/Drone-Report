@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor } from "../state/editorStore";
 import { renderString, select } from "../templates/bindings";
+import TextToolbar from "./blocks/TextToolbar";
 
 const DR_MEDIA_MIME = "application/x-dr-media";
 
@@ -26,6 +27,17 @@ type UserBlock = {
   type: "text";
   rect: { x: number; y: number; w: number; h: number }; // 0–100
   value?: string;
+  style?: {
+    fontFamily?: string;
+    fontSize?: number;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    align?: "left" | "center" | "right" | "justify";
+    color?: string;
+    lineHeight?: number;
+    letterSpacing?: number;
+  };
 };
 
 function pct(n: number) {
@@ -42,7 +54,7 @@ function Frame({
     border: active ? "2px solid #3b82f6" : "1px dashed #e5e7eb",
     boxShadow: active ? "0 0 0 3px rgba(59,130,246,0.2)" : undefined,
     padding: 8,
-    overflow: overflowVisible ? "visible" : "hidden",   // ← changed
+    overflow: overflowVisible ? "visible" : "hidden",
     background: "rgba(255,255,255,0.9)",
     borderRadius: 4,
   };
@@ -169,15 +181,22 @@ export default function Canvas() {
   );
 
   const onCanvasBackgroundMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (tool.mode === "insert") return; // don’t interfere with placing
-      selectUserBlock(null);              // hide handles
+    () => {
+      if (tool.mode === "insert") return;
+      selectUserBlock(null);
     },
     [tool.mode, selectUserBlock]
   );
 
   // Global key handlers
   useEffect(() => {
+    function isTypingInEditable(): boolean {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return el.isContentEditable || tag === "INPUT" || tag === "TEXTAREA";
+    }
+
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         if (tool.mode === "insert") {
@@ -186,13 +205,19 @@ export default function Canvas() {
         } else if (selectedUserBlockId) {
           selectUserBlock(null);
         }
-      } else if ((e.key === "Delete" || e.key === "Backspace") && !e.metaKey && !e.ctrlKey) {
+        return;
+      }
+
+      if (isTypingInEditable()) return;
+
+      if ((e.key === "Delete" || e.key === "Backspace") && !e.metaKey && !e.ctrlKey) {
         if (selectedUserBlockId) {
           e.preventDefault();
           deleteUserBlock(selectedUserBlockId);
         }
       }
     }
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [tool.mode, selectedUserBlockId, cancelInsert, selectUserBlock, deleteUserBlock]);
@@ -226,12 +251,10 @@ export default function Canvas() {
       w = Math.max(MIN_W, w);
       h = Math.max(MIN_H, h);
       if (x < 0) {
-        w += x; // shrink when hitting left bound
-        x = 0;
+        w += x; x = 0;
       }
       if (y < 0) {
-        h += y; // shrink when hitting top bound
-        y = 0;
+        h += y; y = 0;
       }
       if (x + w > 100) w = 100 - x;
       if (y + h > 100) h = 100 - y;
@@ -363,9 +386,30 @@ export default function Canvas() {
     ? ((pageInstance as any).userBlocks as UserBlock[])
     : [];
 
+  const activeTextBlock = selectedUserBlockId
+    ? userBlocks.find(b => b.id === selectedUserBlockId && b.type === "text")
+    : null;
+
+  // Reserve vertical space when toolbar is visible
+  const showToolbar = !!activeTextBlock;
+  const toolbarHeight = 48; // px
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
-      <div style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }} className="relative">
+      <div
+        className="relative"
+        style={{
+          width: PAGE_W * zoom,
+          height: PAGE_H * zoom + (showToolbar ? toolbarHeight : 0),
+          paddingTop: showToolbar ? toolbarHeight : 0,
+        }}
+      >
+        {/* Floating text toolbar anchored inside reserved space */}
+        {showToolbar && (
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
+            <TextToolbar blockId={activeTextBlock!.id} style={activeTextBlock!.style || {}} />
+          </div>
+        )}
+
         <div
           ref={pageRef}
           className="relative bg-white shadow"
@@ -504,17 +548,45 @@ export default function Canvas() {
             const active = selectedUserBlockId === ub.id;
             if (ub.type !== "text") return null;
 
+            const st = ub.style || {};
+            const textareaStyle: React.CSSProperties = {
+              color: st.color,
+              fontFamily: st.fontFamily,
+              fontSize: st.fontSize ? `${st.fontSize}px` : undefined,
+              fontWeight: st.bold ? 700 as React.CSSProperties["fontWeight"] : 400,
+              fontStyle: st.italic ? "italic" : "normal",
+              textDecoration: st.underline ? "underline" : "none",
+              lineHeight: st.lineHeight ? String(st.lineHeight) : undefined,
+              letterSpacing: st.letterSpacing != null ? `${st.letterSpacing}px` : undefined,
+              textAlign: st.align || "left",
+              unicodeBidi: "plaintext",
+            };
+
             return (
               <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
                 {/* Text editor */}
                 <textarea
-                  className="w-full h-full text-sm outline-none resize-none bg-transparent"
+                  className="w-full h-full outline-none resize-none bg-transparent"
                   dir="ltr"
-                  style={{ unicodeBidi: "plaintext", textAlign: "left" }}
+                  style={textareaStyle}
                   value={ub.value || ""}
                   onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                   onFocus={() => selectUserBlock(ub.id)}
                   onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
+                  onKeyDown={(e) => {
+                    const meta = e.metaKey || e.ctrlKey;
+                    if (!meta) return;
+                    if (e.key.toLowerCase() === "b") {
+                      e.preventDefault();
+                      updateUserBlock(ub.id, { style: { bold: !st.bold } });
+                    } else if (e.key.toLowerCase() === "i") {
+                      e.preventDefault();
+                      updateUserBlock(ub.id, { style: { italic: !st.italic } });
+                    } else if (e.key.toLowerCase() === "u") {
+                      e.preventDefault();
+                      updateUserBlock(ub.id, { style: { underline: !st.underline } });
+                    }
+                  }}
                 />
                 {/* Handles only when selected */}
                 {active && (

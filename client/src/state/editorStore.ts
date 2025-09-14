@@ -28,12 +28,26 @@ export type Finding = {
   updatedAt: string;
 };
 
+/** Whole-block text style. */
+export type TextStyle = {
+  fontFamily?: string;       // e.g. 'Inter, system-ui, sans-serif'
+  fontSize?: number;         // px
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  align?: "left" | "center" | "right" | "justify";
+  color?: string;            // hex or rgb
+  lineHeight?: number;       // unitless multiplier (e.g. 1.4)
+  letterSpacing?: number;    // px
+};
+
 /** User-defined overlay elements placed by the editor. Percent units 0..100. */
 export type UserBlock = {
   id: string;
   type: "text"; // future: "image_slot" | "checkbox" | ...
   rect: { x: number; y: number; w: number; h: number }; // 0–100
   value?: string;
+  style?: TextStyle;
 };
 
 type GuideState = {
@@ -135,7 +149,6 @@ function computeSteps(tpl: Template | null): Step[] {
   const out: Step[] = [];
   for (const p of tpl.pages || []) {
     for (const b of (p.blocks || []) as any[]) {
-      // Use blocks that declare help text to form the guided flow
       if (typeof b.help === "string" && b.help.trim().length > 0) {
         out.push({ pageId: p.id, blockId: b.id, help: b.help });
       }
@@ -154,6 +167,18 @@ function clampRectPct(r: { x: number; y: number; w: number; h: number }) {
   const y = clamp01(Math.min(r.y, 100 - h));
   return { x, y, w, h };
 }
+
+const DEFAULT_TEXT_STYLE: TextStyle = {
+  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+  fontSize: 14,
+  bold: false,
+  italic: false,
+  underline: false,
+  align: "left",
+  color: "#111827", // gray-900
+  lineHeight: 1.4,
+  letterSpacing: 0,
+};
 
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
@@ -175,7 +200,6 @@ export const useEditor = create<EditorState>((set, get) => ({
     set((s) => {
       const steps = computeSteps(template);
       const next: Partial<EditorState> = { template, steps };
-      // If guide was enabled and steps changed, clamp stepIndex
       if (s.guide.enabled) {
         next.guide = { ...s.guide, stepIndex: Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1)) };
       }
@@ -205,13 +229,11 @@ export const useEditor = create<EditorState>((set, get) => ({
 
       const next: Partial<EditorState> = { draft: d, selectedBlockId: blockId };
 
-      // Auto-advance if guided and editing current step's block
       if (s.guide.enabled && s.steps.length) {
         const cur = s.steps[s.guide.stepIndex];
         if (cur && cur.blockId === blockId) {
           const nextIdx = Math.min(s.guide.stepIndex + 1, s.steps.length - 1);
           next.guide = { enabled: true, stepIndex: nextIdx };
-          // Jump page if needed
           const target = s.steps[nextIdx];
           if (target && s.draft) {
             const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
@@ -287,7 +309,7 @@ export const useEditor = create<EditorState>((set, get) => ({
           next.guide = { enabled: true, stepIndex: ni };
           const tgt = prev.steps[ni];
           if (tgt) {
-            const idx = nd.pageInstances.findIndex((p) => p.templatePageId === tgt.pageId); // fixed comparator
+            const idx = nd.pageInstances.findIndex((p) => p.templatePageId === tgt.pageId);
             if (idx >= 0) next.pageIndex = idx;
           }
         }
@@ -405,7 +427,6 @@ export const useEditor = create<EditorState>((set, get) => ({
       const steps = s.steps.length ? s.steps : computeSteps(s.template);
       const stepIndex = Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1));
       const next: Partial<EditorState> = { guide: { enabled: true, stepIndex }, steps };
-      // Jump to step page
       const target = steps[stepIndex];
       if (target && s.draft) {
         const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
@@ -483,7 +504,13 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const id = crypto.randomUUID();
     const rect = clampRectPct(rectPct);
-    const block: UserBlock = { id, type: "text", rect, value: "" };
+    const block: UserBlock = {
+      id,
+      type: "text",
+      rect,
+      value: "",
+      style: { ...DEFAULT_TEXT_STYLE },
+    };
 
     (pi as any).userBlocks = [...(pi as any).userBlocks, block];
 
@@ -502,11 +529,19 @@ export const useEditor = create<EditorState>((set, get) => ({
       const list = (pi as any).userBlocks as UserBlock[];
       const i = list.findIndex((b) => b.id === id);
       if (i < 0) return {};
+      const current = list[i];
+
       const nextRect = patch.rect
-        ? clampRectPct({ ...(list[i].rect || { x: 0, y: 0, w: 0, h: 0 }), ...patch.rect })
-        : list[i].rect;
-      const updated: UserBlock = { ...list[i], ...patch, rect: nextRect };
-      const nextList = [...list]; nextList[i] = updated; (pi as any).userBlocks = nextList;
+        ? clampRectPct({ ...(current.rect || { x: 0, y: 0, w: 0, h: 0 }), ...patch.rect })
+        : current.rect;
+
+      const nextStyle: TextStyle | undefined =
+        patch.style ? { ...(current.style || {}), ...patch.style } : current.style;
+
+      const updated: UserBlock = { ...current, ...patch, rect: nextRect, style: nextStyle };
+      const nextList = [...list];
+      nextList[i] = updated;
+      (pi as any).userBlocks = nextList;
       return { draft: d };
     });
     s.saveDebounced();
@@ -567,11 +602,14 @@ export const useEditor = create<EditorState>((set, get) => ({
           return { id: crypto.randomUUID(), templatePageId: p.id, values, userBlocks: [] };
         });
       } else {
-        // keep existing instances but ensure userBlocks arrays exist
-        d.pageInstances = d.pageInstances.map((pi: any) => ({
-          ...pi,
-          userBlocks: Array.isArray(pi.userBlocks) ? pi.userBlocks : [],
-        }));
+        // keep existing instances but ensure userBlocks arrays and default styles exist
+        d.pageInstances = d.pageInstances.map((pi: any) => {
+          const userBlocks = Array.isArray(pi.userBlocks) ? pi.userBlocks : [];
+          const withDefaults = userBlocks.map((b: UserBlock) =>
+            b.type === "text" ? { ...b, style: { ...DEFAULT_TEXT_STYLE, ...(b.style || {}) } } : b
+          );
+          return { ...pi, userBlocks: withDefaults };
+        });
       }
 
       // guide + selection init
@@ -615,12 +653,15 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const steps = computeSteps(t as Template | null);
 
-    // Normalize userBlocks on each page instance
+    // Normalize userBlocks on each page instance + default styles
     if (Array.isArray((d as any)?.pageInstances)) {
-      (d as any).pageInstances = (d as any).pageInstances.map((pi: any) => ({
-        ...pi,
-        userBlocks: Array.isArray(pi.userBlocks) ? pi.userBlocks : [],
-      }));
+      (d as any).pageInstances = (d as any).pageInstances.map((pi: any) => {
+        const userBlocks = Array.isArray(pi.userBlocks) ? pi.userBlocks : [];
+        const withDefaults = userBlocks.map((b: UserBlock) =>
+          b.type === "text" ? { ...b, style: { ...DEFAULT_TEXT_STYLE, ...(b.style || {}) } } : b
+        );
+        return { ...pi, userBlocks: withDefaults };
+      });
     }
 
     set({
