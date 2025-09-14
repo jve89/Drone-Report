@@ -17,7 +17,15 @@ export default function TemplateDropdown() {
     listTemplates()
       .then((arr) => {
         if (!active) return;
-        setItems(Array.isArray(arr) ? arr : []);
+        const list = Array.isArray(arr) ? arr : [];
+        // Ensure Clean/Blank comes first even if server order changes
+        const preferredId = "blank-v1";
+        const sorted = list.slice().sort((a, b) => {
+          if (a.id === preferredId) return -1;
+          if (b.id === preferredId) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setItems(sorted);
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -32,7 +40,6 @@ export default function TemplateDropdown() {
       const el = selectRef.current;
       if (!el) return;
       el.focus();
-      // Try to open the native select UI where supported.
       try {
         // @ts-ignore
         if (typeof el.showPicker === "function") el.showPicker();

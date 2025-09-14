@@ -61,6 +61,7 @@ type EditorState = {
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
+  deletePage: (pageId: string) => void; // added
 
   // Drag/drop + click insert
   insertImageAtPoint: (
@@ -202,6 +203,18 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   repeatPage: (pageId) => get().duplicatePage(pageId),
 
+  deletePage: (pageId) =>
+    set((s) => {
+      if (!s.draft) return {};
+      const d: Draft = structuredClone(s.draft);
+      const idx = d.pageInstances.findIndex((p) => p.id === pageId);
+      if (idx < 0) return {};
+      if (d.pageInstances.length <= 1) return {}; // keep at least one page
+      d.pageInstances.splice(idx, 1);
+      const nextIndex = Math.min(Math.max(0, idx - 1), d.pageInstances.length - 1);
+      return { draft: d, pageIndex: nextIndex };
+    }),
+
   // ---------- Insert helpers ----------
   insertImageAtPoint: (pageId, pointPct, media) => {
     const s = get();
@@ -235,7 +248,7 @@ export const useEditor = create<EditorState>((set, get) => ({
           next.guide = { enabled: true, stepIndex: ni };
           const tgt = prev.steps[ni];
           if (tgt) {
-            const idx = nd.pageInstances.findIndex((p) => p.templatePageId = tgt.pageId);
+            const idx = nd.pageInstances.findIndex((p) => p.templatePageId === tgt.pageId); // fixed comparator
             if (idx >= 0) next.pageIndex = idx;
           }
         }

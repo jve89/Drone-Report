@@ -8,5 +8,9 @@ export async function loadTemplate(id: string) {
     const mod = await import("../../../shared/templates/building-roof-v1.json");
     return mod.default ?? mod;
   }
+  if (id === "blank-v1") {
+    const mod = await import("../../../shared/templates/blank.json");
+    return mod.default ?? mod;
+  }
   return getTemplate(id);
 }

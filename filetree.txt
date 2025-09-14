@@ -27,6 +27,7 @@
 │   │   │   │   └── Annotator.tsx
 │   │   │   ├── blocks
 │   │   │   ├── Canvas.tsx
+│   │   │   ├── GuidePanel.tsx
 │   │   │   ├── Inspector.tsx
 │   │   │   ├── layout
 │   │   │   │   └── EditorShell.tsx
@@ -278,4 +279,4 @@
         ├── media.ts
         └── template.ts
 
-66 directories, 212 files
+66 directories, 213 files

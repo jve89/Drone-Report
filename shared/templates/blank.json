@@ -1,0 +1,8 @@
+{
+  "id": "blank-v1",
+  "name": "Clean Template",
+  "version": "1.0.0",
+  "pages": [
+    { "id": "page-1", "name": "Page 1", "kind": "detail", "blocks": [] }
+  ]
+}
