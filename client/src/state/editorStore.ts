@@ -30,15 +30,15 @@ export type Finding = {
 
 /** Whole-block text style. */
 export type TextStyle = {
-  fontFamily?: string;       // e.g. 'Inter, system-ui, sans-serif'
-  fontSize?: number;         // px
+  fontFamily?: string;
+  fontSize?: number; // px
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
   align?: "left" | "center" | "right" | "justify";
-  color?: string;            // hex or rgb
-  lineHeight?: number;       // unitless multiplier (e.g. 1.4)
-  letterSpacing?: number;    // px
+  color?: string; // hex or rgb
+  lineHeight?: number; // unitless
+  letterSpacing?: number; // px
 };
 
 /** User-defined overlay elements placed by the editor. Percent units 0..100. */
@@ -81,6 +81,13 @@ type EditorState = {
   steps: Step[];
 
   findings: Finding[];
+
+  // Preview modal
+  previewOpen: boolean;
+  previewZoom: number;
+  openPreview: () => void;
+  closePreview: () => void;
+  setPreviewZoom: (z: number) => void;
 
   setDraft: (d: Draft) => void;
   setTemplate: (t: Template | null) => void;
@@ -139,6 +146,10 @@ function clampZoom(z: number) {
   const n = Number.isFinite(z) ? z : 1;
   return Math.min(2, Math.max(0.25, n));
 }
+function clampPreviewZoom(z: number) {
+  const n = Number.isFinite(z) ? z : 1;
+  return Math.min(2, Math.max(0.6, n));
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -175,7 +186,7 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   italic: false,
   underline: false,
   align: "left",
-  color: "#111827", // gray-900
+  color: "#111827",
   lineHeight: 1.4,
   letterSpacing: 0,
 };
@@ -194,6 +205,13 @@ export const useEditor = create<EditorState>((set, get) => ({
   steps: [],
 
   findings: [],
+
+  // Preview modal
+  previewOpen: false,
+  previewZoom: 1,
+  openPreview: () => set({ previewOpen: true, previewZoom: 1 }),
+  closePreview: () => set({ previewOpen: false }),
+  setPreviewZoom: (z) => set({ previewZoom: clampPreviewZoom(z) }),
 
   setDraft: (draft) => set({ draft }),
   setTemplate: (template) =>

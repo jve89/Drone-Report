@@ -1,9 +1,10 @@
 // client/src/editor/Toolbar.tsx
 import { useEditor } from "../state/editorStore";
 import TemplateDropdown from "./TemplateDropdown";
+import EditorPreviewModal from "./preview/EditorPreviewModal";
 
 export default function Toolbar() {
-  const { draft, template, pageIndex, setPageIndex } = useEditor();
+  const { draft, template, pageIndex, setPageIndex, previewOpen, openPreview } = useEditor();
   if (!draft) return null;
 
   const pageCount = draft.pageInstances?.length ?? 0;
@@ -13,6 +14,7 @@ export default function Toolbar() {
   const navPrevDisabled = blocked || !hasPages || pageIndex <= 0;
   const navNextDisabled = blocked || !hasPages || pageIndex >= pageCount - 1;
   const exportDisabled = blocked || !hasPages;
+  const previewDisabled = exportDisabled;
 
   function openTemplateDropdown() {
     window.dispatchEvent(new CustomEvent("open-template-dropdown"));
@@ -22,69 +24,62 @@ export default function Toolbar() {
     try {
       const ref = document.referrer;
       const sameOrigin = !!ref && new URL(ref).origin === window.location.origin;
-      if (sameOrigin) {
-        history.back();
-        return;
-      }
-    } catch {
-      // ignore URL parse errors
-    }
+      if (sameOrigin) { history.back(); return; }
+    } catch {}
     window.location.href = "/dashboard";
   }
 
   return (
-    <div className="h-12 border-b px-3 flex items-center gap-2 bg-white">
-      <button
-        className="px-3 py-1 border rounded disabled:opacity-50"
-        onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
-        disabled={navPrevDisabled}
-        title={navPrevDisabled && blocked ? "Select a template first" : undefined}
-      >
-        Prev
-      </button>
+    <>
+      <div className="h-12 border-b px-3 flex items-center gap-2 bg-white">
+        <button className="px-3 py-1 border rounded disabled:opacity-50"
+          onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+          disabled={navPrevDisabled}
+          title={navPrevDisabled && blocked ? "Select a template first" : undefined}>
+          Prev
+        </button>
 
-      <div className="text-sm min-w-[88px] text-center">
-        {hasPages ? `${pageIndex + 1} / ${pageCount}` : "0 / 0"}
+        <div className="text-sm min-w-[88px] text-center">
+          {hasPages ? `${pageIndex + 1} / ${pageCount}` : "0 / 0"}
+        </div>
+
+        <button className="px-3 py-1 border rounded disabled:opacity-50"
+          onClick={() => setPageIndex(Math.min(pageCount - 1, pageIndex + 1))}
+          disabled={navNextDisabled}
+          title={navNextDisabled && blocked ? "Select a template first" : undefined}>
+          Next
+        </button>
+
+        <div className="flex-1" />
+        <TemplateDropdown />
+        <div className="flex-1" />
+
+        <button className="px-3 py-1 border rounded" onClick={backToReports} title="Back to your reports">
+          Back to reports
+        </button>
+
+        <button
+          className={`px-3 py-1 border rounded ${previewDisabled ? "pointer-events-none opacity-50" : ""}`}
+          onClick={(e) => {
+            if (previewDisabled) { e.preventDefault(); openTemplateDropdown(); return; }
+            openPreview();
+          }}
+          title={previewDisabled ? "Select a template first" : "Preview report"}>
+          Preview
+        </button>
+
+        <a
+          className={`px-3 py-1 border rounded ${exportDisabled ? "pointer-events-none opacity-50" : ""}`}
+          href={!exportDisabled ? `/api/drafts/${draft.id}/export/pdf` : undefined}
+          target="_blank"
+          rel="noopener"
+          title={exportDisabled ? "Select a template first" : "Export PDF"}
+          onClick={(e) => { if (exportDisabled) { e.preventDefault(); openTemplateDropdown(); } }}>
+          Export (PDF)
+        </a>
       </div>
 
-      <button
-        className="px-3 py-1 border rounded disabled:opacity-50"
-        onClick={() => setPageIndex(Math.min(pageCount - 1, pageIndex + 1))}
-        disabled={navNextDisabled}
-        title={navNextDisabled && blocked ? "Select a template first" : undefined}
-      >
-        Next
-      </button>
-
-      <div className="flex-1" />
-
-      <TemplateDropdown />
-
-      <div className="flex-1" />
-
-      <button
-        className="px-3 py-1 border rounded"
-        onClick={backToReports}
-        title="Back to your reports"
-      >
-        Back to reports
-      </button>
-
-      <a
-        className={`px-3 py-1 border rounded ${exportDisabled ? "pointer-events-none opacity-50" : ""}`}
-        href={!exportDisabled ? `/api/drafts/${draft.id}/export/pdf` : undefined}
-        target="_blank"
-        rel="noopener"
-        title={exportDisabled ? "Select a template first" : "Export PDF"}
-        onClick={(e) => {
-          if (exportDisabled) {
-            e.preventDefault();
-            openTemplateDropdown();
-          }
-        }}
-      >
-        Export (PDF)
-      </a>
-    </div>
+      {previewOpen && <EditorPreviewModal />}
+    </>
   );
 }

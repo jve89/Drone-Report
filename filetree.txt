@@ -55,6 +55,10 @@
 │   │   │   │   ├── MediaPanel.tsx
 │   │   │   │   ├── StartChecklist.tsx
 │   │   │   │   └── TemplatePanel.tsx
+│   │   │   ├── preview
+│   │   │   │   ├── BlockViewer.tsx
+│   │   │   │   ├── EditorPreviewModal.tsx
+│   │   │   │   └── PreviewModal.tsx
 │   │   │   ├── TemplateDropdown.tsx
 │   │   │   ├── Toolbar.tsx
 │   │   │   └── ViewerControls.tsx
@@ -282,4 +286,4 @@
         ├── media.ts
         └── template.ts
 
-66 directories, 216 files
+67 directories, 219 files
