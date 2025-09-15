@@ -4,6 +4,7 @@ import { useEditor } from "../state/editorStore";
 import TemplateDropdown from "./TemplateDropdown";
 import EditorPreviewModal from "./preview/EditorPreviewModal";
 import FileMenu from "./FileMenu";
+import UndoRedo from "./UndoRedo";
 
 export default function Toolbar() {
   const { draft, template, previewOpen, openPreview, saveNow, dirty, saving, _saveTimer, lastSavedAt } = useEditor();
@@ -65,6 +66,8 @@ export default function Toolbar() {
 
         {/* File menu */}
         <FileMenu />
+
+        <UndoRedo />
 
         <div className="flex-1" />
 

@@ -61,6 +61,23 @@ type ToolState =
   | { mode: "idle"; kind?: undefined }
   | { mode: "insert"; kind: "text" };
 
+/** ---- Undo/Redo ---- */
+type Snapshot = {
+  draftPart: {
+    pageInstances: Draft["pageInstances"];
+    media: Draft["media"];
+    templateId?: string;
+    payloadMeta?: Record<string, unknown>;
+  };
+  findings: Finding[];
+  pageIndex: number;
+  selectedBlockId: string | null;
+  selectedUserBlockId: string | null;
+};
+
+const HISTORY_LIMIT = 50;
+const MARK_COALESCE_MS = 300;
+
 type EditorState = {
   draft: Draft | null;
   template: Template | null;
@@ -92,6 +109,16 @@ type EditorState = {
   openPreview: () => void;
   closePreview: () => void;
   setPreviewZoom: (z: number) => void;
+
+  // Undo/Redo
+  historyPast: Snapshot[];
+  historyFuture: Snapshot[];
+  lastMarkTs: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  mark: (opts?: { coalesce?: boolean }) => void;
+  undo: () => void;
+  redo: () => void;
 
   setDraft: (d: Draft) => void;
   setTemplate: (t: Template | null) => void;
@@ -195,6 +222,46 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   letterSpacing: 0,
 };
 
+/** Build a compact snapshot of current state. */
+function makeSnapshot(s: EditorState): Snapshot | null {
+  const d = s.draft;
+  if (!d) return null;
+  const payloadMeta = ((d as any).payload?.meta ?? {}) as Record<string, unknown>;
+  return {
+    draftPart: {
+      pageInstances: structuredClone(d.pageInstances),
+      media: structuredClone(d.media),
+      templateId: (d as any).templateId,
+      payloadMeta: structuredClone(payloadMeta),
+    },
+    findings: structuredClone(s.findings),
+    pageIndex: s.pageIndex,
+    selectedBlockId: s.selectedBlockId,
+    selectedUserBlockId: s.selectedUserBlockId,
+  };
+}
+
+/** Restore fields from a snapshot into state. */
+function applySnapshot(prev: EditorState, snap: Snapshot): Partial<EditorState> {
+  if (!prev.draft) return {};
+  const d: Draft = structuredClone(prev.draft);
+  d.pageInstances = structuredClone(snap.draftPart.pageInstances);
+  d.media = structuredClone(snap.draftPart.media);
+  (d as any).templateId = snap.draftPart.templateId;
+  const payload = ((d as any).payload ?? {}) as any;
+  payload.meta = { ...(payload.meta ?? {}), ...(snap.draftPart.payloadMeta ?? {}) };
+  (d as any).payload = payload;
+
+  return {
+    draft: d,
+    findings: structuredClone(snap.findings),
+    pageIndex: snap.pageIndex,
+    selectedBlockId: snap.selectedBlockId,
+    selectedUserBlockId: snap.selectedUserBlockId,
+    dirty: true,
+  };
+}
+
 export const useEditor = create<EditorState>((set, get) => ({
   draft: null,
   template: null,
@@ -221,6 +288,71 @@ export const useEditor = create<EditorState>((set, get) => ({
   closePreview: () => set({ previewOpen: false }),
   setPreviewZoom: (z) => set({ previewZoom: clampPreviewZoom(z) }),
 
+  // Undo/Redo state
+  historyPast: [],
+  historyFuture: [],
+  lastMarkTs: 0,
+  canUndo: false,
+  canRedo: false,
+
+  mark: (opts) => {
+    const coalesce = !!opts?.coalesce;
+    const now = Date.now();
+    set((s) => {
+      if (!s.draft) return {};
+      if (coalesce && s.lastMarkTs && now - s.lastMarkTs < MARK_COALESCE_MS) {
+        return {};
+      }
+      const snap = makeSnapshot(s as unknown as EditorState);
+      if (!snap) return {};
+      const past = [...s.historyPast, snap];
+      if (past.length > HISTORY_LIMIT) past.shift();
+      return {
+        historyPast: past,
+        historyFuture: [],
+        lastMarkTs: now,
+        canUndo: past.length > 0,
+        canRedo: false,
+      };
+    });
+  },
+
+  undo: () => {
+    const curSnap = makeSnapshot(get());
+    set((s) => {
+      if (!s.draft || s.historyPast.length === 0 || !curSnap) return {};
+      const past = s.historyPast.slice(0, -1);
+      const prevSnap = s.historyPast[s.historyPast.length - 1];
+      const future = [curSnap, ...s.historyFuture];
+      return {
+        ...applySnapshot(s as unknown as EditorState, prevSnap),
+        historyPast: past,
+        historyFuture: future,
+        canUndo: past.length > 0,
+        canRedo: future.length > 0,
+      } as Partial<EditorState>;
+    });
+    get().saveDebounced();
+  },
+
+  redo: () => {
+    const curSnap = makeSnapshot(get());
+    set((s) => {
+      if (!s.draft || s.historyFuture.length === 0 || !curSnap) return {};
+      const [nextSnap, ...restFuture] = s.historyFuture;
+      const past = [...s.historyPast, curSnap];
+      if (past.length > HISTORY_LIMIT) past.shift();
+      return {
+        ...applySnapshot(s as unknown as EditorState, nextSnap),
+        historyPast: past,
+        historyFuture: restFuture,
+        canUndo: past.length > 0,
+        canRedo: restFuture.length > 0,
+      } as Partial<EditorState>;
+    });
+    get().saveDebounced();
+  },
+
   setDraft: (draft) => set({ draft }),
   setTemplate: (template) =>
     set((s) => {
@@ -244,7 +376,8 @@ export const useEditor = create<EditorState>((set, get) => ({
   setSelectedBlock: (blockId) => set({ selectedBlockId: blockId }),
   selectUserBlock: (id) => set({ selectedUserBlockId: id }),
 
-  setValue: (pageId, blockId, value) =>
+  setValue: (pageId, blockId, value) => {
+    get().mark({ coalesce: true });
     set((s) => {
       if (!s.draft) return {};
       const d: Draft = structuredClone(s.draft);
@@ -267,9 +400,11 @@ export const useEditor = create<EditorState>((set, get) => ({
         }
       }
       return next as any;
-    }),
+    });
+  },
 
-  duplicatePage: (pageId) =>
+  duplicatePage: (pageId) => {
+    get().mark();
     set((s) => {
       if (!s.draft) return {};
       const d: Draft = structuredClone(s.draft);
@@ -285,11 +420,13 @@ export const useEditor = create<EditorState>((set, get) => ({
       d.pageInstances.splice(idx + 1, 0, clone);
       const nextIndex = Math.min(idx + 1, d.pageInstances.length - 1);
       return { draft: d, pageIndex: nextIndex, dirty: true };
-    }),
+    });
+  },
 
   repeatPage: (pageId) => get().duplicatePage(pageId),
 
-  deletePage: (pageId) =>
+  deletePage: (pageId) => {
+    get().mark();
     set((s) => {
       if (!s.draft) return {};
       const d: Draft = structuredClone(s.draft);
@@ -299,7 +436,8 @@ export const useEditor = create<EditorState>((set, get) => ({
       d.pageInstances.splice(idx, 1);
       const nextIndex = Math.min(Math.max(0, idx - 1), d.pageInstances.length - 1);
       return { draft: d, pageIndex: nextIndex, dirty: true };
-    }),
+    });
+  },
 
   // ---------- Insert helpers ----------
   insertImageAtPoint: (pageId, pointPct, media) => {
@@ -320,6 +458,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     const target = under[0] || (blocks.find((b) => b.type === "image_slot") as any);
     if (!target) return false;
 
+    get().mark();
     set((prev) => {
       const nd: Draft = structuredClone(prev.draft!);
       const npi = nd.pageInstances.find((p) => p.id === pageId)!;
@@ -360,6 +499,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     const target = firstEmpty || (blocks.find((b) => b.type === "image_slot") as any);
     if (!target) return false;
 
+    get().mark();
     set((prev) => {
       const nd: Draft = structuredClone(prev.draft!);
       const npi = nd.pageInstances.find((p) => p.id === pageId)!;
@@ -386,8 +526,12 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   // ---------- Findings ----------
-  setFindings: (f) => set({ findings: f, dirty: true }),
-  createFindingsFromPhotos: (photoIds) =>
+  setFindings: (f) => {
+    get().mark();
+    set({ findings: f, dirty: true });
+  },
+  createFindingsFromPhotos: (photoIds) => {
+    get().mark();
     set((s) => {
       if (!s.draft || !photoIds?.length) return {};
       const created: Finding[] = photoIds.map((pid) => ({
@@ -405,21 +549,27 @@ export const useEditor = create<EditorState>((set, get) => ({
         updatedAt: nowIso(),
       }));
       return { findings: [...s.findings, ...created], dirty: true } as Partial<EditorState>;
-    }),
-  updateFinding: (id, patch) =>
+    });
+  },
+  updateFinding: (id, patch) => {
+    get().mark({ coalesce: true });
     set((s) => {
       const idx = s.findings.findIndex((f) => f.id === id);
       if (idx < 0) return {};
       const next = [...s.findings];
       next[idx] = { ...next[idx], ...patch, updatedAt: nowIso() };
       return { findings: next, dirty: true };
-    }),
-  deleteFinding: (id) =>
+    });
+  },
+  deleteFinding: (id) => {
+    get().mark();
     set((s) => {
       const next = s.findings.filter((f) => f.id !== id);
       return { findings: next, dirty: true };
-    }),
-  reindexAnnotations: (photoId) =>
+    });
+  },
+  reindexAnnotations: (photoId) => {
+    get().mark();
     set((s) => {
       const next = s.findings.map((f) => {
         if (f.photoId !== photoId) return f;
@@ -432,7 +582,8 @@ export const useEditor = create<EditorState>((set, get) => ({
       all.forEach((entry, i) => { entry.a.index = i + 1; });
       const final = next.map((f) => (f.photoId !== photoId ? f : { ...f, updatedAt: nowIso() }));
       return { findings: final, dirty: true };
-    }),
+    });
+  },
 
   // ---------- Guide controls ----------
   enableGuide: () =>
@@ -500,6 +651,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   placeUserBlock: (rectPct) => {
     const s = get();
     if (!s.draft) return null;
+    get().mark();
     const pageIdx = s.pageIndex;
     const d: Draft = structuredClone(s.draft);
     const pi = d.pageInstances?.[pageIdx];
@@ -516,6 +668,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
   updateUserBlock: (id, patch) => {
     const s = get();
+    get().mark({ coalesce: true });
     set((state) => {
       if (!state.draft) return {};
       const d: Draft = structuredClone(state.draft);
@@ -537,7 +690,8 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
     s.saveDebounced();
   },
-  deleteUserBlock: (id) =>
+  deleteUserBlock: (id) => {
+    get().mark();
     set((s) => {
       if (!s.draft) return {};
       const d: Draft = structuredClone(s.draft);
@@ -548,10 +702,12 @@ export const useEditor = create<EditorState>((set, get) => ({
       const next: Partial<EditorState> = { draft: d, dirty: true };
       if (s.selectedUserBlockId === id) next.selectedUserBlockId = null;
       return next as any;
-    }),
+    });
+  },
 
   // ---------- Template selection ----------
   selectTemplate: async (templateId: string) => {
+    get().mark();
     const t = templateId ? await loadTemplate(templateId) : null;
     set({ template: (t as Template) ?? null });
 
@@ -666,6 +822,13 @@ export const useEditor = create<EditorState>((set, get) => ({
       saving: false,
       _saveTimer: null,
       lastSavedAt: (d as any)?.updatedAt || (d as any)?.updated_at || undefined,
+
+      // clear history on load
+      historyPast: [],
+      historyFuture: [],
+      lastMarkTs: 0,
+      canUndo: false,
+      canRedo: false,
     });
 
     const max = (d.pageInstances?.length ?? 1) - 1;
@@ -733,6 +896,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     ).trim();
     if (!t || t === currentTitle) return;
 
+    get().mark();
     set((s) => {
       const d: Draft = structuredClone(s.draft!);
       const payload = ((d as any).payload ?? {}) as any;
