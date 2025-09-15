@@ -1,4 +1,12 @@
 // client/src/editor/onboarding/Coachmark.tsx
+// Coachmark helper balloon — disabled as of v0.3.9.
+// The old code is preserved below for reference, but not executed.
+
+export default function Coachmark() {
+  return null;
+}
+
+/* --- Disabled old implementation ---
 import { useEffect, useState } from "react";
 import { useEditor } from "../../state/editorStore";
 
@@ -37,3 +45,5 @@ export default function Coachmark() {
     </div>
   );
 }
+--- end disabled ---
+*/

@@ -23,7 +23,7 @@ export default function Navigator() {
     window.localStorage.setItem(key, mode);
   }, [draft?.id, mode]);
 
-  // Always call hooks
+  // Items
   const items = useMemo(() => {
     if (!draft || !template) return [];
     return draft.pageInstances.map((pi: any, i: number) => {
@@ -36,7 +36,11 @@ export default function Navigator() {
   const hasPages = !!draft && !!template && pageCount > 0;
   const current = hasPages ? draft!.pageInstances[pageIndex] : null;
 
-  // Render guards only AFTER hooks
+  const blocked = !template || !hasPages;
+  const navPrevDisabled = blocked || pageIndex <= 0;
+  const navNextDisabled = blocked || pageIndex >= pageCount - 1;
+
+  // Guards
   if (!draft) return <div className="p-2 text-xs text-gray-500">Loading…</div>;
   if (!template) return <div className="p-2 text-xs text-gray-500">Select a template to see pages.</div>;
 
@@ -51,10 +55,11 @@ export default function Navigator() {
   return (
     <div className="flex flex-col min-w-0">
       {/* Header */}
-      <div className="px-2 py-2 border-b bg-white">
+      <div className="px-2 pt-2 pb-1 border-b bg-white">
+        {/* Row 1: title + view toggles */}
         <div className="flex items-center justify-between min-w-0">
           <div className="text-xs text-gray-500 truncate">Pages</div>
-          <div className="flex gap-1 shrink-0">
+          <div className="flex gap-2 shrink-0">
             <button
               className={`px-2 py-1 text-xs rounded border ${mode === "list" ? "bg-gray-100" : "bg-white"}`}
               onClick={() => setMode("list")}
@@ -71,7 +76,29 @@ export default function Navigator() {
             </button>
           </div>
         </div>
-        <div className="mt-1 text-[11px] text-gray-500">{pageIndex + 1} / {pageCount}</div>
+
+        {/* Row 2: pager cluster */}
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <button
+            className="px-3 py-1.5 text-xs rounded border disabled:opacity-50"
+            onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+            disabled={navPrevDisabled}
+            title={navPrevDisabled ? "No previous page" : "Previous page"}
+          >
+            Prev
+          </button>
+          <div className="px-2 py-1 text-[11px] text-gray-700 tabular-nums">
+            {pageIndex + 1} / {pageCount}
+          </div>
+          <button
+            className="px-3 py-1.5 text-xs rounded border disabled:opacity-50"
+            onClick={() => setPageIndex(Math.min(pageCount - 1, pageIndex + 1))}
+            disabled={navNextDisabled}
+            title={navNextDisabled ? "No next page" : "Next page"}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Content */}

@@ -4,15 +4,11 @@ import TemplateDropdown from "./TemplateDropdown";
 import EditorPreviewModal from "./preview/EditorPreviewModal";
 
 export default function Toolbar() {
-  const { draft, template, pageIndex, setPageIndex, previewOpen, openPreview } = useEditor();
+  const { draft, template, previewOpen, openPreview } = useEditor();
   if (!draft) return null;
 
-  const pageCount = draft.pageInstances?.length ?? 0;
-  const hasPages = pageCount > 0;
-
+  const hasPages = (draft.pageInstances?.length ?? 0) > 0;
   const blocked = !template;
-  const navPrevDisabled = blocked || !hasPages || pageIndex <= 0;
-  const navNextDisabled = blocked || !hasPages || pageIndex >= pageCount - 1;
   const exportDisabled = blocked || !hasPages;
   const previewDisabled = exportDisabled;
 
@@ -32,24 +28,6 @@ export default function Toolbar() {
   return (
     <>
       <div className="h-12 border-b px-3 flex items-center gap-2 bg-white">
-        <button className="px-3 py-1 border rounded disabled:opacity-50"
-          onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
-          disabled={navPrevDisabled}
-          title={navPrevDisabled && blocked ? "Select a template first" : undefined}>
-          Prev
-        </button>
-
-        <div className="text-sm min-w-[88px] text-center">
-          {hasPages ? `${pageIndex + 1} / ${pageCount}` : "0 / 0"}
-        </div>
-
-        <button className="px-3 py-1 border rounded disabled:opacity-50"
-          onClick={() => setPageIndex(Math.min(pageCount - 1, pageIndex + 1))}
-          disabled={navNextDisabled}
-          title={navNextDisabled && blocked ? "Select a template first" : undefined}>
-          Next
-        </button>
-
         <div className="flex-1" />
         <TemplateDropdown />
         <div className="flex-1" />
@@ -64,7 +42,8 @@ export default function Toolbar() {
             if (previewDisabled) { e.preventDefault(); openTemplateDropdown(); return; }
             openPreview();
           }}
-          title={previewDisabled ? "Select a template first" : "Preview report"}>
+          title={previewDisabled ? "Select a template first" : "Preview report"}
+        >
           Preview
         </button>
 
@@ -74,7 +53,8 @@ export default function Toolbar() {
           target="_blank"
           rel="noopener"
           title={exportDisabled ? "Select a template first" : "Export PDF"}
-          onClick={(e) => { if (exportDisabled) { e.preventDefault(); openTemplateDropdown(); } }}>
+          onClick={(e) => { if (exportDisabled) { e.preventDefault(); openTemplateDropdown(); } }}
+        >
           Export (PDF)
         </a>
       </div>
