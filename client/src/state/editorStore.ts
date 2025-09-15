@@ -43,7 +43,7 @@ type GuideState = {
 
 type Step = { pageId: string; blockId: string; help?: string };
 
-type InsertKind = "text" | "line" | "rect" | "divider"; // ellipse later
+type InsertKind = "text" | "line" | "rect" | "ellipse" | "divider";
 
 type ToolState =
   | { mode: "idle"; kind?: undefined }
@@ -697,16 +697,40 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     let block: UserBlock | null = null;
     if (kind === "text") {
-      block = { id, type: "text", rect, value: "", style: { ...DEFAULT_TEXT_STYLE }, z: (pi.userBlocks?.length ?? 0) };
+      block = {
+        id, type: "text", rect,
+        value: "",
+        style: { ...DEFAULT_TEXT_STYLE },
+        z: (pi.userBlocks?.length ?? 0),
+      };
     } else if (kind === "rect") {
-      block = { id, type: "rect", rect, blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } }, z: (pi.userBlocks?.length ?? 0) };
+      block = {
+        id, type: "rect", rect,
+        blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } },
+        z: (pi.userBlocks?.length ?? 0),
+      };
+    } else if (kind === "ellipse") {
+      block = {
+        id, type: "ellipse", rect,
+        blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } },
+        z: (pi.userBlocks?.length ?? 0),
+      } as UserBlock;
     } else if (kind === "divider") {
       const thin = { ...rect, h: Math.max(0.4, Math.min(rect.h, 2)) };
-      block = { id, type: "divider", rect: thin, blockStyle: { stroke: { width: 1 } }, z: (pi.userBlocks?.length ?? 0) };
+      block = {
+        id, type: "divider", rect: thin,
+        blockStyle: { stroke: { width: 1 } },
+        z: (pi.userBlocks?.length ?? 0),
+      };
     } else if (kind === "line") {
       const p1 = { x: rect.x, y: rect.y };
       const p2 = { x: rect.x + rect.w, y: rect.y + rect.h };
-      block = { id, type: "line", points: clampPointsPct([p1, p2]), blockStyle: { stroke: { width: 2 } }, z: (pi.userBlocks?.length ?? 0) } as UserBlock;
+      block = {
+        id, type: "line",
+        points: clampPointsPct([p1, p2]),
+        blockStyle: { stroke: { width: 2 } },
+        z: (pi.userBlocks?.length ?? 0),
+      } as UserBlock;
     }
 
     if (!block) return null;
@@ -844,11 +868,11 @@ export const useEditor = create<EditorState>((set, get) => ({
       const b = list[i];
       if (b.type === "line" && Array.isArray(b.points)) {
         const moved = clampPointsPct(b.points.map((p) => ({ x: p.x + dxPct, y: p.y + dyPct })));
-        list[i] = { ...b, points: moved };
+        list[i] = { ...b, points: moved } as UserBlock;
       } else if (b.rect) {
-        list[i] = { ...b, rect: clampRectPct({ ...b.rect, x: b.rect.x + dxPct, y: b.rect.y + dyPct }) };
+        list[i] = { ...b, rect: clampRectPct({ ...b.rect, x: b.rect.x + dxPct, y: b.rect.y + dyPct }) } as UserBlock;
       }
-      pi.userBlocks = normalizeZ(list);
+      pi.userBlocks = normalizeZ(list as UserBlock[]);
       return { draft: d, dirty: true };
     });
     s.saveDebounced();

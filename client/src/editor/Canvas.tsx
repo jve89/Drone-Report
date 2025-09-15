@@ -22,7 +22,8 @@ type BlockRepeater = BlockBase & {
 };
 type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
-/** User element type mirrors (future) store shape */
+/** User element type mirrors store shape */
+type LinePoint = { x: number; y: number };
 type UserBlock =
   | {
       id: string;
@@ -40,20 +41,33 @@ type UserBlock =
         lineHeight?: number;
         letterSpacing?: number;
       };
+      blockStyle?: any;
     }
   | {
       id: string;
-      type: "line" | "divider";
-      rect: Rect; // line uses rect.h for thickness at preview-time
+      type: "line";
+      points: LinePoint[]; // uses points for geometry
       style?: {
         strokeColor?: string;
         strokeWidth?: number;
         dash?: number;
       };
+      blockStyle?: any;
     }
   | {
       id: string;
-      type: "rect";
+      type: "divider";
+      rect: Rect; // divider uses rect height as thickness
+      style?: {
+        strokeColor?: string;
+        strokeWidth?: number;
+        dash?: number;
+      };
+      blockStyle?: any;
+    }
+  | {
+      id: string;
+      type: "rect" | "ellipse";
       rect: Rect;
       style?: {
         strokeColor?: string;
@@ -61,6 +75,7 @@ type UserBlock =
         dash?: number;
         fillColor?: string;
       };
+      blockStyle?: any;
     };
 
 function pct(n: number) {
@@ -85,7 +100,7 @@ function Frame({
 }
 
 export default function Canvas() {
-  const {
+    const {
     draft,
     template,
     pageIndex,
@@ -105,6 +120,7 @@ export default function Canvas() {
     selectUserBlock,
     selectedUserBlockId,
     updateUserBlock,
+    setLinePoints,
     deleteUserBlock,
     cancelInsert,
   } = useEditor();
@@ -120,6 +136,18 @@ export default function Canvas() {
     startRect: Rect;
   } | null>(null);
   const prevCursorRef = useRef<string>("");
+
+  // line drag state
+  const lineDragRef = useRef<{
+    id: string;
+    mode: "p1" | "p2" | "move" | "rotate";
+    startX: number;
+    startY: number;
+    startP1: LinePoint;
+    startP2: LinePoint;
+    center: LinePoint;
+    startCursorAngle?: number;
+  } | null>(null);
 
   const PAGE_W = 820;
   const PAGE_H = 1160;
@@ -316,12 +344,114 @@ export default function Canvas() {
     };
   }, [updateUserBlock]);
 
+  // Drag engine for line endpoints / move / rotate
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      const d = lineDragRef.current;
+      if (!d || !pageRef.current) return;
+
+      const rect = pageRef.current.getBoundingClientRect();
+      const dxPct = ((e.clientX - d.startX) / rect.width) * 100;
+      const dyPct = ((e.clientY - d.startY) / rect.height) * 100;
+
+      const { id, mode, startP1, startP2, center } = d;
+
+      if (mode === "p1" || mode === "p2") {
+        const np1 = mode === "p1" ? { x: startP1.x + dxPct, y: startP1.y + dyPct } : startP1;
+        const np2 = mode === "p2" ? { x: startP2.x + dxPct, y: startP2.y + dyPct } : startP2;
+        setLinePoints(id, [np1, np2]);
+        return;
+      }
+
+      if (mode === "move") {
+        setLinePoints(id, [
+          { x: startP1.x + dxPct, y: startP1.y + dyPct },
+          { x: startP2.x + dxPct, y: startP2.y + dyPct },
+        ]);
+        return;
+      }
+
+      if (mode === "rotate") {
+        // compute current cursor angle around center
+        const nx = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const ny = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        const curAngle = Math.atan2(ny - center.y, nx - center.x);
+        const delta = curAngle - (d.startCursorAngle || 0);
+
+        const cos = Math.cos(delta);
+        const sin = Math.sin(delta);
+        const rot = (pt: LinePoint): LinePoint => {
+          const dx = pt.x - center.x;
+          const dy = pt.y - center.y;
+          return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
+        };
+        setLinePoints(id, [rot(startP1), rot(startP2)]);
+      }
+    }
+
+    function onUp() {
+      if (lineDragRef.current) {
+        lineDragRef.current = null;
+        document.body.style.cursor = prevCursorRef.current || "";
+      }
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [setLinePoints]);
+
   function startDrag(mode: "move" | "resize-tl" | "resize-right", id: string, rect: Rect, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     dragRef.current = { mode, id, startX: e.clientX, startY: e.clientY, startRect: rect };
     prevCursorRef.current = document.body.style.cursor;
     document.body.style.cursor = mode === "move" ? "move" : mode === "resize-right" ? "ew-resize" : "nwse-resize";
+    selectUserBlock(id);
+  }
+
+  function startLineDrag(
+    mode: "p1" | "p2" | "move" | "rotate",
+    id: string,
+    p1: LinePoint,
+    p2: LinePoint,
+    e: React.MouseEvent
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+    lineDragRef.current = {
+      id,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      startP1: { ...p1 },
+      startP2: { ...p2 },
+      center,
+      startCursorAngle:
+        mode === "rotate"
+          ? Math.atan2(
+              // current cursor vs center in %
+              (() => {
+                const r = pageRef.current!.getBoundingClientRect();
+                const nx = ((e.clientX - r.left) / r.width) * 100;
+                const ny = ((e.clientY - r.top) / r.height) * 100;
+                return ny - center.y;
+              })(),
+              (() => {
+                const r = pageRef.current!.getBoundingClientRect();
+                const nx = ((e.clientX - r.left) / r.width) * 100;
+                const ny = ((e.clientY - r.top) / r.height) * 100;
+                return nx - center.x;
+              })()
+            )
+          : undefined,
+    };
+    prevCursorRef.current = document.body.style.cursor;
+    document.body.style.cursor = mode === "rotate" ? "grabbing" : "move";
     selectUserBlock(id);
   }
 
@@ -431,8 +561,8 @@ export default function Canvas() {
   const activeShapeBlock =
     selectedUserBlockId
       ? (userBlocks.find(b =>
-          b.id === selectedUserBlockId && (b.type === "line" || b.type === "rect" || b.type === "divider")
-        ) as Extract<UserBlock, { type: "line" | "rect" | "divider" }> | undefined)
+          b.id === selectedUserBlockId && (b.type === "line" || b.type === "rect" || b.type === "ellipse" || b.type === "divider")
+        ) as Extract<UserBlock, { type: "line" | "rect" | "ellipse" | "divider" }> | undefined)
       : undefined;
 
   // Reserve vertical space when a toolbar is visible
@@ -459,8 +589,8 @@ export default function Canvas() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
             <ShapeToolbar
               blockId={activeShapeBlock.id}
-              kind={activeShapeBlock.type as "line" | "rect" | "divider"}
-              style={activeShapeBlock.style as any}
+              kind={activeShapeBlock.type as "line" | "rect" | "ellipse" | "divider"}
+              style={(activeShapeBlock as any).blockStyle ?? (activeShapeBlock as any).style}
             />
           </div>
         )}
@@ -706,21 +836,137 @@ export default function Canvas() {
               );
             }
 
-            // ---- Shapes (preview) ----
-            if (ub.type === "line" || ub.type === "divider") {
-              const st = (ub.style || {}) as any;
-              const stroke = st.strokeColor || "#111827";
-              const strokeW = Number.isFinite(st.strokeWidth) ? st.strokeWidth : (ub.type === "divider" ? 2 : 2);
-              const dash = Number.isFinite(st.dash) ? st.dash : 0;
+            // ---- Line (points-based) ----
+            if (ub.type === "line") {
+              const bs = ((ub as any).blockStyle || {}) as any;
+              const st = (ub as any).style || {};
+              const stroke = bs?.stroke?.color?.hex || st.strokeColor || "#111827";
+              const strokeW = Number.isFinite(bs?.stroke?.width) ? bs.stroke.width : Number.isFinite(st.strokeWidth) ? st.strokeWidth : 2;
+              const dashArr = Array.isArray(bs?.stroke?.dash) ? bs.stroke.dash : (Number.isFinite(st.dash) && st.dash > 0 ? [st.dash, st.dash] : []);
+              const p = Array.isArray((ub as any).points) ? ((ub as any).points as LinePoint[]) : [];
+              const isActive = selectedUserBlockId === ub.id;
 
+              if (p.length < 2) {
+                return (
+                  <div
+                    key={ub.id}
+                    style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}
+                    onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                  />
+                );
+              }
+
+              const p1 = p[0];
+              const p2 = p[p.length - 1];
+              const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+
+              return (
+                <React.Fragment key={ub.id}>
+                  <svg
+                    style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}
+                  >
+                    {/* wide invisible hit line for easy selection */}
+                    <line
+                      x1={pct(p1.x)} y1={pct(p1.y)}
+                      x2={pct(p2.x)} y2={pct(p2.y)}
+                      stroke="black"
+                      strokeOpacity={0}
+                      pointerEvents="stroke"
+                      strokeWidth={Math.max(16, strokeW * 3)}
+                      onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                    />
+
+                    {/* visible line */}
+                    <line
+                      x1={pct(p1.x)} y1={pct(p1.y)}
+                      x2={pct(p2.x)} y2={pct(p2.y)}
+                      stroke={stroke}
+                      strokeWidth={strokeW}
+                      strokeDasharray={dashArr && dashArr.length ? dashArr.join(",") : undefined}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: "none" }}   // <— add this
+                    />
+                    
+                    {/* endpoint handles */}
+                    {isActive && (
+                      <>
+                        <circle
+                          cx={pct(p1.x)} cy={pct(p1.y)} r={8}
+                          fill="#fff" stroke="#94a3b8"
+                          onMouseDown={(e) => startLineDrag("p1", ub.id, p1, p2, e)}
+                          style={{ cursor: "grab" }}
+                        />
+                        <circle
+                          cx={pct(p2.x)} cy={pct(p2.y)} r={8}
+                          fill="#fff" stroke="#94a3b8"
+                          onMouseDown={(e) => startLineDrag("p2", ub.id, p1, p2, e)}
+                          style={{ cursor: "grab" }}
+                        />
+                      </>
+                    )}
+                  </svg>
+
+                  {/* move and rotate controls under the midpoint */}
+                  {isActive && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: pct(mid.x),
+                        top: `calc(${pct(mid.y)} + 22px)`,
+                        transform: "translateX(-50%)",
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        title="Rotate"
+                        onMouseDown={(e) => startLineDrag("rotate", ub.id, p1, p2, e)}
+                        style={{
+                          width: 28, height: 28, borderRadius: 9999,
+                          background: "#fff", border: "1px solid #94a3b8",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          display: "grid", placeItems: "center", cursor: "grab",
+                          userSelect: "none", fontSize: 14,
+                        }}
+                      >
+                        ↻
+                      </div>
+                      <div
+                        title="Move"
+                        onMouseDown={(e) => startLineDrag("move", ub.id, p1, p2, e)}
+                        style={{
+                          width: 28, height: 28, borderRadius: 9999,
+                          background: "#fff", border: "1px solid #94a3b8",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          display: "grid", placeItems: "center", cursor: "move",
+                          userSelect: "none", fontSize: 14,
+                        }}
+                      >
+                        ⤧
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            // ---- Divider (rect-based horizontal rule)
+            if (ub.type === "divider") {
+              const bs = ((ub as any).blockStyle || {}) as any;
+              const st = (ub as any).style || {};
+              const stroke = bs?.stroke?.color?.hex || st.strokeColor || "#111827";
+              const strokeW = Number.isFinite(bs?.stroke?.width) ? bs.stroke.width : Number.isFinite(st.strokeWidth) ? st.strokeWidth : 2;
+              const dash = Array.isArray(bs?.stroke?.dash) && bs.stroke.dash.length ? bs.stroke.dash[0] : (Number.isFinite(st.dash) ? st.dash : 0);
+
+              const r = (ub as any).rect as Rect;
               return (
                 <div
                   key={ub.id}
                   style={{
                     position: "absolute",
-                    left: pct(ub.rect.x),
-                    top: pct(ub.rect.y + ub.rect.h / 2 - (strokeW / PAGE_H) * 50), // center
-                    width: pct(ub.rect.w),
+                    left: pct(r.x),
+                    top: pct(r.y + r.h / 2 - (strokeW / PAGE_H) * 50),
+                    width: pct(r.w),
                     height: Math.max(1, strokeW),
                     background: dash ? "transparent" : stroke,
                     borderTop: dash ? `${strokeW}px dashed ${stroke}` : undefined,
@@ -731,25 +977,32 @@ export default function Canvas() {
               );
             }
 
-            if (ub.type === "rect") {
-              const st = (ub.style || {}) as any;
-              const stroke = st.strokeColor || "#111827";
-              const strokeW = Number.isFinite(st.strokeWidth) ? st.strokeWidth : 1;
-              const dash = Number.isFinite(st.dash) ? st.dash : 0;
-              const fill = st.fillColor || "transparent";
+            // ---- Rect / Ellipse (reads blockStyle first, falls back to legacy style)
+            if (ub.type === "rect" || ub.type === "ellipse") {
+              const bs = ((ub as any).blockStyle || {}) as any;
+              const st = (ub as any).style || {};
+              const stroke = (bs?.stroke?.color?.hex as string) || st.strokeColor || "#111827";
+              const strokeW =
+                Number.isFinite(bs?.stroke?.width) ? bs.stroke.width :
+                Number.isFinite(st.strokeWidth) ? st.strokeWidth : 1;
+              const dash =
+                Array.isArray(bs?.stroke?.dash) && bs.stroke.dash.length ? bs.stroke.dash[0] :
+                (Number.isFinite(st.dash) ? st.dash : 0);
+              const fill = (bs?.fill?.hex as string) || st.fillColor || "transparent";
+              const r = (ub as any).rect as Rect;
 
               return (
                 <div
                   key={ub.id}
                   style={{
                     position: "absolute",
-                    left: pct(ub.rect.x),
-                    top: pct(ub.rect.y),
-                    width: pct(ub.rect.w),
-                    height: pct(ub.rect.h),
+                    left: pct(r.x),
+                    top: pct(r.y),
+                    width: pct(r.w),
+                    height: pct(r.h),
                     border: `${strokeW}px ${dash ? "dashed" : "solid"} ${stroke}`,
                     background: fill,
-                    borderRadius: 4,
+                    borderRadius: ub.type === "ellipse" ? "50%" : 4,
                     cursor: "default",
                   }}
                   onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}

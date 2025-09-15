@@ -27,6 +27,7 @@
 │   │   │   │   └── Annotator.tsx
 │   │   │   ├── blocks
 │   │   │   │   ├── ElementsPanel.tsx
+│   │   │   │   ├── ShapeToolbar.tsx
 │   │   │   │   └── TextToolbar.tsx
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── FileMenu.tsx
@@ -63,6 +64,7 @@
 │   │   │   ├── RightPane.tsx
 │   │   │   ├── TemplateDropdown.tsx
 │   │   │   ├── Toolbar.tsx
+│   │   │   ├── UndoRedo.tsx
 │   │   │   └── ViewerControls.tsx
 │   │   ├── export
 │   │   │   ├── html
@@ -245,6 +247,7 @@
     │   │   ├── intake.schema.d.ts.map
     │   │   └── intake.schema.js
     │   ├── templates
+    │   │   ├── blank.json
     │   │   ├── generic-building.json
     │   │   ├── index.d.ts
     │   │   ├── index.d.ts.map
@@ -264,6 +267,9 @@
     │       ├── media.d.ts
     │       ├── media.d.ts.map
     │       ├── media.js
+    │       ├── style.d.ts
+    │       ├── style.d.ts.map
+    │       ├── style.js
     │       ├── template.d.ts
     │       ├── template.d.ts.map
     │       └── template.js
@@ -286,6 +292,7 @@
         ├── finding.ts
         ├── intake.ts
         ├── media.ts
+        ├── style.ts
         └── template.ts
 
-67 directories, 221 files
+67 directories, 228 files

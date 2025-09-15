@@ -4,7 +4,13 @@
 export type ColorRef = { token?: string; hex?: string };
 
 // Stroke and block styling used by shapes, lines, dividers, and optional text backgrounds.
-export type StrokeStyle = { color?: ColorRef; width?: number; dash?: number[] };
+export type StrokeStyle = {
+  color?: ColorRef;
+  width?: number;
+  dash?: number[];          // e.g. [5, 4] => dashed
+  arrowStart?: boolean;     // for lines
+  arrowEnd?: boolean;       // for lines
+};
 export type BlockStyle = {
   fill?: ColorRef | null;
   stroke?: StrokeStyle;
