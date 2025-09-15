@@ -62,7 +62,7 @@ function Frame({
 }
 
 export default function Canvas() {
-  const {
+    const {
     draft,
     template,
     pageIndex,
@@ -74,6 +74,8 @@ export default function Canvas() {
     selectedBlockId,
     setSelectedBlock,
     guideNext,
+    // history
+    undo, redo,
     // Elements tool + user blocks
     tool,
     placeUserBlock,
@@ -210,6 +212,18 @@ export default function Canvas() {
 
       if (isTypingInEditable()) return;
 
+      // Global Undo / Redo
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
       if ((e.key === "Delete" || e.key === "Backspace") && !e.metaKey && !e.ctrlKey) {
         if (selectedUserBlockId) {
           e.preventDefault();
@@ -220,7 +234,7 @@ export default function Canvas() {
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool.mode, selectedUserBlockId, cancelInsert, selectUserBlock, deleteUserBlock]);
+  }, [tool.mode, selectedUserBlockId, cancelInsert, selectUserBlock, deleteUserBlock, undo, redo]);
 
   // Drag engine for user blocks
   useEffect(() => {
