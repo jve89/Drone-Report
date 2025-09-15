@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor } from "../state/editorStore";
 import { renderString, select } from "../templates/bindings";
 import TextToolbar from "./blocks/TextToolbar";
+import ShapeToolbar from "./blocks/ShapeToolbar";
 
 const DR_MEDIA_MIME = "application/x-dr-media";
 
@@ -21,24 +22,46 @@ type BlockRepeater = BlockBase & {
 };
 type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
-/** User element type mirrors store shape */
-type UserBlock = {
-  id: string;
-  type: "text";
-  rect: { x: number; y: number; w: number; h: number }; // 0–100
-  value?: string;
-  style?: {
-    fontFamily?: string;
-    fontSize?: number;
-    bold?: boolean;
-    italic?: boolean;
-    underline?: boolean;
-    align?: "left" | "center" | "right" | "justify";
-    color?: string;
-    lineHeight?: number;
-    letterSpacing?: number;
-  };
-};
+/** User element type mirrors (future) store shape */
+type UserBlock =
+  | {
+      id: string;
+      type: "text";
+      rect: Rect; // 0–100
+      value?: string;
+      style?: {
+        fontFamily?: string;
+        fontSize?: number;
+        bold?: boolean;
+        italic?: boolean;
+        underline?: boolean;
+        align?: "left" | "center" | "right" | "justify";
+        color?: string;
+        lineHeight?: number;
+        letterSpacing?: number;
+      };
+    }
+  | {
+      id: string;
+      type: "line" | "divider";
+      rect: Rect; // line uses rect.h for thickness at preview-time
+      style?: {
+        strokeColor?: string;
+        strokeWidth?: number;
+        dash?: number;
+      };
+    }
+  | {
+      id: string;
+      type: "rect";
+      rect: Rect;
+      style?: {
+        strokeColor?: string;
+        strokeWidth?: number;
+        dash?: number;
+        fillColor?: string;
+      };
+    };
 
 function pct(n: number) {
   return `${n}%`;
@@ -62,7 +85,7 @@ function Frame({
 }
 
 export default function Canvas() {
-    const {
+  const {
     draft,
     template,
     pageIndex,
@@ -158,7 +181,7 @@ export default function Canvas() {
     [draft?.id, pageIndex, insertImageAtPoint, setValue, template?.pages, guide?.enabled, selectedBlockId, guideNext]
   );
 
-  // Click-to-place for Elements insert mode — define hook BEFORE any early return
+  // Click-to-place for Elements insert mode
   const onCanvasClick = useCallback(
     (e: React.MouseEvent) => {
       if (tool.mode !== "insert") return;
@@ -171,7 +194,7 @@ export default function Canvas() {
       const nx = Math.max(0, Math.min(100, (px / rect.width) * 100));
       const ny = Math.max(0, Math.min(100, (py / rect.height) * 100));
 
-      // Default size for text box
+      // Default size for text box (shapes will be wired once store supports them)
       const w = 40;
       const h = 8;
       const x = Math.min(nx, 100 - w);
@@ -400,13 +423,22 @@ export default function Canvas() {
     ? ((pageInstance as any).userBlocks as UserBlock[])
     : [];
 
-  const activeTextBlock = selectedUserBlockId
-    ? userBlocks.find(b => b.id === selectedUserBlockId && b.type === "text")
-    : null;
+  const activeTextBlock =
+    selectedUserBlockId
+      ? (userBlocks.find(b => b.id === selectedUserBlockId && b.type === "text") as Extract<UserBlock, { type: "text" }> | undefined)
+      : undefined;
 
-  // Reserve vertical space when toolbar is visible
-  const showToolbar = !!activeTextBlock;
+  const activeShapeBlock =
+    selectedUserBlockId
+      ? (userBlocks.find(b =>
+          b.id === selectedUserBlockId && (b.type === "line" || b.type === "rect" || b.type === "divider")
+        ) as Extract<UserBlock, { type: "line" | "rect" | "divider" }> | undefined)
+      : undefined;
+
+  // Reserve vertical space when a toolbar is visible
+  const showToolbar = !!activeTextBlock || !!activeShapeBlock;
   const toolbarHeight = 48; // px
+
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
       <div
@@ -417,10 +449,19 @@ export default function Canvas() {
           paddingTop: showToolbar ? toolbarHeight : 0,
         }}
       >
-        {/* Floating text toolbar anchored inside reserved space */}
-        {showToolbar && (
+        {/* Floating toolbars */}
+        {activeTextBlock && (
           <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
-            <TextToolbar blockId={activeTextBlock!.id} style={activeTextBlock!.style || {}} />
+            <TextToolbar blockId={activeTextBlock.id} style={activeTextBlock.style || {}} />
+          </div>
+        )}
+        {activeShapeBlock && (
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
+            <ShapeToolbar
+              blockId={activeShapeBlock.id}
+              kind={activeShapeBlock.type as "line" | "rect" | "divider"}
+              style={activeShapeBlock.style as any}
+            />
           </div>
         )}
 
@@ -560,114 +601,163 @@ export default function Canvas() {
           {/* User elements with move + resize handles */}
           {userBlocks.map((ub) => {
             const active = selectedUserBlockId === ub.id;
-            if (ub.type !== "text") return null;
 
-            const st = ub.style || {};
-            const textareaStyle: React.CSSProperties = {
-              color: st.color,
-              fontFamily: st.fontFamily,
-              fontSize: st.fontSize ? `${st.fontSize}px` : undefined,
-              fontWeight: st.bold ? 700 as React.CSSProperties["fontWeight"] : 400,
-              fontStyle: st.italic ? "italic" : "normal",
-              textDecoration: st.underline ? "underline" : "none",
-              lineHeight: st.lineHeight ? String(st.lineHeight) : undefined,
-              letterSpacing: st.letterSpacing != null ? `${st.letterSpacing}px` : undefined,
-              textAlign: st.align || "left",
-              unicodeBidi: "plaintext",
-            };
+            if (ub.type === "text") {
+              const st = ub.style || {};
+              const textareaStyle: React.CSSProperties = {
+                color: st.color,
+                fontFamily: st.fontFamily,
+                fontSize: st.fontSize ? `${st.fontSize}px` : undefined,
+                fontWeight: st.bold ? (700 as React.CSSProperties["fontWeight"]) : 400,
+                fontStyle: st.italic ? "italic" : "normal",
+                textDecoration: st.underline ? "underline" : "none",
+                lineHeight: st.lineHeight ? String(st.lineHeight) : undefined,
+                letterSpacing: st.letterSpacing != null ? `${st.letterSpacing}px` : undefined,
+                textAlign: st.align || "left",
+                unicodeBidi: "plaintext",
+              };
 
-            return (
-              <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
-                {/* Text editor */}
-                <textarea
-                  className="w-full h-full outline-none resize-none bg-transparent"
-                  dir="ltr"
-                  style={textareaStyle}
-                  value={ub.value || ""}
-                  onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
-                  onFocus={() => selectUserBlock(ub.id)}
-                  onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
-                  onKeyDown={(e) => {
-                    const meta = e.metaKey || e.ctrlKey;
-                    if (!meta) return;
-                    if (e.key.toLowerCase() === "b") {
-                      e.preventDefault();
-                      updateUserBlock(ub.id, { style: { bold: !st.bold } });
-                    } else if (e.key.toLowerCase() === "i") {
-                      e.preventDefault();
-                      updateUserBlock(ub.id, { style: { italic: !st.italic } });
-                    } else if (e.key.toLowerCase() === "u") {
-                      e.preventDefault();
-                      updateUserBlock(ub.id, { style: { underline: !st.underline } });
-                    }
+              return (
+                <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
+                  <textarea
+                    className="w-full h-full outline-none resize-none bg-transparent"
+                    dir="ltr"
+                    style={textareaStyle}
+                    value={ub.value || ""}
+                    onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                    onFocus={() => selectUserBlock(ub.id)}
+                    onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
+                    onKeyDown={(e) => {
+                      const meta = e.metaKey || e.ctrlKey;
+                      if (!meta) return;
+                      if (e.key.toLowerCase() === "b") {
+                        e.preventDefault();
+                        updateUserBlock(ub.id, { style: { bold: !(st as any).bold } as any });
+                      } else if (e.key.toLowerCase() === "i") {
+                        e.preventDefault();
+                        updateUserBlock(ub.id, { style: { italic: !(st as any).italic } as any });
+                      } else if (e.key.toLowerCase() === "u") {
+                        e.preventDefault();
+                        updateUserBlock(ub.id, { style: { underline: !(st as any).underline } as any });
+                      }
+                    }}
+                  />
+                  {active && (
+                    <>
+                      <div
+                        title="Resize"
+                        onMouseDown={(e) => startDrag("resize-tl", ub.id, ub.rect, e)}
+                        style={{
+                          position: "absolute",
+                          left: -10,
+                          top: -10,
+                          width: 16,
+                          height: 16,
+                          borderRadius: 9999,
+                          background: "#fff",
+                          border: "1px solid #94a3b8",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          cursor: "nwse-resize",
+                        }}
+                      />
+                      <div
+                        title="Resize width"
+                        onMouseDown={(e) => startDrag("resize-right", ub.id, ub.rect, e as any)}
+                        style={{
+                          position: "absolute",
+                          right: -8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 12,
+                          height: 20,
+                          borderRadius: 4,
+                          background: "#fff",
+                          border: "1px solid #94a3b8",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          cursor: "ew-resize",
+                        }}
+                      />
+                      <div
+                        title="Move"
+                        onMouseDown={(e) => startDrag("move", ub.id, ub.rect, e as any)}
+                        style={{
+                          position: "absolute",
+                          left: "50%",
+                          bottom: -28,
+                          transform: "translateX(-50%)",
+                          width: 28,
+                          height: 28,
+                          borderRadius: 9999,
+                          background: "#fff",
+                          border: "1px solid #94a3b8",
+                          display: "grid",
+                          placeItems: "center",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                          cursor: "move",
+                          userSelect: "none",
+                          fontSize: 14,
+                        }}
+                      >
+                        ⤧
+                      </div>
+                    </>
+                  )}
+                </Frame>
+              );
+            }
+
+            // ---- Shapes (preview) ----
+            if (ub.type === "line" || ub.type === "divider") {
+              const st = (ub.style || {}) as any;
+              const stroke = st.strokeColor || "#111827";
+              const strokeW = Number.isFinite(st.strokeWidth) ? st.strokeWidth : (ub.type === "divider" ? 2 : 2);
+              const dash = Number.isFinite(st.dash) ? st.dash : 0;
+
+              return (
+                <div
+                  key={ub.id}
+                  style={{
+                    position: "absolute",
+                    left: pct(ub.rect.x),
+                    top: pct(ub.rect.y + ub.rect.h / 2 - (strokeW / PAGE_H) * 50), // center
+                    width: pct(ub.rect.w),
+                    height: Math.max(1, strokeW),
+                    background: dash ? "transparent" : stroke,
+                    borderTop: dash ? `${strokeW}px dashed ${stroke}` : undefined,
+                    cursor: "default",
                   }}
+                  onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                 />
-                {/* Handles only when selected */}
-                {active && (
-                  <>
-                    {/* top-left circle: resize both */}
-                    <div
-                      title="Resize"
-                      onMouseDown={(e) => startDrag("resize-tl", ub.id, ub.rect, e)}
-                      style={{
-                        position: "absolute",
-                        left: -10,
-                        top: -10,
-                        width: 16,
-                        height: 16,
-                        borderRadius: 9999,
-                        background: "#fff",
-                        border: "1px solid #94a3b8",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                        cursor: "nwse-resize",
-                      }}
-                    />
-                    {/* right-side pill: resize width */}
-                    <div
-                      title="Resize width"
-                      onMouseDown={(e) => startDrag("resize-right", ub.id, ub.rect, e)}
-                      style={{
-                        position: "absolute",
-                        right: -8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 12,
-                        height: 20,
-                        borderRadius: 4,
-                        background: "#fff",
-                        border: "1px solid #94a3b8",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                        cursor: "ew-resize",
-                      }}
-                    />
-                    {/* move handle under the box */}
-                    <div
-                      title="Move"
-                      onMouseDown={(e) => startDrag("move", ub.id, ub.rect, e)}
-                      style={{
-                        position: "absolute",
-                        left: "50%",
-                        bottom: -28,
-                        transform: "translateX(-50%)",
-                        width: 28,
-                        height: 28,
-                        borderRadius: 9999,
-                        background: "#fff",
-                        border: "1px solid #94a3b8",
-                        display: "grid",
-                        placeItems: "center",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                        cursor: "move",
-                        userSelect: "none",
-                        fontSize: 14,
-                      }}
-                    >
-                      ⤧
-                    </div>
-                  </>
-                )}
-              </Frame>
-            );
+              );
+            }
+
+            if (ub.type === "rect") {
+              const st = (ub.style || {}) as any;
+              const stroke = st.strokeColor || "#111827";
+              const strokeW = Number.isFinite(st.strokeWidth) ? st.strokeWidth : 1;
+              const dash = Number.isFinite(st.dash) ? st.dash : 0;
+              const fill = st.fillColor || "transparent";
+
+              return (
+                <div
+                  key={ub.id}
+                  style={{
+                    position: "absolute",
+                    left: pct(ub.rect.x),
+                    top: pct(ub.rect.y),
+                    width: pct(ub.rect.w),
+                    height: pct(ub.rect.h),
+                    border: `${strokeW}px ${dash ? "dashed" : "solid"} ${stroke}`,
+                    background: fill,
+                    borderRadius: 4,
+                    cursor: "default",
+                  }}
+                  onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                />
+              );
+            }
+
+            return null;
           })}
         </div>
       </div>
