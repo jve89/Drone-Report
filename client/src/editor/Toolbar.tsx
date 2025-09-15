@@ -15,6 +15,11 @@ export default function Toolbar() {
   const exportDisabled = blocked || !hasPages;
   const previewDisabled = exportDisabled;
 
+  const draftTitle =
+    (typeof (draft as any)?.payload?.meta?.title === "string" && (draft as any).payload.meta.title.trim()) ||
+    (typeof (draft as any)?.title === "string" && (draft as any).title.trim()) ||
+    "Untitled";
+
   function openTemplateDropdown() {
     window.dispatchEvent(new CustomEvent("open-template-dropdown"));
   }
@@ -24,7 +29,10 @@ export default function Toolbar() {
       await saveNow();
       const ref = document.referrer;
       const sameOrigin = !!ref && new URL(ref).origin === window.location.origin;
-      if (sameOrigin) { history.back(); return; }
+      if (sameOrigin) {
+        history.back();
+        return;
+      }
     } catch {}
     window.location.href = "/dashboard";
   }
@@ -67,11 +75,21 @@ export default function Toolbar() {
         {/* File menu */}
         <FileMenu />
 
+        {/* Undo/Redo */}
         <UndoRedo />
 
         <div className="flex-1" />
 
         <TemplateDropdown />
+
+        {/* Current draft title */}
+        <div
+          className="max-w-[360px] truncate text-sm text-gray-500"
+          title={draftTitle}
+          aria-label="Draft title"
+        >
+          {draftTitle}
+        </div>
 
         <div className="flex-1" />
 
@@ -80,7 +98,11 @@ export default function Toolbar() {
         <button
           className={`px-3 py-1 border rounded ${previewDisabled ? "pointer-events-none opacity-50" : "hover:bg-gray-50"}`}
           onClick={async (e) => {
-            if (previewDisabled) { e.preventDefault(); openTemplateDropdown(); return; }
+            if (previewDisabled) {
+              e.preventDefault();
+              openTemplateDropdown();
+              return;
+            }
             await saveNow();
             openPreview();
           }}
@@ -96,7 +118,11 @@ export default function Toolbar() {
           rel="noopener"
           title={exportDisabled ? "Select a template first" : "Export PDF"}
           onClick={async (e) => {
-            if (exportDisabled) { e.preventDefault(); openTemplateDropdown(); return; }
+            if (exportDisabled) {
+              e.preventDefault();
+              openTemplateDropdown();
+              return;
+            }
             e.preventDefault();
             await saveNow();
             window.open(`/api/drafts/${draft.id}/export/pdf`, "_blank", "noopener");
