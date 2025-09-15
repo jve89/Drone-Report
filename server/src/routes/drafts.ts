@@ -128,7 +128,16 @@ router.delete("/:id/media/:mediaId", asyncHandler(async (req: AuthedRequest, res
 router.post("/:id/export/pdf", asyncHandler(async (req: AuthedRequest, res) => {
   const d = await getOwnedDraft(req.user!.id, req.params.id);
   if (!d) return res.status(404).json({ error: "not_found" });
-  const html = renderDraftHTML(d);
+  const html = renderDraftHTML({
+    id: d.id,
+    title:
+      (d as any).title ||
+      String((d as any)?.payload?.meta?.title || "") ||
+      "Inspection report",
+    pageInstances: (d as any).pageInstances || [],
+    media: (d as any).media || [],
+    payload: (d as any).payload || {},
+  });
   res.setHeader("content-type", "text/html; charset=utf-8");
   res.send(html);
 }));

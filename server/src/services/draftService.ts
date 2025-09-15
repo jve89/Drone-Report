@@ -1,7 +1,8 @@
 // server/src/services/draftService.ts
 import { db } from "../db/client";
 import { newId } from "../utils/id";
-import type { Draft, PageInstance, Template } from "@drone-report/shared/dist/types/template";
+import type { Template } from "@drone-report/shared/dist/types/template";
+import type { Draft, PageInstance } from "@drone-report/shared/dist/types/draft";
 
 type RawDraftRow = {
   id: string;
@@ -18,7 +19,6 @@ const toDraft = (r: RawDraftRow): Draft => {
   const meta = src.meta || {};
   return {
     id: r.id,
-    userId: r.user_id,
     templateId: meta.templateId ?? "",
     title: meta.title ?? "",
     status: (r.status as any) || "draft",
