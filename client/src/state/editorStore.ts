@@ -44,7 +44,7 @@ export type TextStyle = {
 /** User-defined overlay elements placed by the editor. Percent units 0..100. */
 export type UserBlock = {
   id: string;
-  type: "text"; // future: "image_slot" | "checkbox" | ...
+  type: "text";
   rect: { x: number; y: number; w: number; h: number }; // 0–100
   value?: string;
   style?: TextStyle;
@@ -57,7 +57,6 @@ type GuideState = {
 
 type Step = { pageId: string; blockId: string; help?: string };
 
-/** Insert tool state for Elements panel. */
 type ToolState =
   | { mode: "idle"; kind?: undefined }
   | { mode: "insert"; kind: "text" };
@@ -67,11 +66,16 @@ type EditorState = {
   template: Template | null;
   pageIndex: number;
   zoom: number;
+
+  // save state
   _saveTimer: number | null;
+  saving: boolean;
+  dirty: boolean;
+  lastSavedAt?: string;
 
   // Wizard + selection
-  selectedBlockId: string | null; // template block selection
-  selectedUserBlockId: string | null; // user overlay selection
+  selectedBlockId: string | null;
+  selectedUserBlockId: string | null;
   guide: GuideState;
 
   // Insert tool
@@ -94,15 +98,14 @@ type EditorState = {
   setPageIndex: (i: number) => void;
   setZoom: (z: number) => void;
 
-  setSelectedBlock: (blockId: string | null) => void; // template block select
-  selectUserBlock: (id: string | null) => void; // user block select
+  setSelectedBlock: (blockId: string | null) => void;
+  selectUserBlock: (id: string | null) => void;
 
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
   deletePage: (pageId: string) => void;
 
-  // Drag/drop + click insert into template image slots
   insertImageAtPoint: (
     pageId: string,
     pointPct: { x: number; y: number },
@@ -140,6 +143,8 @@ type EditorState = {
 
   loadDraft: (id: string) => Promise<void>;
   saveDebounced: () => void;
+  saveNow: () => Promise<void>;
+  setDraftTitle: (title: string) => Promise<void>;
 };
 
 function clampZoom(z: number) {
@@ -150,7 +155,6 @@ function clampPreviewZoom(z: number) {
   const n = Number.isFinite(z) ? z : 1;
   return Math.min(2, Math.max(0.6, n));
 }
-
 function nowIso() {
   return new Date().toISOString();
 }
@@ -196,7 +200,11 @@ export const useEditor = create<EditorState>((set, get) => ({
   template: null,
   pageIndex: 0,
   zoom: 1,
+
   _saveTimer: null,
+  saving: false,
+  dirty: false,
+  lastSavedAt: undefined,
 
   selectedBlockId: null,
   selectedUserBlockId: null,
@@ -245,8 +253,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!pi.values) pi.values = {};
       (pi.values as Record<string, unknown>)[blockId] = value;
 
-      const next: Partial<EditorState> = { draft: d, selectedBlockId: blockId };
-
+      const next: Partial<EditorState> = { draft: d, selectedBlockId: blockId, dirty: true };
       if (s.guide.enabled && s.steps.length) {
         const cur = s.steps[s.guide.stepIndex];
         if (cur && cur.blockId === blockId) {
@@ -277,7 +284,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       };
       d.pageInstances.splice(idx + 1, 0, clone);
       const nextIndex = Math.min(idx + 1, d.pageInstances.length - 1);
-      return { draft: d, pageIndex: nextIndex };
+      return { draft: d, pageIndex: nextIndex, dirty: true };
     }),
 
   repeatPage: (pageId) => get().duplicatePage(pageId),
@@ -288,10 +295,10 @@ export const useEditor = create<EditorState>((set, get) => ({
       const d: Draft = structuredClone(s.draft);
       const idx = d.pageInstances.findIndex((p) => p.id === pageId);
       if (idx < 0) return {};
-      if (d.pageInstances.length <= 1) return {}; // keep at least one page
+      if (d.pageInstances.length <= 1) return {};
       d.pageInstances.splice(idx, 1);
       const nextIndex = Math.min(Math.max(0, idx - 1), d.pageInstances.length - 1);
-      return { draft: d, pageIndex: nextIndex };
+      return { draft: d, pageIndex: nextIndex, dirty: true };
     }),
 
   // ---------- Insert helpers ----------
@@ -319,7 +326,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!npi.values) npi.values = {};
       (npi.values as any)[target.id] = media.url;
 
-      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id };
+      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id, dirty: true };
       if (prev.guide.enabled && prev.steps.length) {
         const cur = prev.steps[prev.guide.stepIndex];
         if (cur && cur.blockId === target.id) {
@@ -334,7 +341,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     });
-    s.saveDebounced();
+    get().saveDebounced();
     return true;
   },
 
@@ -359,7 +366,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!npi.values) npi.values = {};
       (npi.values as any)[target.id] = media.url;
 
-      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id };
+      const next: Partial<EditorState> = { draft: nd, selectedBlockId: target.id, dirty: true };
       if (prev.guide.enabled && prev.steps.length) {
         const cur = prev.steps[prev.guide.stepIndex];
         if (cur && cur.blockId === target.id) {
@@ -374,13 +381,12 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     });
-    s.saveDebounced();
+    get().saveDebounced();
     return true;
   },
 
   // ---------- Findings ----------
-  setFindings: (f) => set({ findings: f }),
-
+  setFindings: (f) => set({ findings: f, dirty: true }),
   createFindingsFromPhotos: (photoIds) =>
     set((s) => {
       if (!s.draft || !photoIds?.length) return {};
@@ -398,24 +404,21 @@ export const useEditor = create<EditorState>((set, get) => ({
         createdAt: nowIso(),
         updatedAt: nowIso(),
       }));
-      return { findings: [...s.findings, ...created] };
+      return { findings: [...s.findings, ...created], dirty: true } as Partial<EditorState>;
     }),
-
   updateFinding: (id, patch) =>
     set((s) => {
       const idx = s.findings.findIndex((f) => f.id === id);
       if (idx < 0) return {};
       const next = [...s.findings];
       next[idx] = { ...next[idx], ...patch, updatedAt: nowIso() };
-      return { findings: next };
+      return { findings: next, dirty: true };
     }),
-
   deleteFinding: (id) =>
     set((s) => {
       const next = s.findings.filter((f) => f.id !== id);
-      return { findings: next };
+      return { findings: next, dirty: true };
     }),
-
   reindexAnnotations: (photoId) =>
     set((s) => {
       const next = s.findings.map((f) => {
@@ -423,20 +426,12 @@ export const useEditor = create<EditorState>((set, get) => ({
         const anns = [...f.annotations].sort((a, b) => a.index - b.index);
         return { ...f, annotations: anns };
       });
-
       const all = next
         .filter((f) => f.photoId === photoId)
         .flatMap((f) => f.annotations.map((a) => ({ fId: f.id, a })));
-
-      all.forEach((entry, i) => {
-        entry.a.index = i + 1;
-      });
-
-      const final = next.map((f) => {
-        if (f.photoId !== photoId) return f;
-        return { ...f, updatedAt: nowIso() };
-      });
-      return { findings: final };
+      all.forEach((entry, i) => { entry.a.index = i + 1; });
+      const final = next.map((f) => (f.photoId !== photoId ? f : { ...f, updatedAt: nowIso() }));
+      return { findings: final, dirty: true };
     }),
 
   // ---------- Guide controls ----------
@@ -452,9 +447,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     }),
-
   disableGuide: () => set({ guide: { enabled: false, stepIndex: 0 }, selectedBlockId: null }),
-
   guidePrev: () =>
     set((s) => {
       if (!s.steps.length) return {};
@@ -467,7 +460,6 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     }),
-
   guideNext: () =>
     set((s) => {
       if (!s.steps.length) return {};
@@ -480,9 +472,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     }),
-
   guideSkip: () => get().guideNext(),
-
   setGuideStep: (i) =>
     set((s) => {
       const clamped = Math.max(0, Math.min(i, Math.max(0, s.steps.length - 1)));
@@ -494,7 +484,6 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
       return next as any;
     }),
-
   recomputeSteps: () =>
     set((s) => {
       const steps = computeSteps(s.template);
@@ -508,7 +497,6 @@ export const useEditor = create<EditorState>((set, get) => ({
   // ---------- Elements tool ----------
   startInsert: (kind) => set({ tool: { mode: "insert", kind }, selectedUserBlockId: null }),
   cancelInsert: () => set({ tool: { mode: "idle" } }),
-
   placeUserBlock: (rectPct) => {
     const s = get();
     if (!s.draft) return null;
@@ -517,26 +505,15 @@ export const useEditor = create<EditorState>((set, get) => ({
     const pi = d.pageInstances?.[pageIdx];
     if (!pi) return null;
     if (!Array.isArray((pi as any).userBlocks)) (pi as any).userBlocks = [];
-
     if (s.tool.mode !== "insert" || s.tool.kind !== "text") return null;
-
     const id = crypto.randomUUID();
     const rect = clampRectPct(rectPct);
-    const block: UserBlock = {
-      id,
-      type: "text",
-      rect,
-      value: "",
-      style: { ...DEFAULT_TEXT_STYLE },
-    };
-
+    const block: UserBlock = { id, type: "text", rect, value: "", style: { ...DEFAULT_TEXT_STYLE } };
     (pi as any).userBlocks = [...(pi as any).userBlocks, block];
-
-    set({ draft: d, tool: { mode: "idle" }, selectedUserBlockId: id });
+    set({ draft: d, tool: { mode: "idle" }, selectedUserBlockId: id, dirty: true });
     s.saveDebounced();
     return id;
   },
-
   updateUserBlock: (id, patch) => {
     const s = get();
     set((state) => {
@@ -548,23 +525,18 @@ export const useEditor = create<EditorState>((set, get) => ({
       const i = list.findIndex((b) => b.id === id);
       if (i < 0) return {};
       const current = list[i];
-
       const nextRect = patch.rect
         ? clampRectPct({ ...(current.rect || { x: 0, y: 0, w: 0, h: 0 }), ...patch.rect })
         : current.rect;
-
-      const nextStyle: TextStyle | undefined =
-        patch.style ? { ...(current.style || {}), ...patch.style } : current.style;
-
+      const nextStyle: TextStyle | undefined = patch.style ? { ...(current.style || {}), ...patch.style } : current.style;
       const updated: UserBlock = { ...current, ...patch, rect: nextRect, style: nextStyle };
       const nextList = [...list];
       nextList[i] = updated;
       (pi as any).userBlocks = nextList;
-      return { draft: d };
+      return { draft: d, dirty: true };
     });
     s.saveDebounced();
   },
-
   deleteUserBlock: (id) =>
     set((s) => {
       if (!s.draft) return {};
@@ -573,7 +545,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       if (!pi || !Array.isArray((pi as any).userBlocks)) return {};
       const nextList = (pi as any).userBlocks.filter((b: UserBlock) => b.id !== id);
       (pi as any).userBlocks = nextList;
-      const next: Partial<EditorState> = { draft: d };
+      const next: Partial<EditorState> = { draft: d, dirty: true };
       if (s.selectedUserBlockId === id) next.selectedUserBlockId = null;
       return next as any;
     }),
@@ -596,7 +568,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       (d as any).payload = payload;
       (d as any).templateId = templateId || undefined;
 
-      // decide whether to rebuild pageInstances
+      // rebuild or normalize
       const newPageIds = new Set<string>((t as any)?.pages?.map((p: any) => p.id) ?? []);
       const hasMismatch =
         !Array.isArray(d.pageInstances) ||
@@ -620,7 +592,6 @@ export const useEditor = create<EditorState>((set, get) => ({
           return { id: crypto.randomUUID(), templatePageId: p.id, values, userBlocks: [] };
         });
       } else {
-        // keep existing instances but ensure userBlocks arrays and default styles exist
         d.pageInstances = d.pageInstances.map((pi: any) => {
           const userBlocks = Array.isArray(pi.userBlocks) ? pi.userBlocks : [];
           const withDefaults = userBlocks.map((b: UserBlock) =>
@@ -641,6 +612,7 @@ export const useEditor = create<EditorState>((set, get) => ({
         selectedBlockId: guideEnabled ? steps[0]?.blockId ?? null : null,
         selectedUserBlockId: null,
         tool: { mode: "idle" },
+        dirty: true,
       };
 
       if (guideEnabled) {
@@ -652,7 +624,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       return next as any;
     });
 
-    get().saveDebounced();
+    await get().saveNow();
   },
 
   // ---------- Draft IO ----------
@@ -662,7 +634,6 @@ export const useEditor = create<EditorState>((set, get) => ({
       (d as any)?.payload?.meta?.templateId ||
       (d as any)?.templateId ||
       "";
-
     const t = tplId ? await loadTemplate(tplId) : null;
 
     const payloadFindings: Finding[] = Array.isArray((d as any)?.payload?.findings)
@@ -691,6 +662,10 @@ export const useEditor = create<EditorState>((set, get) => ({
       selectedBlockId: null,
       selectedUserBlockId: null,
       tool: { mode: "idle" },
+      dirty: false,
+      saving: false,
+      _saveTimer: null,
+      lastSavedAt: (d as any)?.updatedAt || (d as any)?.updated_at || undefined,
     });
 
     const max = (d.pageInstances?.length ?? 1) - 1;
@@ -702,27 +677,72 @@ export const useEditor = create<EditorState>((set, get) => ({
     const { _saveTimer } = get();
     if (_saveTimer) window.clearTimeout(_saveTimer);
     const timer = window.setTimeout(async () => {
-      const d = get().draft;
-      if (!d) return;
-      try {
-        const body: any = {
-          pageInstances: d.pageInstances,
-          media: d.media,
-        };
-
-        const currentPayload = ((d as any).payload ?? {}) as Record<string, unknown>;
-        const payload = { ...currentPayload, findings: get().findings };
-        body.payload = payload;
-
-        if ((d as any).templateId) body.templateId = (d as any).templateId;
-
-        await updateDraft(d.id, body);
-      } catch (e) {
-        console.error("[autosave] failed", e);
-      } finally {
-        set({ _saveTimer: null });
-      }
+      await get().saveNow();
     }, 800);
-    set({ _saveTimer: timer });
+    set({ _saveTimer: timer, dirty: true, saving: true });
+  },
+
+  saveNow: async () => {
+    const st = get();
+    const d = st.draft;
+    if (!d) return;
+
+    if (st._saveTimer) {
+      window.clearTimeout(st._saveTimer);
+      set({ _saveTimer: null });
+    }
+
+    set({ saving: true });
+    try {
+      const body: any = {
+        pageInstances: d.pageInstances,
+        media: d.media,
+      };
+
+      const currentPayload = ((d as any).payload ?? {}) as Record<string, unknown>;
+      const payload = { ...currentPayload, findings: get().findings };
+      body.payload = payload;
+
+      if ((d as any).templateId) body.templateId = (d as any).templateId;
+
+      // persist root title so lists show renamed value
+      const titleFromPayload =
+        typeof (payload as any)?.meta?.title === "string"
+          ? String((payload as any).meta.title).trim()
+          : "";
+      const rootTitle =
+        titleFromPayload ||
+        (typeof (d as any).title === "string" ? String((d as any).title).trim() : "");
+      if (rootTitle) body.title = rootTitle;
+
+      await updateDraft(d.id, body);
+      set({ dirty: false, saving: false, lastSavedAt: nowIso() });
+    } catch (e) {
+      console.error("[saveNow] failed", e);
+      set({ saving: false, dirty: true });
+      throw e;
+    }
+  },
+
+  setDraftTitle: async (title: string) => {
+    const cur = get().draft;
+    if (!cur) return;
+    const t = title.trim();
+    const currentTitle = String(
+      (cur as any).title ?? (cur as any)?.payload?.meta?.title ?? ""
+    ).trim();
+    if (!t || t === currentTitle) return;
+
+    set((s) => {
+      const d: Draft = structuredClone(s.draft!);
+      const payload = ((d as any).payload ?? {}) as any;
+      const meta = ((payload.meta ?? {}) as any);
+      meta.title = t;
+      payload.meta = meta;
+      (d as any).payload = payload;
+      (d as any).title = t;
+      return { draft: d, dirty: true } as Partial<EditorState>;
+    });
+    await get().saveNow();
   },
 }));

@@ -29,6 +29,7 @@
 │   │   │   │   ├── ElementsPanel.tsx
 │   │   │   │   └── TextToolbar.tsx
 │   │   │   ├── Canvas.tsx
+│   │   │   ├── FileMenu.tsx
 │   │   │   ├── GuidePanel.tsx
 │   │   │   ├── Inspector.tsx
 │   │   │   ├── layout
@@ -59,6 +60,7 @@
 │   │   │   │   ├── BlockViewer.tsx
 │   │   │   │   ├── EditorPreviewModal.tsx
 │   │   │   │   └── PreviewModal.tsx
+│   │   │   ├── RightPane.tsx
 │   │   │   ├── TemplateDropdown.tsx
 │   │   │   ├── Toolbar.tsx
 │   │   │   └── ViewerControls.tsx
@@ -286,4 +288,4 @@
         ├── media.ts
         └── template.ts
 
-67 directories, 219 files
+67 directories, 221 files
