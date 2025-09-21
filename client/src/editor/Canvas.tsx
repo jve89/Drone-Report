@@ -903,7 +903,9 @@ export default function Canvas() {
             switch (b.type) {
               case "image_slot": {
                 const boundSrc = (b as BlockImage).source ? renderBoundText((b as BlockImage).source) : "";
-                const url = boundSrc || (typeof v === "string" ? v : "");
+                const vStr = typeof v === "string" ? v : "";
+                const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
+                const url = boundSrc || boundFromValue || vStr;
                 return (
                   <Frame key={b.id} rect={b.rect} active={active}>
                     {url ? (
@@ -935,14 +937,19 @@ export default function Canvas() {
               }
 
               case "text": {
-                const hasBinding = typeof (b as BlockText).value === "string";
+                const vStr = typeof v === "string" ? v : "";
+                const tplBinding = typeof (b as BlockText).value === "string" ? (b as BlockText).value : "";
+                const runtimeBinding = vStr.includes("{{") ? vStr : "";
+                const hasBinding = !!tplBinding || !!runtimeBinding;
                 const content = hasBinding
-                  ? renderBoundText((b as BlockText).value)
-                  : (typeof v === "string" && v) || b.placeholder || "";
+                  ? renderBoundText(tplBinding || runtimeBinding)
+                  : (vStr || b.placeholder || "");
                 return (
                   <Frame key={b.id} rect={b.rect} active={active}>
                     {hasBinding ? (
-                      <div className="w-full h-full text-sm whitespace-pre-wrap">{content}</div>
+                      <div className="w-full h-full text-sm whitespace-pre-wrap" onClick={() => setSelectedBlock(b.id)}>
+                        {content}
+                      </div>
                     ) : (
                       <div
                         contentEditable
@@ -1013,7 +1020,7 @@ export default function Canvas() {
             return null;
           })}
 
-                    {/* User elements with move + resize handles */}
+          {/* User elements with move + resize handles */}
           {userBlocks.map((ub, i) => {
             const active = selectedUserBlockId === ub.id;
             
@@ -1036,6 +1043,10 @@ export default function Canvas() {
                 unicodeBidi: "plaintext",
               };
 
+              const rawVal = typeof (ub as any).value === "string" ? (ub as any).value : "";
+              const isBinding = rawVal.includes("{{");
+              const displayVal = isBinding ? renderString(rawVal, ctx) : rawVal;
+
               return (
                 <Frame key={ub.id} rect={(ub as any).rect} active={active} overflowVisible>
                   <div
@@ -1047,24 +1058,15 @@ export default function Canvas() {
                       className="w-full h-full outline-none resize-none bg-transparent"
                       dir="ltr"
                       style={textareaStyle}
-                      value={(ub as any).value || ""}
+                      value={displayVal}
+                      readOnly={isBinding}
                       onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                       onFocus={() => selectUserBlock(ub.id)}
-                      onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
-                      onKeyDown={(e) => {
-                        const meta = e.metaKey || e.ctrlKey;
-                        if (!meta) return;
-                        if (e.key.toLowerCase() === "b") {
-                          e.preventDefault();
-                          updateUserBlock(ub.id, { style: { bold: !(st as any).bold } as any });
-                        } else if (e.key.toLowerCase() === "i") {
-                          e.preventDefault();
-                          updateUserBlock(ub.id, { style: { italic: !(st as any).italic } as any });
-                        } else if (e.key.toLowerCase() === "u") {
-                          e.preventDefault();
-                          updateUserBlock(ub.id, { style: { underline: !(st as any).underline } as any });
-                        }
+                      onChange={(e) => {
+                        if (isBinding) return;
+                        updateUserBlock(ub.id, { value: e.target.value });
                       }}
+                      title={isBinding ? "Bound: resolves from context" : undefined}
                     />
                     {active && (
                       <>

@@ -162,7 +162,9 @@ export default function Inspector() {
         if (isText(b)) {
           return (
             <div key={b.id} className="space-y-1">
-              <div className="text-xs text-gray-600">{b.label || "Text"}</div>
+              <div className="text-xs text-gray-600">
+                {b.label || "Text"} <span className="text-[10px] text-gray-400">(plain or <code>{"{{"}binding{"}}"}</code>)</span>
+              </div>
               <input
                 className="w-full border rounded px-2 py-1 text-sm"
                 value={typeof v === "string" ? v : ""}
@@ -283,7 +285,27 @@ export default function Inspector() {
         }
 
         // image_slot edited inline on canvas
-        if (isImage(b)) return null;
+        if (isImage(b)) {
+          const val = typeof v === "string" ? v : "";
+          return (
+            <div key={b.id} className="space-y-1">
+              <div className="text-xs text-gray-600">
+                {b.label || "Image"} <span className="text-[10px] text-gray-400">(URL or <code>{"{{"}binding{"}}"}</code>)</span>
+              </div>
+              <input
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={val}
+                onFocus={() => setSelectedBlock(b.id)}
+                onChange={(e) => setValue(page.id, b.id, e.target.value)}
+                onBlur={advanceIfActive}
+                placeholder="https://… or {{run.logoUrl}}"
+              />
+              <div className="text-[11px] text-gray-500">
+                Tip: if the value contains <code>{"{{"}</code> it will render as a binding.
+              </div>
+            </div>
+          );
+        }
 
         return null;
       })}
