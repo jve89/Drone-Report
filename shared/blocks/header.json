@@ -1,0 +1,9 @@
+{
+  "id": "header-basic",
+  "name": "Header",
+  "elements": [
+    { "id": "hdr-title", "type": "text", "rect": { "x": 10, "y": 6, "w": 60, "h": 6 }, "value": "Report Title" },
+    { "id": "hdr-sub", "type": "text", "rect": { "x": 10, "y": 12, "w": 60, "h": 4 }, "value": "Subtitle or project name" },
+    { "id": "hdr-divider", "type": "divider", "rect": { "x": 10, "y": 18, "w": 80, "h": 1 } }
+  ]
+}

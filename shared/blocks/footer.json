@@ -1,0 +1,9 @@
+{
+  "id": "footer-basic",
+  "name": "Footer",
+  "elements": [
+    { "id": "ftr-divider", "type": "divider", "rect": { "x": 10, "y": 90, "w": 80, "h": 1 } },
+    { "id": "ftr-left", "type": "text", "rect": { "x": 10, "y": 92, "w": 40, "h": 4 }, "value": "Company • Confidential" },
+    { "id": "ftr-right", "type": "text", "rect": { "x": 70, "y": 92, "w": 20, "h": 4 }, "value": "Page {{draft.page}}/{{draft.pages}}" }
+  ]
+}

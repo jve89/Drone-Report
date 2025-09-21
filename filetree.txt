@@ -26,6 +26,7 @@
 │   │   │   ├── annotations
 │   │   │   │   └── Annotator.tsx
 │   │   │   ├── blocks
+│   │   │   │   ├── BlocksPanel.tsx
 │   │   │   │   ├── ElementsPanel.tsx
 │   │   │   │   ├── ShapeToolbar.tsx
 │   │   │   │   └── TextToolbar.tsx
@@ -95,7 +96,8 @@
 │   │   │   └── tailwind.css
 │   │   ├── templates
 │   │   │   ├── bindings.ts
-│   │   │   └── loader.ts
+│   │   │   ├── loader.ts
+│   │   │   └── presets.ts
 │   │   ├── types
 │   │   │   ├── draft.ts
 │   │   │   ├── fs-access.d.ts
@@ -241,6 +243,9 @@
 │   ├── tsconfig.json
 │   └── uploads
 └── shared
+    ├── blocks
+    │   ├── footer.json
+    │   └── header.json
     ├── dist
     │   ├── schema
     │   │   ├── intake.schema.d.ts
@@ -295,4 +300,4 @@
         ├── style.ts
         └── template.ts
 
-67 directories, 228 files
+68 directories, 232 files
