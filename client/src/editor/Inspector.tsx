@@ -11,12 +11,17 @@ type BlockBadge = BlockBase & { type: "badge"; options?: { palette?: string } };
 type BlockRepeater = BlockBase & { type: "repeater"; options?: { previewCount?: number } };
 type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
-/** User element type */
-type UserBlock = {
+/** User element type — flexible to cover shapes and text */
+type UBCommon = {
   id: string;
-  type: "text";
-  rect: { x: number; y: number; w: number; h: number };
+  type: string; // "text" | "rect" | "ellipse" | "divider" | "line" | ...
+  rect?: { x: number; y: number; w: number; h: number };
+  points?: Array<{ x: number; y: number }>;
+  rotation?: number;
   value?: string;
+  style?: any;
+  blockStyle?: any;
+  z?: number;
 };
 
 /** Type guards */
@@ -26,12 +31,17 @@ function isTable(b: BlockBase): b is BlockTable { return b.type === "table"; }
 function isBadge(b: BlockBase): b is BlockBadge { return b.type === "badge"; }
 function isRepeater(b: BlockBase): b is BlockRepeater { return b.type === "repeater"; }
 
+function titleCase(s: string) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 export default function Inspector() {
   const {
     draft, template, pageIndex,
     setValue, selectedBlockId, setSelectedBlock, guide, guideNext,
     // User elements
     selectedUserBlockId, selectUserBlock, updateUserBlock, deleteUserBlock,
+    bringForward, sendBackward,
   } = useEditor();
 
   if (!draft || !template) {
@@ -49,12 +59,16 @@ export default function Inspector() {
 
   // If a user element is selected, show its panel and short-circuit.
   if (selectedUserBlockId) {
-    const list: UserBlock[] = Array.isArray((page as any).userBlocks) ? (page as any).userBlocks : [];
+    const list: UBCommon[] = Array.isArray((page as any).userBlocks) ? (page as any).userBlocks : [];
     const ub = list.find((b) => b.id === selectedUserBlockId);
     if (!ub) {
       // stale selection
       selectUserBlock(null);
     } else {
+      const onDelete = () => { deleteUserBlock(ub.id); selectUserBlock(null); };
+      const onBringFwd = () => bringForward(ub.id);
+      const onSendBack = () => sendBackward(ub.id);
+
       return (
         <div className="p-3 space-y-3">
           <div className="text-sm font-medium">Inspector</div>
@@ -62,6 +76,33 @@ export default function Inspector() {
             Editing element: <code>{ub.type}</code>
           </div>
 
+          {/* Quick actions for any element */}
+          <div className="flex gap-2 pt-1">
+            <button
+              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
+              onClick={onBringFwd}
+              title="Bring forward"
+            >
+              Bring forward
+            </button>
+            <button
+              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
+              onClick={onSendBack}
+              title="Send backward"
+            >
+              Send backward
+            </button>
+            <div className="flex-1" />
+            <button
+              className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
+              onClick={onDelete}
+              title={`Delete ${titleCase(ub.type)}`}
+            >
+              Delete
+            </button>
+          </div>
+
+          {/* Type-specific controls */}
           {ub.type === "text" && (
             <>
               <div className="space-y-1">
@@ -83,23 +124,14 @@ export default function Inspector() {
                       className="w-full border rounded px-2 py-1 text-sm"
                       min={0}
                       max={100}
-                      value={Number(ub.rect[k]).toString()}
+                      value={Number(ub.rect?.[k] ?? 0).toString()}
                       onChange={(e) => {
                         const num = Number(e.target.value || 0);
-                        updateUserBlock(ub.id, { rect: { ...ub.rect, [k]: num } });
+                        updateUserBlock(ub.id, { rect: { ...(ub.rect || { x: 0, y: 0, w: 0, h: 0 }), [k]: num } });
                       }}
                     />
                   </div>
                 ))}
-              </div>
-
-              <div className="pt-2">
-                <button
-                  className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
-                  onClick={() => { deleteUserBlock(ub.id); selectUserBlock(null); }}
-                >
-                  Delete element
-                </button>
               </div>
             </>
           )}

@@ -168,6 +168,9 @@ export default function Canvas() {
     targetId?: string;
   }>({ active: false, deg: 0, cursor: { x: 0, y: 0 }, targetId: undefined });
 
+  // hover gate so lines don't steal focus when over text
+  const [overText, setOverText] = useState(false);
+
   // line drag state
   const lineDragRef = useRef<{
     id: string;
@@ -869,6 +872,7 @@ export default function Canvas() {
           onDragOver={onDragOver}
           onDrop={onDrop}
           onClick={onCanvasClick}
+          onMouseLeave={() => setOverText(false)}
         >
           {/* Rotation HUD */}
           {rotHUD.active && (
@@ -1009,9 +1013,13 @@ export default function Canvas() {
             return null;
           })}
 
-          {/* User elements with move + resize handles */}
-          {userBlocks.map((ub) => {
+                    {/* User elements with move + resize handles */}
+          {userBlocks.map((ub, i) => {
             const active = selectedUserBlockId === ub.id;
+            
+            // Text always above shapes; keep per-type z within its lane
+            const baseZ = ub.type === "text" ? 1000 : 0;
+            const zIndex = baseZ + ((ub as any).z ?? i);
 
             if (ub.type === "text") {
               const st = (ub as any).style || {};
@@ -1030,94 +1038,78 @@ export default function Canvas() {
 
               return (
                 <Frame key={ub.id} rect={(ub as any).rect} active={active} overflowVisible>
-                  <textarea
-                    className="w-full h-full outline-none resize-none bg-transparent"
-                    dir="ltr"
-                    style={textareaStyle}
-                    value={(ub as any).value || ""}
-                    onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
-                    onFocus={() => selectUserBlock(ub.id)}
-                    onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
-                    onKeyDown={(e) => {
-                      const meta = e.metaKey || e.ctrlKey;
-                      if (!meta) return;
-                      if (e.key.toLowerCase() === "b") {
-                        e.preventDefault();
-                        updateUserBlock(ub.id, { style: { bold: !(st as any).bold } as any });
-                      } else if (e.key.toLowerCase() === "i") {
-                        e.preventDefault();
-                        updateUserBlock(ub.id, { style: { italic: !(st as any).italic } as any });
-                      } else if (e.key.toLowerCase() === "u") {
-                        e.preventDefault();
-                        updateUserBlock(ub.id, { style: { underline: !(st as any).underline } as any });
-                      }
-                    }}
-                  />
-                  {active && (
-                    <>
-                      <div
-                        title="Resize"
-                        onMouseDown={(e) => startDrag("resize-tl", ub.id, (ub as any).rect, e)}
-                        style={{
-                          position: "absolute",
-                          left: -10,
-                          top: -10,
-                          width: 16,
-                          height: 16,
-                          borderRadius: 9999,
-                          background: "#fff",
-                          border: "1px solid #94a3b8",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                          cursor: "nwse-resize",
-                        }}
-                      />
-                      <div
-                        title="Resize width"
-                        onMouseDown={(e) => startDrag("resize-right", ub.id, (ub as any).rect, e as any)}
-                        style={{
-                          position: "absolute",
-                          right: -8,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 12,
-                          height: 20,
-                          borderRadius: 4,
-                          background: "#fff",
-                          border: "1px solid #94a3b8",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                          cursor: "ew-resize",
-                        }}
-                      />
-                      <div
-                        title="Move"
-                        onMouseDown={(e) => startDrag("move", ub.id, (ub as any).rect, e as any)}
-                        style={{
-                          position: "absolute",
-                          left: "50%",
-                          bottom: -28,
-                          transform: "translateX(-50%)",
-                          width: 28,
-                          height: 28,
-                          borderRadius: 9999,
-                          background: "#fff",
-                          border: "1px solid #94a3b8",
-                          display: "grid",
-                          placeItems: "center",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                          cursor: "move",
-                          userSelect: "none",
-                          fontSize: 14,
-                        }}
-                      >
-                        ⤧
-                      </div>
-                    </>
-                  )}
+                  <div
+                    style={{ position: "relative", width: "100%", height: "100%", zIndex }}
+                    onMouseEnter={() => setOverText(true)}
+                    onMouseLeave={() => setOverText(false)}
+                  >
+                    <textarea
+                      className="w-full h-full outline-none resize-none bg-transparent"
+                      dir="ltr"
+                      style={textareaStyle}
+                      value={(ub as any).value || ""}
+                      onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                      onFocus={() => selectUserBlock(ub.id)}
+                      onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
+                      onKeyDown={(e) => {
+                        const meta = e.metaKey || e.ctrlKey;
+                        if (!meta) return;
+                        if (e.key.toLowerCase() === "b") {
+                          e.preventDefault();
+                          updateUserBlock(ub.id, { style: { bold: !(st as any).bold } as any });
+                        } else if (e.key.toLowerCase() === "i") {
+                          e.preventDefault();
+                          updateUserBlock(ub.id, { style: { italic: !(st as any).italic } as any });
+                        } else if (e.key.toLowerCase() === "u") {
+                          e.preventDefault();
+                          updateUserBlock(ub.id, { style: { underline: !(st as any).underline } as any });
+                        }
+                      }}
+                    />
+                    {active && (
+                      <>
+                        <div
+                          title="Resize"
+                          onMouseDown={(e) => startDrag("resize-tl", ub.id, (ub as any).rect, e)}
+                          style={{
+                            position: "absolute", left: -10, top: -10,
+                            width: 16, height: 16, borderRadius: 9999,
+                            background: "#fff", border: "1px solid #94a3b8",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                            cursor: "nwse-resize", zIndex: zIndex + 1,
+                          }}
+                        />
+                        <div
+                          title="Resize width"
+                          onMouseDown={(e) => startDrag("resize-right", ub.id, (ub as any).rect, e as any)}
+                          style={{
+                            position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)",
+                            width: 12, height: 20, borderRadius: 4,
+                            background: "#fff", border: "1px solid #94a3b8",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                            cursor: "ew-resize", zIndex: zIndex + 1,
+                          }}
+                        />
+                        <div
+                          title="Move"
+                          onMouseDown={(e) => startDrag("move", ub.id, (ub as any).rect, e as any)}
+                          style={{
+                            position: "absolute", left: "50%", bottom: -28, transform: "translateX(-50%)",
+                            width: 28, height: 28, borderRadius: 9999,
+                            background: "#fff", border: "1px solid #94a3b8",
+                            display: "grid", placeItems: "center",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+                            cursor: "move", userSelect: "none", fontSize: 14,
+                            zIndex: zIndex + 1,
+                          }}
+                        >⤧</div>
+                      </>
+                    )}
+                  </div>
                 </Frame>
               );
             }
 
-            // ---- Line (points-based) ----
             if (ub.type === "line") {
               const bs = ((ub as any).blockStyle || {}) as any;
               const st = (ub as any).style || {};
@@ -1132,7 +1124,7 @@ export default function Canvas() {
                 return (
                   <div
                     key={ub.id}
-                    style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}
+                    style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex }}
                     onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                   />
                 );
@@ -1145,9 +1137,12 @@ export default function Canvas() {
               return (
                 <React.Fragment key={ub.id}>
                   <svg
-                    style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }}
+                    style={{
+                      position: "absolute", left: 0, top: 0, width: "100%", height: "100%",
+                      zIndex,
+                      pointerEvents: overText ? "none" : "auto",
+                    }}
                   >
-                    {/* wide invisible hit line for easy selection */}
                     <line
                       x1={pct(p1.x)} y1={pct(p1.y)}
                       x2={pct(p2.x)} y2={pct(p2.y)}
@@ -1157,8 +1152,6 @@ export default function Canvas() {
                       strokeWidth={Math.max(16, strokeW * 3)}
                       onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                     />
-
-                    {/* visible line */}
                     <line
                       x1={pct(p1.x)} y1={pct(p1.y)}
                       x2={pct(p2.x)} y2={pct(p2.y)}
@@ -1168,8 +1161,6 @@ export default function Canvas() {
                       strokeLinecap="round"
                       style={{ pointerEvents: "none" }}
                     />
-                    
-                    {/* endpoint handles */}
                     {isActive && !isRotatingThis && (
                       <>
                         <circle
@@ -1187,17 +1178,11 @@ export default function Canvas() {
                       </>
                     )}
                   </svg>
-
-                  {/* move and rotate controls under the midpoint */}
                   {isActive && !isRotatingThis && (
                     <div
                       style={{
-                        position: "absolute",
-                        left: pct(mid.x),
-                        top: `calc(${pct(mid.y)} + 22px)`,
-                        transform: "translateX(-50%)",
-                        display: "flex",
-                        gap: 8,
+                        position: "absolute", left: pct(mid.x), top: `calc(${pct(mid.y)} + 22px)`,
+                        transform: "translateX(-50%)", display: "flex", gap: 8, zIndex: zIndex + 1,
                       }}
                     >
                       <div
@@ -1210,9 +1195,7 @@ export default function Canvas() {
                           display: "grid", placeItems: "center", cursor: "grab",
                           userSelect: "none", fontSize: 14,
                         }}
-                      >
-                        ↻
-                      </div>
+                      >↻</div>
                       <div
                         title="Move"
                         onMouseDown={(e) => startLineDrag("move", ub.id, p1, p2, e)}
@@ -1223,53 +1206,42 @@ export default function Canvas() {
                           display: "grid", placeItems: "center", cursor: "move",
                           userSelect: "none", fontSize: 14,
                         }}
-                      >
-                        ⤧
-                      </div>
+                      >⤧</div>
                     </div>
                   )}
                 </React.Fragment>
               );
             }
 
-            // ---- Divider (rect-based horizontal rule)
             if (ub.type === "divider") {
               const bs = ((ub as any).blockStyle || {}) as any;
               const st = (ub as any).style || {};
               const stroke = bs?.stroke?.color?.hex || st.strokeColor || "#111827";
               const strokeW = Number.isFinite(bs?.stroke?.width) ? bs.stroke.width : Number.isFinite(st.strokeWidth) ? st.strokeWidth : 2;
               const dash = Array.isArray(bs?.stroke?.dash) && bs.stroke.dash.length ? bs.stroke.dash[0] : (Number.isFinite(st.dash) ? st.dash : 0);
-
               const r = (ub as any).rect as Rect;
               return (
                 <div
                   key={ub.id}
                   style={{
-                    position: "absolute",
-                    left: pct(r.x),
+                    position: "absolute", left: pct(r.x),
                     top: pct(r.y + r.h / 2 - (strokeW / PAGE_H) * 50),
-                    width: pct(r.w),
-                    height: Math.max(1, strokeW),
+                    width: pct(r.w), height: Math.max(1, strokeW),
                     background: dash ? "transparent" : stroke,
                     borderTop: dash ? `${strokeW}px dashed ${stroke}` : undefined,
-                    cursor: "default",
+                    cursor: "default", zIndex,
                   }}
                   onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                 />
               );
             }
 
-            // ---- Rect / Ellipse (reads blockStyle first, falls back to legacy style)
             if (ub.type === "rect" || ub.type === "ellipse") {
               const bs = ((ub as any).blockStyle || {}) as any;
               const st = (ub as any).style || {};
               const stroke = (bs?.stroke?.color?.hex as string) || st.strokeColor || "#111827";
-              const strokeW =
-                Number.isFinite(bs?.stroke?.width) ? bs.stroke.width :
-                Number.isFinite(st.strokeWidth) ? st.strokeWidth : 1;
-              const dash =
-                Array.isArray(bs?.stroke?.dash) && bs.stroke.dash.length ? bs.stroke.dash[0] :
-                (Number.isFinite(st.dash) ? st.dash : 0);
+              const strokeW = Number.isFinite(bs?.stroke?.width) ? bs.stroke.width : Number.isFinite(st.strokeWidth) ? st.strokeWidth : 1;
+              const dash = Array.isArray(bs?.stroke?.dash) && bs.stroke.dash.length ? bs.stroke.dash[0] : (Number.isFinite(st.dash) ? st.dash : 0);
               const fill = (bs?.fill?.hex as string) || st.fillColor || "transparent";
               const r = (ub as any).rect as Rect;
               const rotation = (ub as any).rotation || 0;
@@ -1279,33 +1251,26 @@ export default function Canvas() {
                 <div
                   key={ub.id}
                   style={{
-                    position: "absolute",
-                    left: pct(r.x),
-                    top: pct(r.y),
-                    width: pct(r.w),
-                    height: pct(r.h),
+                    position: "absolute", left: pct(r.x), top: pct(r.y),
+                    width: pct(r.w), height: pct(r.h),
                     border: `${strokeW}px ${dash ? "dashed" : "solid"} ${stroke}`,
                     background: fill,
                     borderRadius: ub.type === "ellipse" ? "50%" : 4,
-                    transform: `rotate(${rotation}deg)`,
-                    transformOrigin: "center",
-                    cursor: "default",
+                    transform: `rotate(${rotation}deg)`, transformOrigin: "center",
+                    cursor: "default", zIndex,
                   }}
                   onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                 >
                   {active && !isRotatingThis && (
                     <>
-                      {/* corner + side handles in element-local box (we keep them visually axis-aligned for MVP) */}
                       {["nw","ne","sw","se","n","s","e","w"].map((dir) => (
                         <div
                           key={dir}
                           onMouseDown={(e) => startRectDrag(dir as any, ub.id, r, rotation, e)}
                           style={{
-                            position: "absolute",
-                            width: 12, height: 12,
-                            background: "#fff",
-                            border: "1px solid #94a3b8",
-                            borderRadius: 2,
+                            position: "absolute", width: 12, height: 12,
+                            background: "#fff", border: "1px solid #94a3b8", borderRadius: 2,
+                            zIndex: zIndex + 1,
                             ...(dir==="nw" ? { left: -8, top: -8, cursor: "nwse-resize"} :
                               dir==="ne" ? { right: -8, top: -8, cursor: "nesw-resize"} :
                               dir==="sw" ? { left: -8, bottom: -8, cursor: "nesw-resize"} :
@@ -1317,14 +1282,13 @@ export default function Canvas() {
                           }}
                         />
                       ))}
-                      {/* move + rotate controls (rect: rotate above by design; unchanged) */}
                       <div
                         onMouseDown={(e)=>startRectDrag("move",ub.id,r,rotation,e)}
                         style={{
                           position:"absolute", left:"50%", bottom:-28, transform:"translateX(-50%)",
                           width:28, height:28, borderRadius:9999, background:"#fff", border:"1px solid #94a3b8",
                           display:"grid", placeItems:"center", boxShadow:"0 1px 2px rgba(0,0,0,0.08)", cursor:"move",
-                          userSelect:"none", fontSize:14
+                          userSelect:"none", fontSize:14, zIndex: zIndex + 1,
                         }}
                       >⤧</div>
                       <div
@@ -1333,7 +1297,7 @@ export default function Canvas() {
                           position:"absolute", left:"50%", top:-40, transform:"translateX(-50%)",
                           width:28, height:28, borderRadius:9999, background:"#fff", border:"1px solid #94a3b8",
                           display:"grid", placeItems:"center", boxShadow:"0 1px 2px rgba(0,0,0,0.08)", cursor:"grab",
-                          userSelect:"none", fontSize:14
+                          userSelect:"none", fontSize:14, zIndex: zIndex + 1,
                         }}
                       >↻</div>
                     </>
