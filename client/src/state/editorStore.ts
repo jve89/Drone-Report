@@ -1150,3 +1150,30 @@ export const useEditor = create<EditorState>((set, get) => ({
     s.setTheme({ colors: { [key]: { ...(ref.token ? { token: ref.token } : {}), ...(ref.hex ? { hex: ref.hex } : {}) } } });
   },
 }));
+
+// --- Dev helper: mutate run meta so {{run.*}} bindings re-render ---
+if (typeof window !== "undefined") {
+  const api = (updates: Record<string, unknown>) => {
+    const st = useEditor.getState();
+    if (!st.draft) return;
+
+    const curPayload = ((st.draft as any).payload ?? {}) as any;
+    const nextPayload = { ...curPayload, meta: { ...(curPayload.meta ?? {}), ...updates } };
+
+    useEditor.setState({
+      draft: { ...(st.draft as any), payload: nextPayload } as any,
+      dirty: true,
+    });
+
+    try { useEditor.getState().saveDebounced(); } catch {}
+  };
+
+  // Two ways to reach it, in case one is shadowed by HMR:
+  (window as any).drSetRunMeta = api;
+  (window as any).__dr = { ...(window as any).__dr, setRunMeta: api };
+
+  console.debug("[__dr] helpers ready",
+    " __dr.setRunMeta:", typeof (window as any).__dr?.setRunMeta,
+    " drSetRunMeta:", typeof (window as any).drSetRunMeta
+  );
+}

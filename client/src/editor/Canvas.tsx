@@ -168,6 +168,10 @@ export default function Canvas() {
     targetId?: string;
   }>({ active: false, deg: 0, cursor: { x: 0, y: 0 }, targetId: undefined });
 
+  // track per-block image load errors so we can show a placeholder
+  const imgErrorRef = useRef<Record<string, boolean>>({});
+  const [, forceRepaint] = useState(0); // simple re-render trigger
+
   // hover gate so lines don't steal focus when over text
   const [overText, setOverText] = useState(false);
 
@@ -213,6 +217,15 @@ export default function Canvas() {
     }),
     [draft, findings]
   );
+
+  // DEV: expose live binding context for console testing
+  useEffect(() => {
+    (window as any).__dr = {
+      draft,
+      findings,
+      run: (draft as any)?.payload?.meta ?? {},
+    };
+  }, [draft, findings]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
@@ -906,31 +919,69 @@ export default function Canvas() {
                 const vStr = typeof v === "string" ? v : "";
                 const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
                 const url = boundSrc || boundFromValue || vStr;
+
+                const isBinding = !!((b as BlockImage).source) || vStr.includes("{{");
+                const failed = !!imgErrorRef.current[b.id];
+
                 return (
                   <Frame key={b.id} rect={b.rect} active={active}>
-                    {url ? (
+                    {url && !failed ? (
                       <img
                         src={url}
                         alt={b.id}
                         className="w-full h-full object-cover"
                         onClick={() => setSelectedBlock(b.id)}
+                        onLoad={() => {
+                          if (imgErrorRef.current[b.id]) {
+                            delete imgErrorRef.current[b.id];
+                            forceRepaint((n) => n + 1);
+                          }
+                        }}
+                        onError={() => {
+                          imgErrorRef.current[b.id] = true;
+                          forceRepaint((n) => n + 1);
+                        }}
                       />
                     ) : (
-                      <label className="text-sm text-gray-500 cursor-pointer" onClick={() => setSelectedBlock(b.id)}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const localUrl = URL.createObjectURL(file);
-                            setValue(pageInstance.id, b.id, localUrl);
-                            if (active) guideNext();
-                          }}
-                        />
-                        Click to add image
-                      </label>
+                      <div
+                        className="w-full h-full grid place-items-center text-center text-sm text-gray-500 cursor-pointer"
+                        onClick={() => setSelectedBlock(b.id)}
+                        style={{
+                          background:
+                            "repeating-conic-gradient(#f3f4f6 0% 25%, #ffffff 0% 50%) 50% / 16px 16px",
+                          borderRadius: 4,
+                        }}
+                      >
+                        <div>
+                          <div className="font-medium mb-1">
+                            {failed ? "Image failed to load" : isBinding ? "No image (binding empty)" : "Click to add image"}
+                          </div>
+                          <label className="inline-block mt-1 px-2 py-1 border rounded hover:bg-gray-50">
+                            Upload…
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const localUrl = URL.createObjectURL(file);
+                                setValue(pageInstance.id, b.id, localUrl);
+                                if (active) guideNext();
+                                if (imgErrorRef.current[b.id]) {
+                                  delete imgErrorRef.current[b.id];
+                                  forceRepaint((n) => n + 1);
+                                }
+                              }}
+                            />
+                          </label>
+                          {isBinding && (
+                            <div className="text-[11px] text-gray-400 mt-2">
+                              Value comes from <code>{"{{"}</code>binding<code>{"}}"}</code>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </Frame>
                 );
