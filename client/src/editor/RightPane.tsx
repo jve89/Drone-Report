@@ -2,6 +2,7 @@
 import { useEditor } from "../state/editorStore";
 import { Accordion, AccordionItem } from "../components/Accordion";
 import ElementsPanel from "./blocks/ElementsPanel";
+import BlocksPanel from "./blocks/BlocksPanel"; // NEW
 import Inspector from "./Inspector";
 import MediaPanel from "./panels/MediaPanel";
 import TemplatePanel from "./panels/TemplatePanel";
@@ -17,6 +18,12 @@ export default function RightPane() {
         <AccordionItem id="elements" title="Elements">
           <div className="min-h-[100px] max-h-[40vh] overflow-auto">
             <ElementsPanel />
+          </div>
+        </AccordionItem>
+
+        <AccordionItem id="sections" title="Sections">
+          <div className="min-h-[100px] max-h-[40vh] overflow-auto">
+            <BlocksPanel />
           </div>
         </AccordionItem>
 
