@@ -68,7 +68,31 @@ export default function Inspector() {
       const onDelete = () => { deleteUserBlock(ub.id); selectUserBlock(null); };
       const onBringFwd = () => bringForward(ub.id);
       const onSendBack = () => sendBackward(ub.id);
+      const meta = (ub as any)?.blockStyle?.meta as { blockKind?: string; payload?: any } | undefined;
 
+      // Read-only panel for Blocks
+      if (meta?.blockKind) {
+        return (
+          <div className="p-3 space-y-3">
+            <div className="text-sm font-medium">Inspector</div>
+            <div className="text-[11px] text-gray-500 -mt-1">
+              Block: <code>{meta.blockKind}</code> <span className="text-gray-400">(read-only)</span>
+            </div>
+            <div className="text-xs text-gray-600">Summary</div>
+            <pre className="text-[11px] bg-gray-50 border rounded p-2 overflow-auto max-h-40">
+{JSON.stringify(meta.payload ?? {}, null, 2)}
+            </pre>
+            <div className="flex gap-2">
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+              <div className="flex-1" />
+              <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+            </div>
+          </div>
+        );
+      }
+
+      // Primitive element panel
       return (
         <div className="p-3 space-y-3">
           <div className="text-sm font-medium">Inspector</div>
@@ -76,7 +100,6 @@ export default function Inspector() {
             Editing element: <code>{ub.type}</code>
           </div>
 
-          {/* Quick actions for any element */}
           <div className="flex gap-2 pt-1">
             <button
               className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
@@ -102,7 +125,6 @@ export default function Inspector() {
             </button>
           </div>
 
-          {/* Type-specific controls */}
           {ub.type === "text" && (
             <>
               <div className="space-y-1">
@@ -284,7 +306,6 @@ export default function Inspector() {
           );
         }
 
-        // image_slot edited inline on canvas
         if (isImage(b)) {
           const val = typeof v === "string" ? v : "";
           return (
