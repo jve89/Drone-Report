@@ -41,14 +41,22 @@ export type UserBlock = {
   id: string;
   type: UserBlockType;
 
+  // Geometry
   rect?: { x: number; y: number; w: number; h: number }; // 0–100 for text/rect/ellipse/divider
   points?: Array<{ x: number; y: number }>;              // for line only
+
+  // Rotation for rect/ellipse-style shapes (degrees). Optional.
+  rotation?: number;
+
+  // Z-index
   z?: number;
 
-  value?: string;     // text only
-  style?: TextStyle;  // text only
+  // Text payload (text only)
+  value?: string;
+  style?: TextStyle;
 
-  blockStyle?: BlockStyle; // shapes/divider styling
+  // Visual style (shapes/divider)
+  blockStyle?: BlockStyle;
 };
 
 export type PageInstance = {

@@ -69,6 +69,7 @@ type UserBlock =
       id: string;
       type: "rect" | "ellipse";
       rect: Rect;
+      rotation?: number;
       style?: {
         strokeColor?: string;
         strokeWidth?: number;
@@ -127,7 +128,7 @@ export default function Canvas() {
 
   const pageRef = useRef<HTMLDivElement>(null);
 
-  // drag state for user blocks
+  // drag state for simple text boxes (legacy)
   const dragRef = useRef<{
     mode: "move" | "resize-tl" | "resize-right";
     id: string;
@@ -137,13 +138,13 @@ export default function Canvas() {
   } | null>(null);
   const prevCursorRef = useRef<string>("");
 
-  // rotation HUD state
+  // rotation HUD state (generic target)
   const [rotHUD, setRotHUD] = useState<{
     active: boolean;
     deg: number;
     cursor: { x: number; y: number };
-    lineId?: string;
-  }>({ active: false, deg: 0, cursor: { x: 0, y: 0 }, lineId: undefined });
+    targetId?: string;
+  }>({ active: false, deg: 0, cursor: { x: 0, y: 0 }, targetId: undefined });
 
   // line drag state
   const lineDragRef = useRef<{
@@ -155,6 +156,22 @@ export default function Canvas() {
     startP2: LinePoint;
     center: LinePoint;
     startCursorAngle?: number;
+  } | null>(null);
+
+  // rect drag state (move / resize / rotate in local coordinates)
+  const rectDragRef = useRef<{
+    id: string;
+    mode:
+      | "move"
+      | "rotate"
+      | "n" | "s" | "e" | "w"
+      | "ne" | "nw" | "se" | "sw";
+    startX: number;
+    startY: number;
+    startRect: Rect;
+    startRotation: number; // degrees
+    center: { x: number; y: number }; // in %
+    startCursorAngle?: number; // radians
   } | null>(null);
 
   const PAGE_W = 820;
@@ -206,7 +223,7 @@ export default function Canvas() {
 
       const ok = insertImageAtPoint?.(pageInstance.id, { x: nx, y: ny }, { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" });
       if (!ok) {
-        const tPage = template?.pages.find((p: any) => p.id === pageInstance.templatePageId);
+        const tPage = template?.pages.find((p: { id: string }) => p.id === pageInstance.templatePageId);
         const firstImg = (tPage?.blocks || []).find((b: any) => b.type === "image_slot") as BlockImage | undefined;
         if (firstImg) {
           setValue(pageInstance.id, firstImg.id, payload.url);
@@ -295,7 +312,7 @@ export default function Canvas() {
     return () => window.removeEventListener("keydown", onKey);
   }, [tool.mode, selectedUserBlockId, cancelInsert, selectUserBlock, deleteUserBlock, undo, redo]);
 
-  // Drag engine for user blocks
+  // Drag engine for legacy text block moves/resizes
   useEffect(() => {
     function onMove(e: MouseEvent) {
       const d = dragRef.current;
@@ -441,7 +458,7 @@ export default function Canvas() {
           active: true,
           deg: Math.round(deg),
           cursor: { x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 },
-          lineId: id,
+          targetId: id,
         });
       }
     }
@@ -451,7 +468,7 @@ export default function Canvas() {
         const wasRotate = lineDragRef.current.mode === "rotate";
         lineDragRef.current = null;
         document.body.style.cursor = prevCursorRef.current || "";
-        if (wasRotate) setRotHUD((s) => ({ ...s, active: false, lineId: undefined }));
+        if (wasRotate) setRotHUD((s) => ({ ...s, active: false, targetId: undefined }));
       }
     }
 
@@ -520,7 +537,53 @@ export default function Canvas() {
           active: true,
           deg: Math.round(normalizeDeg(deg0)),
           cursor: { x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 },
-          lineId: id,
+          targetId: id,
+        });
+      }
+    }
+  }
+
+  // helpers for rect drag
+  function startRectDrag(
+    mode: "move" | "rotate" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw",
+    id: string,
+    rect: Rect,
+    rotation: number,
+    e: React.MouseEvent
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const center = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+    rectDragRef.current = {
+      id,
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      startRect: { ...rect },
+      startRotation: rotation || 0,
+      center,
+      startCursorAngle:
+        mode === "rotate"
+          ? (() => {
+              const r = pageRef.current!.getBoundingClientRect();
+              const nx = ((e.clientX - r.left) / r.width) * 100;
+              const ny = ((e.clientY - r.top) / r.height) * 100;
+              return Math.atan2(ny - center.y, nx - center.x);
+            })()
+          : undefined,
+    };
+    prevCursorRef.current = document.body.style.cursor;
+    document.body.style.cursor = mode === "rotate" ? "grabbing" : mode === "move" ? "move" : "nwse-resize";
+    selectUserBlock(id);
+
+    if (mode === "rotate") {
+      if (pageRef.current) {
+        const r = pageRef.current.getBoundingClientRect();
+        setRotHUD({
+          active: true,
+          deg: Math.round(normalizeDeg(rotation || 0)),
+          cursor: { x: e.clientX - r.left + 12, y: e.clientY - r.top + 12 },
+          targetId: id,
         });
       }
     }
@@ -589,6 +652,113 @@ export default function Canvas() {
       </div>
     );
   }
+
+  // Rect drag engine (move / resize / rotate)
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      const d = rectDragRef.current;
+      if (!d || !pageRef.current) return;
+
+      const rectEl = pageRef.current.getBoundingClientRect();
+      const dxPct = ((e.clientX - d.startX) / rectEl.width) * 100;
+      const dyPct = ((e.clientY - d.startY) / rectEl.height) * 100;
+
+      const { id, mode, startRect, startRotation, center } = d;
+
+      // Helpers
+      const clamp01 = (v: number) => Math.max(0, Math.min(100, v));
+      const clampRect = (r: Rect): Rect => {
+        let x = clamp01(r.x);
+        let y = clamp01(r.y);
+        let w = Math.max(MIN_W, r.w);
+        let h = Math.max(MIN_H, r.h);
+        if (x + w > 100) w = 100 - x;
+        if (y + h > 100) h = 100 - y;
+        return { x, y, w, h };
+      };
+
+      if (mode === "move") {
+        const nx = startRect.x + dxPct;
+        const ny = startRect.y + dyPct;
+        updateUserBlock(id, { rect: clampRect({ x: nx, y: ny, w: startRect.w, h: startRect.h }) });
+        return;
+      }
+
+      if (mode === "rotate") {
+        // current cursor angle in % space
+        const nxPct = Math.max(0, Math.min(100, ((e.clientX - rectEl.left) / rectEl.width) * 100));
+        const nyPct = Math.max(0, Math.min(100, ((e.clientY - rectEl.top) / rectEl.height) * 100));
+        const curAngle = Math.atan2(nyPct - center.y, nxPct - center.x);
+        const startAngle = d.startCursorAngle || 0;
+        let deg = (startRotation + (curAngle - startAngle) * (180 / Math.PI));
+
+        // snap if Shift: to 0/15/30... and encourage 0/±90
+        if (e.shiftKey) {
+          let snapped = Math.round(deg / 15) * 15;
+          // subtle snap to 0 / ±90 within 2°
+          const specials = [0, 90, -90, 180, -180];
+          for (const s of specials) {
+            if (Math.abs(snapped - s) < 2) snapped = s;
+          }
+          deg = snapped;
+        }
+
+        const norm = ((deg + 180) % 360 + 360) % 360 - 180;
+        setRotHUD({
+          active: true,
+          deg: Math.round(norm),
+          cursor: { x: e.clientX - rectEl.left + 12, y: e.clientY - rectEl.top + 12 },
+          targetId: id,
+        });
+        updateUserBlock(id, { rotation: norm as unknown as any }); // rotation is stored on block
+        return;
+      }
+
+      // Resize in canvas axes (axis-aligned). Simpler MVP.
+      let x = startRect.x;
+      let y = startRect.y;
+      let w = startRect.w;
+      let h = startRect.h;
+
+      const hasN = mode === "n" || mode === "ne" || mode === "nw";
+      const hasS = mode === "s" || mode === "se" || mode === "sw";
+      const hasE = mode === "e" || mode === "ne" || mode === "se";
+      const hasW = mode === "w" || mode === "nw" || mode === "sw";
+
+      if (hasE) w = startRect.w + dxPct;
+      if (hasS) h = startRect.h + dyPct;
+      if (hasW) { x = startRect.x + dxPct; w = startRect.w - dxPct; }
+      if (hasN) { y = startRect.y + dyPct; h = startRect.h - dyPct; }
+
+      // enforce minimums by pinning the moving edge
+      if (w < MIN_W) {
+        if (hasW) x = x - (MIN_W - w);
+        w = MIN_W;
+      }
+      if (h < MIN_H) {
+        if (hasN) y = y - (MIN_H - h);
+        h = MIN_H;
+      }
+
+      updateUserBlock(id, { rect: clampRect({ x, y, w, h }) });
+    }
+
+    function onUp() {
+      if (rectDragRef.current) {
+        const wasRotate = rectDragRef.current.mode === "rotate";
+        rectDragRef.current = null;
+        document.body.style.cursor = prevCursorRef.current || "";
+        if (wasRotate) setRotHUD((s) => ({ ...s, active: false, targetId: undefined }));
+      }
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [updateUserBlock]);
 
   // -------- Render branches --------
   if (!draft) return <div className="p-6 text-gray-500">Loading editor…</div>;
@@ -840,12 +1010,12 @@ export default function Canvas() {
               };
 
               return (
-                <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
+                <Frame key={ub.id} rect={(ub as any).rect} active={active} overflowVisible>
                   <textarea
                     className="w-full h-full outline-none resize-none bg-transparent"
                     dir="ltr"
                     style={textareaStyle}
-                    value={ub.value || ""}
+                    value={(ub as any).value || ""}
                     onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
                     onFocus={() => selectUserBlock(ub.id)}
                     onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
@@ -868,7 +1038,7 @@ export default function Canvas() {
                     <>
                       <div
                         title="Resize"
-                        onMouseDown={(e) => startDrag("resize-tl", ub.id, ub.rect, e)}
+                        onMouseDown={(e) => startDrag("resize-tl", ub.id, (ub as any).rect, e)}
                         style={{
                           position: "absolute",
                           left: -10,
@@ -884,7 +1054,7 @@ export default function Canvas() {
                       />
                       <div
                         title="Resize width"
-                        onMouseDown={(e) => startDrag("resize-right", ub.id, ub.rect, e as any)}
+                        onMouseDown={(e) => startDrag("resize-right", ub.id, (ub as any).rect, e as any)}
                         style={{
                           position: "absolute",
                           right: -8,
@@ -901,7 +1071,7 @@ export default function Canvas() {
                       />
                       <div
                         title="Move"
-                        onMouseDown={(e) => startDrag("move", ub.id, ub.rect, e as any)}
+                        onMouseDown={(e) => startDrag("move", ub.id, (ub as any).rect, e as any)}
                         style={{
                           position: "absolute",
                           left: "50%",
@@ -937,7 +1107,7 @@ export default function Canvas() {
               const dashArr = Array.isArray(bs?.stroke?.dash) ? bs.stroke.dash : (Number.isFinite(st.dash) && st.dash > 0 ? [st.dash, st.dash] : []);
               const p = Array.isArray((ub as any).points) ? ((ub as any).points as LinePoint[]) : [];
               const isActive = selectedUserBlockId === ub.id;
-              const isRotatingThis = rotHUD.active && rotHUD.lineId === ub.id;
+              const isRotatingThis = rotHUD.active && rotHUD.targetId === ub.id;
 
               if (p.length < 2) {
                 return (
@@ -1083,6 +1253,11 @@ export default function Canvas() {
                 (Number.isFinite(st.dash) ? st.dash : 0);
               const fill = (bs?.fill?.hex as string) || st.fillColor || "transparent";
               const r = (ub as any).rect as Rect;
+              const rotation = (ub as any).rotation || 0;
+              const isRotatingThis = rotHUD.active && rotHUD.targetId === ub.id;
+
+              // midpoint (in page %) for external positioning if needed
+              const mid = { x: r.x + r.w / 2, y: r.y + r.h / 2 };
 
               return (
                 <div
@@ -1096,10 +1271,72 @@ export default function Canvas() {
                     border: `${strokeW}px ${dash ? "dashed" : "solid"} ${stroke}`,
                     background: fill,
                     borderRadius: ub.type === "ellipse" ? "50%" : 4,
+                    transform: `rotate(${rotation}deg)`,
+                    transformOrigin: "center",
                     cursor: "default",
                   }}
                   onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
-                />
+                >
+                  {active && !isRotatingThis && (
+                    <>
+                      {/* corner + side handles in element-local box */}
+                      {["nw","ne","sw","se","n","s","e","w"].map((dir) => (
+                        <div
+                          key={dir}
+                          onMouseDown={(e) => startRectDrag(dir as any, ub.id, r, rotation, e)}
+                          style={{
+                            position: "absolute",
+                            width: 12, height: 12,
+                            background: "#fff",
+                            border: "1px solid #94a3b8",
+                            borderRadius: 2,
+                            ...(dir==="nw" ? { left: -8, top: -8, cursor: "nwse-resize"} :
+                              dir==="ne" ? { right: -8, top: -8, cursor: "nesw-resize"} :
+                              dir==="sw" ? { left: -8, bottom: -8, cursor: "nesw-resize"} :
+                              dir==="se" ? { right: -8, bottom: -8, cursor: "nwse-resize"} :
+                              dir==="n" ? { top: -8, left: "50%", transform:"translateX(-50%)", cursor:"ns-resize"} :
+                              dir==="s" ? { bottom: -8, left: "50%", transform:"translateX(-50%)", cursor:"ns-resize"} :
+                              dir==="e" ? { right: -8, top:"50%", transform:"translateY(-50%)", cursor:"ew-resize"} :
+                              { left: -8, top:"50%", transform:"translateY(-50%)", cursor:"ew-resize"})
+                          }}
+                        />
+                      ))}
+
+                      {/* move and rotate controls under the midpoint — unified with line */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "50%",
+                          top: "calc(100% + 22px)",
+                          transform: "translateX(-50%)",
+                          display: "flex",
+                          gap: 8,
+                        }}
+                      >
+                        <div
+                          title="Rotate"
+                          onMouseDown={(e)=>startRectDrag("rotate",ub.id,r,rotation,e)}
+                          style={{
+                            width:28, height:28, borderRadius:9999,
+                            background:"#fff", border:"1px solid #94a3b8",
+                            boxShadow:"0 1px 2px rgba(0,0,0,0.08)", display:"grid", placeItems:"center",
+                            cursor:"grab", userSelect:"none", fontSize:14
+                          }}
+                        >↻</div>
+                        <div
+                          title="Move"
+                          onMouseDown={(e)=>startRectDrag("move",ub.id,r,rotation,e)}
+                          style={{
+                            width:28, height:28, borderRadius:9999,
+                            background:"#fff", border:"1px solid #94a3b8",
+                            boxShadow:"0 1px 2px rgba(0,0,0,0.08)", display:"grid", placeItems:"center",
+                            cursor:"move", userSelect:"none", fontSize:14
+                          }}
+                        >⤧</div>
+                      </div>
+                    </>
+                  )}
+                </div>
               );
             }
 

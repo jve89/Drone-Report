@@ -521,7 +521,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     if (!d || !t) return false;
 
     const pi = d.pageInstances.find((p) => p.id === pageId);
-    const tPage = t.pages.find((p: any) => p.id === pi?.templatePageId);
+    const tPage = t.pages.find((p: { id: string }) => p.id === pi?.templatePageId);
     if (!pi || !tPage) return false;
 
     const blocks = (tPage.blocks || []) as Array<{ id: string; type: string }>;
@@ -555,7 +555,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     return true;
   },
 
-  // ---------- Findings ----------
+// ---------- Findings ----------
   setFindings: (f) => {
     get().mark();
     set({ findings: f, dirty: true });
@@ -706,6 +706,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     } else if (kind === "rect") {
       block = {
         id, type: "rect", rect,
+        rotation: 0,
         blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } },
         z: (pi.userBlocks?.length ?? 0),
       };

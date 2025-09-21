@@ -16,6 +16,10 @@ export type UserBlock = {
   rect?: { x: number; y: number; w: number; h: number };
   points?: Array<{ x: number; y: number }>;
 
+  // Optional rotation (degrees) for shape blocks that use `rect` geometry.
+  // Applies to: "rect" now, and "ellipse" later. Ignored elsewhere.
+  rotation?: number;
+
   // Z-order (higher renders on top). Optional; compute if absent.
   z?: number;
 
