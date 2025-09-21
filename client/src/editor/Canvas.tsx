@@ -1,5 +1,5 @@
 // client/src/editor/Canvas.tsx
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditor } from "../state/editorStore";
 import { renderString, select } from "../templates/bindings";
 import TextToolbar from "./blocks/TextToolbar";
@@ -100,7 +100,7 @@ function Frame({
 }
 
 export default function Canvas() {
-    const {
+  const {
     draft,
     template,
     pageIndex,
@@ -136,6 +136,14 @@ export default function Canvas() {
     startRect: Rect;
   } | null>(null);
   const prevCursorRef = useRef<string>("");
+
+  // rotation HUD state
+  const [rotHUD, setRotHUD] = useState<{
+    active: boolean;
+    deg: number;
+    cursor: { x: number; y: number };
+    lineId?: string;
+  }>({ active: false, deg: 0, cursor: { x: 0, y: 0 }, lineId: undefined });
 
   // line drag state
   const lineDragRef = useRef<{
@@ -344,6 +352,20 @@ export default function Canvas() {
     };
   }, [updateUserBlock]);
 
+  function normalizeDeg(deg: number) {
+    let d = ((deg + 180) % 360 + 360) % 360 - 180; // [-180,180)
+    if (d === -180) d = 180;
+    return d;
+  }
+  function snapDeg(deg: number) {
+    // smart snap to 0 / ±90 within 2°
+    const targets = [0, 90, -90];
+    for (const t of targets) {
+      if (Math.abs(deg - t) < 2) return t;
+    }
+    return deg;
+  }
+
   // Drag engine for line endpoints / move / rotate
   useEffect(() => {
     function onMove(e: MouseEvent) {
@@ -372,12 +394,13 @@ export default function Canvas() {
       }
 
       if (mode === "rotate") {
-        // compute current cursor angle around center
-        const nx = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const ny = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-        const curAngle = Math.atan2(ny - center.y, nx - center.x);
+        // compute current cursor angle around center in % space
+        const nxPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const nyPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        const curAngle = Math.atan2(nyPct - center.y, nxPct - center.x);
         const delta = curAngle - (d.startCursorAngle || 0);
 
+        // rotate original endpoints by delta
         const cos = Math.cos(delta);
         const sin = Math.sin(delta);
         const rot = (pt: LinePoint): LinePoint => {
@@ -385,14 +408,50 @@ export default function Canvas() {
           const dy = pt.y - center.y;
           return { x: center.x + dx * cos - dy * sin, y: center.y + dx * sin + dy * cos };
         };
-        setLinePoints(id, [rot(startP1), rot(startP2)]);
+        let np1 = rot(startP1);
+        let np2 = rot(startP2);
+
+        // compute angle of new line for HUD
+        let deg = Math.atan2(np2.y - np1.y, np2.x - np1.x) * (180 / Math.PI);
+        deg = normalizeDeg(deg);
+
+        // snapping
+        if (e.shiftKey) {
+          const snapped15 = Math.round(deg / 15) * 15;
+          let desired = snapDeg(snapped15);
+          desired = normalizeDeg(desired);
+          // adjust points to match desired exactly
+          const diffRad = (desired - deg) * (Math.PI / 180);
+          const c2 = Math.cos(diffRad);
+          const s2 = Math.sin(diffRad);
+          const rot2 = (pt: LinePoint): LinePoint => {
+            const dx = pt.x - center.x;
+            const dy = pt.y - center.y;
+            return { x: center.x + dx * c2 - dy * s2, y: center.y + dx * s2 + dy * c2 };
+          };
+          np1 = rot2(np1);
+          np2 = rot2(np2);
+          deg = desired;
+        }
+
+        setLinePoints(id, [np1, np2]);
+
+        // update rotation HUD near cursor inside page
+        setRotHUD({
+          active: true,
+          deg: Math.round(deg),
+          cursor: { x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 },
+          lineId: id,
+        });
       }
     }
 
     function onUp() {
       if (lineDragRef.current) {
+        const wasRotate = lineDragRef.current.mode === "rotate";
         lineDragRef.current = null;
         document.body.style.cursor = prevCursorRef.current || "";
+        if (wasRotate) setRotHUD((s) => ({ ...s, active: false, lineId: undefined }));
       }
     }
 
@@ -437,15 +496,13 @@ export default function Canvas() {
               // current cursor vs center in %
               (() => {
                 const r = pageRef.current!.getBoundingClientRect();
-                const nx = ((e.clientX - r.left) / r.width) * 100;
-                const ny = ((e.clientY - r.top) / r.height) * 100;
-                return ny - center.y;
+                const ny = ((e.clientY - r.top) / r.height) * 100 - center.y;
+                return ny;
               })(),
               (() => {
                 const r = pageRef.current!.getBoundingClientRect();
-                const nx = ((e.clientX - r.left) / r.width) * 100;
-                const ny = ((e.clientY - r.top) / r.height) * 100;
-                return nx - center.x;
+                const nx = ((e.clientX - r.left) / r.width) * 100 - center.x;
+                return nx;
               })()
             )
           : undefined,
@@ -453,6 +510,20 @@ export default function Canvas() {
     prevCursorRef.current = document.body.style.cursor;
     document.body.style.cursor = mode === "rotate" ? "grabbing" : "move";
     selectUserBlock(id);
+
+    if (mode === "rotate") {
+      // seed HUD with current angle
+      const deg0 = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+      if (pageRef.current) {
+        const rect = pageRef.current.getBoundingClientRect();
+        setRotHUD({
+          active: true,
+          deg: Math.round(normalizeDeg(deg0)),
+          cursor: { x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 },
+          lineId: id,
+        });
+      }
+    }
   }
 
   function renderBoundText(raw?: string) {
@@ -610,6 +681,27 @@ export default function Canvas() {
           onDrop={onDrop}
           onClick={onCanvasClick}
         >
+          {/* Rotation HUD */}
+          {rotHUD.active && (
+            <div
+              style={{
+                position: "absolute",
+                left: rotHUD.cursor.x,
+                top: rotHUD.cursor.y,
+                padding: "4px 6px",
+                fontSize: 12,
+                borderRadius: 6,
+                background: "rgba(17,24,39,0.92)",
+                color: "#fff",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                pointerEvents: "none",
+                zIndex: 40,
+              }}
+            >
+              {rotHUD.deg}°
+            </div>
+          )}
+
           {/* Template blocks */}
           {blocks.map((b: Block) => {
             const v = (pageInstance.values as any)?.[b.id];
@@ -845,6 +937,7 @@ export default function Canvas() {
               const dashArr = Array.isArray(bs?.stroke?.dash) ? bs.stroke.dash : (Number.isFinite(st.dash) && st.dash > 0 ? [st.dash, st.dash] : []);
               const p = Array.isArray((ub as any).points) ? ((ub as any).points as LinePoint[]) : [];
               const isActive = selectedUserBlockId === ub.id;
+              const isRotatingThis = rotHUD.active && rotHUD.lineId === ub.id;
 
               if (p.length < 2) {
                 return (
@@ -884,11 +977,11 @@ export default function Canvas() {
                       strokeWidth={strokeW}
                       strokeDasharray={dashArr && dashArr.length ? dashArr.join(",") : undefined}
                       strokeLinecap="round"
-                      style={{ pointerEvents: "none" }}   // <— add this
+                      style={{ pointerEvents: "none" }}
                     />
                     
                     {/* endpoint handles */}
-                    {isActive && (
+                    {isActive && !isRotatingThis && (
                       <>
                         <circle
                           cx={pct(p1.x)} cy={pct(p1.y)} r={8}
@@ -907,7 +1000,7 @@ export default function Canvas() {
                   </svg>
 
                   {/* move and rotate controls under the midpoint */}
-                  {isActive && (
+                  {isActive && !isRotatingThis && (
                     <div
                       style={{
                         position: "absolute",
