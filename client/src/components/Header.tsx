@@ -52,7 +52,10 @@ export default function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-gray-100">
+    <header
+      data-app-header
+      className="sticky top-0 z-40 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-gray-100"
+    >
       <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4 md:py-5">
         {/* Brand */}
         <a href="#hero" className="flex items-center gap-3">

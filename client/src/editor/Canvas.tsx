@@ -128,6 +128,28 @@ export default function Canvas() {
 
   const pageRef = useRef<HTMLDivElement>(null);
 
+  // Sticky toolbars, avoid header overlap (dynamic)
+  const getHeaderH = () =>
+    (document.querySelector("[data-app-header]") as HTMLElement)?.offsetHeight ?? 56;
+
+  const TOOLBAR_GAP = 0; // px gap below header/page top
+  const [toolbarTop, setToolbarTop] = useState(getHeaderH() + TOOLBAR_GAP);
+
+  useEffect(() => {
+    const updateTop = () => {
+      const headerH = getHeaderH();
+      const pageTop = pageRef.current?.getBoundingClientRect().top ?? 0;
+      setToolbarTop(Math.max(headerH + TOOLBAR_GAP, pageTop + TOOLBAR_GAP));
+    };
+    updateTop();
+    window.addEventListener("scroll", updateTop, { passive: true });
+    window.addEventListener("resize", updateTop);
+    return () => {
+      window.removeEventListener("scroll", updateTop);
+      window.removeEventListener("resize", updateTop);
+    };
+  }, []);
+
   // drag state for simple text boxes (legacy)
   const dragRef = useRef<{
     mode: "move" | "resize-tl" | "resize-right";
@@ -806,9 +828,8 @@ export default function Canvas() {
         ) as Extract<UserBlock, { type: "line" | "rect" | "ellipse" | "divider" }> | undefined)
       : undefined;
 
-  // Reserve vertical space when a toolbar is visible
+  // Reserve vertical space when a toolbar is visible (no longer used for layout; kept for reference)
   const showToolbar = !!activeTextBlock || !!activeShapeBlock;
-  const toolbarHeight = 48; // px
 
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
@@ -816,18 +837,17 @@ export default function Canvas() {
         className="relative"
         style={{
           width: PAGE_W * zoom,
-          height: PAGE_H * zoom + (showToolbar ? toolbarHeight : 0),
-          paddingTop: showToolbar ? toolbarHeight : 0,
+          height: PAGE_H * zoom,
         }}
       >
-        {/* Floating toolbars */}
+        {/* Sticky (fixed) toolbars */}
         {activeTextBlock && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
+          <div className="fixed left-1/2 -translate-x-1/2 z-50" style={{ top: toolbarTop }}>
             <TextToolbar blockId={activeTextBlock.id} style={activeTextBlock.style || {}} />
           </div>
         )}
         {activeShapeBlock && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30">
+          <div className="fixed left-1/2 -translate-x-1/2 z-50" style={{ top: toolbarTop }}>
             <ShapeToolbar
               blockId={activeShapeBlock.id}
               kind={activeShapeBlock.type as "line" | "rect" | "ellipse" | "divider"}
@@ -835,7 +855,6 @@ export default function Canvas() {
             />
           </div>
         )}
-
         <div
           ref={pageRef}
           className="relative bg-white shadow"
@@ -995,7 +1014,7 @@ export default function Canvas() {
             const active = selectedUserBlockId === ub.id;
 
             if (ub.type === "text") {
-              const st = ub.style || {};
+              const st = (ub as any).style || {};
               const textareaStyle: React.CSSProperties = {
                 color: st.color,
                 fontFamily: st.fontFamily,
@@ -1256,9 +1275,6 @@ export default function Canvas() {
               const rotation = (ub as any).rotation || 0;
               const isRotatingThis = rotHUD.active && rotHUD.targetId === ub.id;
 
-              // midpoint (in page %) for external positioning if needed
-              const mid = { x: r.x + r.w / 2, y: r.y + r.h / 2 };
-
               return (
                 <div
                   key={ub.id}
@@ -1279,7 +1295,7 @@ export default function Canvas() {
                 >
                   {active && !isRotatingThis && (
                     <>
-                      {/* corner + side handles in element-local box */}
+                      {/* corner + side handles in element-local box (we keep them visually axis-aligned for MVP) */}
                       {["nw","ne","sw","se","n","s","e","w"].map((dir) => (
                         <div
                           key={dir}
@@ -1301,39 +1317,25 @@ export default function Canvas() {
                           }}
                         />
                       ))}
-
-                      {/* move and rotate controls under the midpoint — unified with line */}
+                      {/* move + rotate controls (rect: rotate above by design; unchanged) */}
                       <div
+                        onMouseDown={(e)=>startRectDrag("move",ub.id,r,rotation,e)}
                         style={{
-                          position: "absolute",
-                          left: "50%",
-                          top: "calc(100% + 22px)",
-                          transform: "translateX(-50%)",
-                          display: "flex",
-                          gap: 8,
+                          position:"absolute", left:"50%", bottom:-28, transform:"translateX(-50%)",
+                          width:28, height:28, borderRadius:9999, background:"#fff", border:"1px solid #94a3b8",
+                          display:"grid", placeItems:"center", boxShadow:"0 1px 2px rgba(0,0,0,0.08)", cursor:"move",
+                          userSelect:"none", fontSize:14
                         }}
-                      >
-                        <div
-                          title="Rotate"
-                          onMouseDown={(e)=>startRectDrag("rotate",ub.id,r,rotation,e)}
-                          style={{
-                            width:28, height:28, borderRadius:9999,
-                            background:"#fff", border:"1px solid #94a3b8",
-                            boxShadow:"0 1px 2px rgba(0,0,0,0.08)", display:"grid", placeItems:"center",
-                            cursor:"grab", userSelect:"none", fontSize:14
-                          }}
-                        >↻</div>
-                        <div
-                          title="Move"
-                          onMouseDown={(e)=>startRectDrag("move",ub.id,r,rotation,e)}
-                          style={{
-                            width:28, height:28, borderRadius:9999,
-                            background:"#fff", border:"1px solid #94a3b8",
-                            boxShadow:"0 1px 2px rgba(0,0,0,0.08)", display:"grid", placeItems:"center",
-                            cursor:"move", userSelect:"none", fontSize:14
-                          }}
-                        >⤧</div>
-                      </div>
+                      >⤧</div>
+                      <div
+                        onMouseDown={(e)=>startRectDrag("rotate",ub.id,r,rotation,e)}
+                        style={{
+                          position:"absolute", left:"50%", top:-40, transform:"translateX(-50%)",
+                          width:28, height:28, borderRadius:9999, background:"#fff", border:"1px solid #94a3b8",
+                          display:"grid", placeItems:"center", boxShadow:"0 1px 2px rgba(0,0,0,0.08)", cursor:"grab",
+                          userSelect:"none", fontSize:14
+                        }}
+                      >↻</div>
                     </>
                   )}
                 </div>
