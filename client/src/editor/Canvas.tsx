@@ -5,6 +5,10 @@ import { renderString, select } from "../templates/bindings";
 import TextToolbar from "./blocks/TextToolbar";
 import ShapeToolbar from "./blocks/ShapeToolbar";
 import { BLOCK_DEFS } from "./blocks/defs";
+import SitePropertiesBlock from "./blocks/SitePropertiesBlock";
+import InspectionDetailsBlock from "./blocks/InspectionDetailsBlock";
+import OrthoPairBlock from "./blocks/OrthoPairBlock";
+import ThermalAnomaliesTableBlock from "./blocks/ThermalAnomaliesTableBlock";
 
 const DR_MEDIA_MIME = "application/x-dr-media";
 
@@ -1371,6 +1375,31 @@ export default function Canvas() {
                         })()}
                       </div>
                     )}
+
+                    {kind === "siteProperties" && (
+                      <SitePropertiesBlock
+                        {...({ pageId: pageInstance.id, blockId: ub.id, value: payload } as any)}
+                      />
+                    )}
+
+                   {kind === "inspectionDetails" && (
+                    <InspectionDetailsBlock
+                      {...({ pageId: pageInstance.id, blockId: ub.id, value: payload } as any)}
+                    />
+                  )}
+
+                   {kind === "orthoPair" && (
+                    <OrthoPairBlock
+                      {...({ pageId: pageInstance.id, blockId: ub.id, value: payload } as any)}
+                    />
+                  )}
+
+
+                   {kind === "thermalAnomalies" && (
+                    <ThermalAnomaliesTableBlock
+                      {...({ pageId: pageInstance.id, blockId: ub.id, value: payload } as any)}
+                    />
+                  )}
 
                     {/* handles (no rotate for section blocks) */}
                     {active && (

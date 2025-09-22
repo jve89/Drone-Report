@@ -27,8 +27,10 @@
 │   │   │   │   └── Annotator.tsx
 │   │   │   ├── blocks
 │   │   │   │   ├── BlocksPanel.tsx
+│   │   │   │   ├── defs.ts
 │   │   │   │   ├── ElementsPanel.tsx
 │   │   │   │   ├── ShapeToolbar.tsx
+│   │   │   │   ├── SitePropertiesBlock.tsx
 │   │   │   │   └── TextToolbar.tsx
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── FileMenu.tsx
@@ -55,6 +57,7 @@
 │   │   │   ├── panels
 │   │   │   │   ├── ExportPanel.tsx
 │   │   │   │   ├── FindingsPanel.tsx
+│   │   │   │   ├── LayersPanel.tsx
 │   │   │   │   ├── MediaPanel.tsx
 │   │   │   │   ├── StartChecklist.tsx
 │   │   │   │   └── TemplatePanel.tsx
@@ -300,4 +303,4 @@
         ├── style.ts
         └── template.ts
 
-68 directories, 232 files
+68 directories, 235 files

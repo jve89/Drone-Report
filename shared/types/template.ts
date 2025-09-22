@@ -1,7 +1,7 @@
 // shared/types/template.ts
 export type Rect = { x: number; y: number; w: number; h: number }; // percents 0–100
 
-export type BlockType = "text" | "image_slot" | "table" | "badge" | "repeater";
+export type BlockType = "text" | "image_slot" | "table" | "badge" | "repeater" | "siteProperties";
 
 export type BlockBase = {
   id: string;
@@ -10,7 +10,6 @@ export type BlockBase = {
   label?: string;
   placeholder?: string;
   help?: string; // drives Guided Wizard steps
-  // type-specific options live here; values live in draft.pageInstances[].values[blockId]
   options?: Record<string, any>;
 };
 
@@ -46,7 +45,20 @@ export type BlockRepeater = BlockBase & {
   };
 };
 
-export type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
+export type BlockSiteProperties = BlockBase & {
+  type: "siteProperties";
+  options?: {
+    fields?: string[]; // keys of SiteProperties to show
+  };
+};
+
+export type Block =
+  | BlockText
+  | BlockImage
+  | BlockTable
+  | BlockBadge
+  | BlockRepeater
+  | BlockSiteProperties;
 
 export type TemplatePage = {
   id: string;
@@ -85,3 +97,14 @@ export type DraftPayload = {
   meta?: { templateId?: string; title?: string };
   findings?: Finding[];
 };
+
+export interface SiteProperties {
+  address?: string;
+  peakPowerMWp?: number;
+  panelCount?: number;
+  inclinationDeg?: number;
+  orientation?: string;
+  areaHa?: number;
+  panelModel?: string;
+  inverterModel?: string;
+}

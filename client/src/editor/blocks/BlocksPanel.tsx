@@ -33,21 +33,39 @@ export default function BlocksPanel() {
         location: f.location || "",
         category: f.category || "",
       }));
-      const sample = rows.length
-        ? rows
-        : [
-            { title: "Loose fastener at panel A3", severity: 3, location: "Roof NE", category: "Mechanical" },
-            { title: "Cracked sealant", severity: 2, location: "Roof SW", category: "Sealant" },
-            { title: "Corrosion on bracket", severity: 4, location: "Tower mid", category: "Corrosion" },
-          ];
-      return { rows: sample };
+      return { rows: rows.length ? rows : [
+        { title: "Loose fastener at panel A3", severity: 3, location: "Roof NE", category: "Mechanical" },
+        { title: "Cracked sealant", severity: 2, location: "Roof SW", category: "Sealant" },
+        { title: "Corrosion on bracket", severity: 4, location: "Tower mid", category: "Corrosion" },
+      ]};
     }
-    return { urls: [] as string[] };
+    if (kind === "photoStrip") {
+      return { urls: [] as string[] };
+    }
+    if (kind === "siteProperties") {
+      return {}; // values typed as props, no payload table
+    }
+    if (kind === "inspectionDetails") {
+      return { date: "", inspector: "", weather: "", wind: "", temperature: "", notes: "" };
+    }
+    if (kind === "orthoPair") {
+      return { leftUrl: "", rightUrl: "", leftCaption: "", rightCaption: "" };
+    }
+    if (kind === "thermalAnomalies") {
+      return {
+        rows: [
+          { type: "Hotspot", cause: "Loose connector", tMin: 32.1, tMean: 38.2, tMax: 45.9, tDelta: 13.8, lat: 52.1, lon: 5.1 },
+          { type: "String", cause: "Diode failure", tMin: 28.4, tMean: 33.0, tMax: 39.2, tDelta: 10.8, lat: 52.1, lon: 5.1 },
+        ],
+      };
+    }
+    return {};
   }
 
   function insert(kind: BlockKind) {
     startInsert("rect");
-    const id = placeUserBlock({ x: 10, y: 10, w: 80, h: kind === "photoStrip" ? 18 : 24 });
+    const h = kind === "photoStrip" ? 18 : kind === "inspectionDetails" ? 24 : 24;
+    const id = placeUserBlock({ x: 10, y: 10, w: 80, h });
     if (!id) return;
 
     updateUserBlock(id, {
@@ -105,6 +123,58 @@ export default function BlocksPanel() {
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex-1 h-12 bg-gray-200 rounded" />
               ))}
+            </div>
+          }
+        />
+        <Card
+          title="Site Properties"
+          subtitle="Key site metrics"
+          onInsert={() => insert("siteProperties")}
+          preview={
+            <div className="grid grid-cols-2 gap-1 w-full h-full p-2">
+              {["Address", "MWp", "Panels", "Incl."].map((l) => (
+                <div key={l} className="border rounded p-1 text-[11px]">
+                  <div className="text-[10px] text-gray-500">{l}</div>
+                  <div>—</div>
+                </div>
+              ))}
+            </div>
+          }
+        />
+        <Card
+          title="Inspection Details"
+          subtitle="Inspector • Weather • Notes"
+          onInsert={() => insert("inspectionDetails")}
+          preview={
+            <div className="grid grid-cols-2 gap-1 w-full h-full p-2">
+              {["Date", "Inspector", "Weather", "Notes"].map((l) => (
+                <div key={l} className="border rounded p-1 text-[11px]">
+                  <div className="text-[10px] text-gray-500">{l}</div>
+                  <div>—</div>
+                </div>
+              ))}
+            </div>
+          }
+        />
+        <Card
+          title="Ortho Pair"
+          subtitle="Before/after or Ortho/Detail"
+          onInsert={() => insert("orthoPair")}
+          preview={
+            <div className="grid grid-cols-2 gap-1 w-full h-full p-2">
+              <div className="bg-gray-200 rounded" />
+              <div className="bg-gray-200 rounded" />
+            </div>
+          }
+        />
+        <Card
+          title="Thermal Anomalies"
+          subtitle="IR table (ΔT)"
+          onInsert={() => insert("thermalAnomalies")}
+          preview={
+            <div className="w-full h-full p-2">
+              <div className="text-[10px] text-gray-500">Type • Tmin • Tmean • Tmax • ΔT</div>
+              <div className="text-[11px]">Hotspot • 32 • 38 • 46 • 14</div>
             </div>
           }
         />

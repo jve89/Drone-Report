@@ -141,6 +141,19 @@ export default function Inspector() {
                     </div>
                   );
                 }
+                if (f.type === "text") {
+                  return (
+                    <div key={f.key}>
+                      <div className="text-xs text-gray-600">{f.label}</div>
+                      <input
+                        type="text"
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={props[f.key] ?? ""}
+                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.value })}
+                      />
+                    </div>
+                  );
+                }
                 return null;
               })}
             </div>

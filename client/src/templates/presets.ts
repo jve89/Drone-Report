@@ -14,7 +14,6 @@ export type BlockPreset = {
   inputs?: Record<string, unknown>;
 };
 
-// Hardcoded for Gate A. We’ll replace with dynamic import from shared/blocks in Gate C.
 export async function loadBlockPresets(): Promise<BlockPreset[]> {
   const header: BlockPreset = {
     id: "header-basic",
@@ -36,5 +35,21 @@ export async function loadBlockPresets(): Promise<BlockPreset[]> {
     ],
   };
 
-  return [header, footer];
+  const siteProps: BlockPreset = {
+    id: "site-properties-basic",
+    name: "Site Properties",
+    elements: [],
+    inputs: {
+      address: "",
+      peakPowerMWp: 0,
+      panelCount: 0,
+      inclinationDeg: 0,
+      orientation: "",
+      areaHa: 0,
+      panelModel: "",
+      inverterModel: "",
+    },
+  };
+
+  return [header, footer, siteProps];
 }
