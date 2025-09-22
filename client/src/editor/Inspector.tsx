@@ -1,5 +1,6 @@
 // client/src/editor/Inspector.tsx
 import { useEditor } from "../state/editorStore";
+import { BLOCK_DEFS, BlockKind } from "./blocks/defs";
 
 /** Local, file-scoped types to avoid mismatch with external unions */
 type Rect = { x: number; y: number; w: number; h: number };
@@ -41,7 +42,7 @@ export default function Inspector() {
     setValue, selectedBlockId, setSelectedBlock, guide, guideNext,
     // User elements
     selectedUserBlockId, selectUserBlock, updateUserBlock, deleteUserBlock,
-    bringForward, sendBackward,
+    bringForward, sendBackward, updateBlockProps,
   } = useEditor();
 
   if (!draft || !template) {
@@ -68,20 +69,64 @@ export default function Inspector() {
       const onDelete = () => { deleteUserBlock(ub.id); selectUserBlock(null); };
       const onBringFwd = () => bringForward(ub.id);
       const onSendBack = () => sendBackward(ub.id);
-      const meta = (ub as any)?.blockStyle?.meta as { blockKind?: string; payload?: any } | undefined;
+      const meta = (ub as any)?.blockStyle?.meta as { blockKind?: BlockKind; payload?: any; props?: any } | undefined;
 
-      // Read-only panel for Blocks
+      // Blocks: editable props
       if (meta?.blockKind) {
+        const kind = meta.blockKind;
+        const def = BLOCK_DEFS[kind];
+        const props = (meta.props ?? def.defaultProps) as Record<string, any>;
+
         return (
           <div className="p-3 space-y-3">
             <div className="text-sm font-medium">Inspector</div>
             <div className="text-[11px] text-gray-500 -mt-1">
-              Block: <code>{meta.blockKind}</code> <span className="text-gray-400">(read-only)</span>
+              Block: <code>{kind}</code>
             </div>
-            <div className="text-xs text-gray-600">Summary</div>
-            <pre className="text-[11px] bg-gray-50 border rounded p-2 overflow-auto max-h-40">
-{JSON.stringify(meta.payload ?? {}, null, 2)}
-            </pre>
+
+            {/* Dynamic props form */}
+            <div className="space-y-2">
+              {def.inspectorFields.map((f) => {
+                if (f.type === "checkbox") {
+                  return (
+                    <label key={f.key} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={!!props[f.key]}
+                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.checked })}
+                      />
+                      <span>{f.label}</span>
+                    </label>
+                  );
+                }
+                if (f.type === "number") {
+                  return (
+                    <div key={f.key}>
+                      <div className="text-xs text-gray-600">{f.label}</div>
+                      <input
+                        type="number"
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        min={f.min ?? 0}
+                        max={f.max ?? 999}
+                        step={f.step ?? 1}
+                        value={Number(props[f.key] ?? 0)}
+                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: Number(e.target.value || 0) })}
+                      />
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+
+            {/* Summary */}
+            <div>
+              <div className="text-xs text-gray-600">Summary</div>
+              <pre className="text-[11px] bg-gray-50 border rounded p-2 overflow-auto max-h-40">
+{JSON.stringify({ payload: meta.payload ?? {}, props }, null, 2)}
+              </pre>
+            </div>
+
             <div className="flex gap-2">
               <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
               <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
@@ -101,28 +146,10 @@ export default function Inspector() {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
-              onClick={onBringFwd}
-              title="Bring forward"
-            >
-              Bring forward
-            </button>
-            <button
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
-              onClick={onSendBack}
-              title="Send backward"
-            >
-              Send backward
-            </button>
+            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd} title="Bring forward">Bring forward</button>
+            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack} title="Send backward">Send backward</button>
             <div className="flex-1" />
-            <button
-              className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
-              onClick={onDelete}
-              title={`Delete ${titleCase(ub.type)}`}
-            >
-              Delete
-            </button>
+            <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete} title={`Delete ${titleCase(ub.type)}`}>Delete</button>
           </div>
 
           {ub.type === "text" && (

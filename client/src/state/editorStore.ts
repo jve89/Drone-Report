@@ -191,6 +191,9 @@ type EditorState = {
   dirty: boolean;
   lastSavedAt?: string;
 
+  // Blocks: props editing
+  updateBlockProps: (id: string, patch: Record<string, unknown>) => void;
+
   // Wizard + selection
   selectedBlockId: string | null;
   selectedUserBlockId: string | null;
@@ -290,6 +293,7 @@ type EditorState = {
   saveDebounced: () => void;
   saveNow: () => Promise<void>;
   setDraftTitle: (title: string) => Promise<void>;
+  
 };
 
 export const useEditor = create<EditorState>((set, get) => ({
@@ -310,6 +314,39 @@ export const useEditor = create<EditorState>((set, get) => ({
   steps: [],
 
   findings: [],
+
+  updateBlockProps: (id, patch) => {
+    const s = get();
+    get().mark({ coalesce: true });
+    set((st) => {
+      if (!st.draft) return {};
+      const d: Draft = structuredClone(st.draft);
+      const pi = d.pageInstances?.[st.pageIndex];
+      if (!pi) return {};
+      const list = Array.isArray(pi.userBlocks) ? pi.userBlocks.slice() : [];
+      const i = list.findIndex((b: any) => b.id === id);
+      if (i < 0) return {};
+
+      const cur: any = list[i];
+      const curMeta = (cur.blockStyle?.meta ?? {}) as any;
+      const curProps = (curMeta.props ?? {}) as Record<string, unknown>;
+
+      const nextMeta = { ...curMeta, props: { ...curProps, ...(patch || {}) } };
+      const nextBlock = {
+        ...cur,
+        blockStyle: {
+          ...(cur.blockStyle || {}),
+          meta: nextMeta,
+        },
+      };
+
+      list[i] = nextBlock;
+      (pi as any).userBlocks = list as any;
+
+      return { draft: d, dirty: true };
+    });
+    s.saveDebounced();
+  },
 
   // Preview modal
   previewOpen: false,

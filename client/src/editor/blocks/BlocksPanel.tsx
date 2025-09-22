@@ -1,8 +1,7 @@
 // client/src/editor/blocks/BlocksPanel.tsx
 import React from "react";
 import { useEditor } from "../../state/editorStore";
-
-type BlockKind = "severityOverview" | "findingsTable" | "photoStrip";
+import { BLOCK_DEFS, BlockKind } from "./defs";
 
 function Card({
   title, subtitle, onInsert, preview,
@@ -25,7 +24,7 @@ export default function BlocksPanel() {
   function makePayload(kind: BlockKind) {
     if (kind === "severityOverview") {
       const counts = [1, 2, 3, 4, 5].map((s) => findings.filter((f) => f.severity === s).length);
-      return { counts }; // [sev1..sev5]
+      return { counts };
     }
     if (kind === "findingsTable") {
       const rows = findings.slice(0, 4).map((f) => ({
@@ -43,22 +42,26 @@ export default function BlocksPanel() {
           ];
       return { rows: sample };
     }
-    // photoStrip
-    return { urls: [] as string[] }; // Canvas will derive from findings if empty
+    return { urls: [] as string[] };
   }
 
   function insert(kind: BlockKind) {
-    // place a generic rect, then tag it as a block
     startInsert("rect");
     const id = placeUserBlock({ x: 10, y: 10, w: 80, h: kind === "photoStrip" ? 18 : 24 });
     if (!id) return;
+
     updateUserBlock(id, {
       blockStyle: {
         stroke: { width: 0 },
         fill: { token: "surface" },
-        meta: { blockKind: kind, payload: makePayload(kind) },
+        meta: {
+          blockKind: kind,
+          payload: makePayload(kind),
+          props: BLOCK_DEFS[kind].defaultProps,
+        },
       } as any,
     } as any);
+
     selectUserBlock(id);
   }
 

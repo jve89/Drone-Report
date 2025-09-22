@@ -4,6 +4,7 @@ import { useEditor } from "../state/editorStore";
 import { renderString, select } from "../templates/bindings";
 import TextToolbar from "./blocks/TextToolbar";
 import ShapeToolbar from "./blocks/ShapeToolbar";
+import { BLOCK_DEFS } from "./blocks/defs";
 
 const DR_MEDIA_MIME = "application/x-dr-media";
 
@@ -1290,73 +1291,122 @@ export default function Canvas() {
             }
 
             // Block previews tagged via blockStyle.meta.blockKind
-            const meta = (ub as any)?.blockStyle?.meta as { blockKind?: string; payload?: any } | undefined;
+            const meta = (ub as any)?.blockStyle?.meta as { blockKind?: string; payload?: any; props?: any } | undefined;
             if (meta?.blockKind) {
               const r = (ub as any).rect as Rect;
-              const kind = meta.blockKind;
+              const kind = meta.blockKind as keyof typeof BLOCK_DEFS;
               const payload = meta.payload || {};
+              const def = BLOCK_DEFS[kind];
+
+              if (!def) return null;
+              const props = { ...(def.defaultProps ?? {}), ...(meta.props ?? {}) } as any;
+
               return (
-                <Frame key={ub.id} rect={r} active={active}>
-                  {kind === "severityOverview" && (
-                    <div className="w-full h-full grid grid-cols-3 gap-2 p-2">
-                      {[1, 3, 5].map((sev) => {
-                        const counts = Array.isArray(payload.counts) ? payload.counts : [];
-                        const idx = Math.max(0, Math.min(4, sev - 1));
-                        const n = Number.isFinite(counts[idx]) ? counts[idx] : 0;
-                        return (
-                          <div key={sev} className="border rounded text-center p-2">
-                            <div className="text-[11px] text-gray-500">Severity {sev}</div>
-                            <div className="text-xl font-semibold">{n}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                <Frame key={ub.id} rect={r} active={active} overflowVisible>
+                  <div
+                    style={{ position: "relative", width: "100%", height: "100%", zIndex }}
+                    onMouseDown={(e) => { e.stopPropagation(); selectUserBlock(ub.id); }}
+                  >
+                    {/* block content */}
+                    {kind === "severityOverview" && (
+                      <div className="w-full h-full grid grid-cols-3 gap-2 p-2">
+                        {[1, 3, 5].map((sev) => {
+                          const counts = Array.isArray(payload.counts) ? payload.counts : [];
+                          const idx = Math.max(0, Math.min(4, sev - 1));
+                          const n = Number.isFinite(counts[idx]) ? counts[idx] : 0;
+                          return (
+                            <div key={sev} className="border rounded text-center p-2">
+                              <div className="text-[11px] text-gray-500">Severity {sev}</div>
+                              <div className="text-xl font-semibold">
+                                {props.showIcons ? "⚠️ " : null}{n}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                  {kind === "findingsTable" && (
-                    <div className="w-full h-full overflow-auto">
-                      <table className="min-w-full text-xs border">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-2 py-1 text-left border-b">Title</th>
-                            <th className="px-2 py-1 text-left border-b">Sev</th>
-                            <th className="px-2 py-1 text-left border-b">Location</th>
-                            <th className="px-2 py-1 text-left border-b">Category</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(payload.rows || []).slice(0, 6).map((row: any, ri: number) => (
-                            <tr key={ri} className="border-b align-top">
-                              <td className="px-2 py-1">{row.title || ""}</td>
-                              <td className="px-2 py-1">{row.severity ?? ""}</td>
-                              <td className="px-2 py-1">{row.location || ""}</td>
-                              <td className="px-2 py-1">{row.category || ""}</td>
+                    {kind === "findingsTable" && (
+                      <div className="w-full h-full overflow-auto">
+                        <table className="min-w-full text-xs border">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-2 py-1 text-left border-b">Title</th>
+                              {!props.showSeverityIcons && <th className="px-2 py-1 text-left border-b">Sev</th>}
+                              <th className="px-2 py-1 text-left border-b">Location</th>
+                              <th className="px-2 py-1 text-left border-b">Category</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                          </thead>
+                          <tbody>
+                            {(payload.rows || []).slice(0, Math.max(1, Number(props.pageSize || 6))).map((row: any, ri: number) => (
+                              <tr key={ri} className="border-b align-top">
+                                <td className="px-2 py-1">{row.title || ""}</td>
+                                {!props.showSeverityIcons && <td className="px-2 py-1">{row.severity ?? ""}</td>}
+                                <td className="px-2 py-1">{row.location || ""}</td>
+                                <td className="px-2 py-1">{row.category || ""}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
-                  {kind === "photoStrip" && (
-                    <div className="w-full h-full flex gap-2">
-                      {(() => {
-                        const urls: string[] = Array.isArray(payload.urls) ? payload.urls : [];
-                        const derived = urls.length
-                          ? urls
-                          : (findings || []).slice(0, 3).map((f) => {
-                              const mid = f.photoId;
-                              const media = (draft as any)?.media || [];
-                              const m = Array.isArray(media) ? media.find((mm: any) => mm.id === mid) : null;
-                              return m?.url || "";
-                            });
-                        return (derived.length ? derived : ["", "", ""]).slice(0, 3).map((u, idx) =>
-                          u ? <img key={idx} src={u} className="flex-1 object-cover rounded border" />
-                            : <div key={idx} className="flex-1 rounded bg-gray-200 border" />
-                        );
-                      })()}
-                    </div>
-                  )}
+                    {kind === "photoStrip" && (
+                      <div className="w-full h-full flex gap-2">
+                        {(() => {
+                          const urls: string[] = Array.isArray(payload.urls) ? payload.urls : [];
+                          const derived = urls.length
+                            ? urls
+                            : (findings || []).slice(0, props.count ?? 3).map((f) => {
+                                const mid = f.photoId;
+                                const media = (draft as any)?.media || [];
+                                const m = Array.isArray(media) ? media.find((mm: any) => mm.id === mid) : null;
+                                return m?.url || "";
+                              });
+                          const final = (derived.length ? derived : ["", "", ""]).slice(0, props.count ?? 3);
+                          return final.map((u, idx) =>
+                            u ? <img key={idx} src={u} className="flex-1 object-cover rounded border" />
+                              : <div key={idx} className="flex-1 rounded bg-gray-200 border" />
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* handles (no rotate for section blocks) */}
+                    {active && (
+                      <>
+                        {["nw","ne","sw","se","n","s","e","w"].map((dir) => (
+                          <div
+                            key={dir}
+                            onMouseDown={(e) => startRectDrag(dir as any, ub.id, r, 0, e)}
+                            style={{
+                              position: "absolute", width: 12, height: 12,
+                              background: "#fff", border: "1px solid #94a3b8", borderRadius: 2,
+                              zIndex: zIndex + 1,
+                              ...(dir==="nw" ? { left: -8, top: -8, cursor: "nwse-resize"} :
+                                dir==="ne" ? { right: -8, top: -8, cursor: "nesw-resize"} :
+                                dir==="sw" ? { left: -8, bottom: -8, cursor: "nesw-resize"} :
+                                dir==="se" ? { right: -8, bottom: -8, cursor: "nwse-resize"} :
+                                dir==="n" ? { top: -8, left: "50%", transform:"translateX(-50%)", cursor:"ns-resize"} :
+                                dir==="s" ? { bottom: -8, left: "50%", transform:"translateX(-50%)", cursor:"ns-resize"} :
+                                dir==="e" ? { right: -8, top:"50%", transform:"translateY(-50%)", cursor:"ew-resize"} :
+                                { left: -8, top:"50%", transform:"translateY(-50%)", cursor:"ew-resize"})
+                            }}
+                          />
+                        ))}
+                        <div
+                          onMouseDown={(e)=>startRectDrag("move", ub.id, r, 0, e)}
+                          style={{
+                            position:"absolute", left:"50%", bottom:-28, transform:"translateX(-50%)",
+                            width:28, height:28, borderRadius:9999, background:"#fff", border:"1px solid #94a3b8",
+                            display:"grid", placeItems:"center", boxShadow:"0 1px 2px rgba(0,0,0,0.08)", cursor:"move",
+                            userSelect:"none", fontSize:14, zIndex: zIndex + 1,
+                          }}
+                          title="Move"
+                        >⤧</div>
+                      </>
+                    )}
+                  </div>
                 </Frame>
               );
             }
