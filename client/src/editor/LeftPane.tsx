@@ -3,6 +3,7 @@ import Navigator from "./Navigator";
 import { Accordion, AccordionItem } from "../components/Accordion";
 import FindingsPanel from "./panels/FindingsPanel";
 import GuidePanel from "./GuidePanel";
+import LayersPanel from "./panels/LayersPanel";
 
 export default function LeftPane() {
   return (
@@ -11,6 +12,12 @@ export default function LeftPane() {
         <AccordionItem id="pages" title="Pages">
           <div className="overflow-y-auto overflow-x-hidden">
             <Navigator />
+          </div>
+        </AccordionItem>
+
+        <AccordionItem id="layers" title="Layers">
+          <div className="min-h-[120px] max-h-[50vh] overflow-y-auto overflow-x-hidden">
+            <LayersPanel />
           </div>
         </AccordionItem>
 

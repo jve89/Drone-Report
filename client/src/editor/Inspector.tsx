@@ -71,17 +71,36 @@ export default function Inspector() {
       const onSendBack = () => sendBackward(ub.id);
       const meta = (ub as any)?.blockStyle?.meta as { blockKind?: BlockKind; payload?: any; props?: any } | undefined;
 
-      // Blocks: editable props
+      // Section blocks (editable props)
       if (meta?.blockKind) {
-        const kind = meta.blockKind;
+        const kind = meta.blockKind as keyof typeof BLOCK_DEFS;
         const def = BLOCK_DEFS[kind];
-        const props = (meta.props ?? def.defaultProps) as Record<string, any>;
+        if (!def) {
+          return (
+            <div className="p-3 space-y-3">
+              <div className="text-sm font-medium">Inspector</div>
+              <div className="text-[11px] text-gray-500 -mt-1">
+                Section block: <code>{String(kind)}</code>
+              </div>
+              <div className="text-xs text-red-600">Unknown block kind.</div>
+              <div className="flex gap-2 pt-1">
+                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+                <div className="flex-1" />
+                <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+              </div>
+            </div>
+          );
+        }
+
+        // Merge defaults with saved props
+        const props = { ...(def.defaultProps ?? {}), ...(meta.props ?? {}) } as Record<string, any>;
 
         return (
           <div className="p-3 space-y-3">
             <div className="text-sm font-medium">Inspector</div>
             <div className="text-[11px] text-gray-500 -mt-1">
-              Block: <code>{kind}</code>
+              Section block: <code>{String(kind)}</code>
             </div>
 
             {/* Dynamic props form */}
@@ -110,7 +129,14 @@ export default function Inspector() {
                         max={f.max ?? 999}
                         step={f.step ?? 1}
                         value={Number(props[f.key] ?? 0)}
-                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: Number(e.target.value || 0) })}
+                        onChange={(e) =>
+                          updateBlockProps(ub.id, {
+                            [f.key]: Math.max(
+                              f.min ?? -Infinity,
+                              Math.min(f.max ?? Infinity, Number(e.target.value || 0))
+                            ),
+                          })
+                        }
                       />
                     </div>
                   );
@@ -158,7 +184,7 @@ export default function Inspector() {
                 <div className="text-xs text-gray-600">Text</div>
                 <textarea
                   className="w-full border rounded px-2 py-1 text-sm min-h-[80px]"
-                  value={ub.value || ""}
+                  value={(ub as any).value || ""}
                   onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
                   placeholder="Type here…"
                 />
@@ -173,10 +199,10 @@ export default function Inspector() {
                       className="w-full border rounded px-2 py-1 text-sm"
                       min={0}
                       max={100}
-                      value={Number(ub.rect?.[k] ?? 0).toString()}
+                      value={Number((ub as any).rect?.[k] ?? 0).toString()}
                       onChange={(e) => {
                         const num = Number(e.target.value || 0);
-                        updateUserBlock(ub.id, { rect: { ...(ub.rect || { x: 0, y: 0, w: 0, h: 0 }), [k]: num } });
+                        updateUserBlock(ub.id, { rect: { ...((ub as any).rect || { x: 0, y: 0, w: 0, h: 0 }), [k]: num } as any });
                       }}
                     />
                   </div>
