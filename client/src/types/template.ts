@@ -41,7 +41,7 @@ export type Block =
 export type TemplatePage = {
   id: string;
   name: string;
-  kind?: string;
+  kind: string;           // was optional; now required to match schema/shared
   repeatable?: boolean;
   blocks: Block[];
 };

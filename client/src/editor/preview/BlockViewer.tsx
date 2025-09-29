@@ -21,7 +21,11 @@ type BlockRepeater = BlockBase & {
   options?: { previewCount?: number };
   children?: Array<BlockText | BlockImage | BlockBadge>;
 };
-type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
+type BlockSection = BlockBase & {
+  type: "section";
+  options?: { kind?: string; props?: any };
+};
+type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater | BlockSection;
 
 /** Relaxed typing for user blocks so meta-based section blocks render */
 type UserBlock = {
@@ -33,13 +37,17 @@ type UserBlock = {
   style?: any;
 };
 
-function pct(n: number) { return `${n}%`; }
+function pct(n: number) {
+  return `${n}%`;
+}
 
 function Box({ rect, children }: { rect: Rect; children: React.ReactNode }) {
   const style: React.CSSProperties = {
     position: "absolute",
-    left: pct(rect.x), top: pct(rect.y),
-    width: pct(rect.w), height: pct(rect.h),
+    left: pct(rect.x),
+    top: pct(rect.y),
+    width: pct(rect.w),
+    height: pct(rect.h),
     padding: 8,
     overflow: "hidden",
   };
@@ -58,7 +66,11 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
 
   function renderBoundText(raw?: string) {
     if (!raw) return "";
-    try { return renderString(raw, ctx); } catch { return ""; }
+    try {
+      return renderString(raw, ctx);
+    } catch {
+      return "";
+    }
   }
 
   function renderRepeater(b: BlockRepeater) {
@@ -72,15 +84,25 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
             {(b.children || []).map((ch, ci) => {
               if (ch.type === "text") {
                 const v = renderString(ch.value || "", { ...ctx, item });
-                return <div key={ci} className="text-xs mb-1 whitespace-pre-wrap">{v}</div>;
+                return (
+                  <div key={ci} className="text-xs mb-1 whitespace-pre-wrap">
+                    {v}
+                  </div>
+                );
               }
               if (ch.type === "image_slot") {
                 const src = renderString((ch as any).source || "", { ...ctx, item });
-                return src ? <img key={ci} src={src} className="w-full h-40 object-contain border rounded" /> : null;
+                return src ? (
+                  <img key={ci} src={src} className="w-full h-40 object-contain border rounded" />
+                ) : null;
               }
               if (ch.type === "badge") {
                 const lbl = renderString((ch as any).label || "", { ...ctx, item });
-                return <span key={ci} className="inline-block px-2 py-1 rounded text-[11px] bg-amber-200 text-amber-900 mr-2">{lbl}</span>;
+                return (
+                  <span className="inline-block px-2 py-1 rounded text-[11px] bg-amber-200 text-amber-900 mr-2" key={ci}>
+                    {lbl}
+                  </span>
+                );
               }
               return null;
             })}
@@ -146,9 +168,11 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
       <div className="w-full h-full flex gap-2">
         {Array.from({ length: count }).map((_, idx) => {
           const u = final[idx] || "";
-          return u
-            ? <img key={idx} src={u} className="flex-1 object-cover rounded border" />
-            : <div key={idx} className="flex-1 rounded bg-gray-200 border" />;
+          return u ? (
+            <img key={idx} src={u} className="flex-1 object-cover rounded border" />
+          ) : (
+            <div key={idx} className="flex-1 rounded bg-gray-200 border" />
+          );
         })}
       </div>
     );
@@ -199,9 +223,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
   }
 
   function RenderOrthoPair({ payload }: any) {
-    const urls: string[] =
-      Array.isArray(payload?.urls) ? payload.urls :
-      [payload?.leftUrl, payload?.rightUrl].filter(Boolean);
+    const urls: string[] = Array.isArray(payload?.urls) ? payload.urls : [payload?.leftUrl, payload?.rightUrl].filter(Boolean);
     const [u1, u2] = [urls[0] || "", urls[1] || ""];
     return (
       <div className="grid grid-cols-2 gap-2 w-full h-full">
@@ -270,9 +292,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                 }
                 case "text": {
                   const hasBinding = typeof (b as BlockText).value === "string";
-                  const content = hasBinding
-                    ? renderBoundText((b as BlockText).value)
-                    : (typeof v === "string" && v) || b.placeholder || "";
+                  const content = hasBinding ? renderBoundText((b as BlockText).value) : (typeof v === "string" && v) || b.placeholder || "";
                   return (
                     <Box key={b.id} rect={b.rect}>
                       <div className="w-full h-full text-sm whitespace-pre-wrap">{content}</div>
@@ -304,12 +324,22 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                       <div className="overflow-auto w-full h-full">
                         <table className="min-w-full text-xs border">
                           <thead className="bg-gray-50">
-                            <tr>{cols.map((c) => (<th key={c.key} className="px-2 py-1 text-left border-b">{c.label}</th>))}</tr>
+                            <tr>
+                              {cols.map((c) => (
+                                <th key={c.key} className="px-2 py-1 text-left border-b">
+                                  {c.label}
+                                </th>
+                              ))}
+                            </tr>
                           </thead>
                           <tbody>
                             {rows.map((r, ri) => (
                               <tr key={ri} className="border-b align-top">
-                                {cols.map((c) => (<td key={c.key} className="px-2 py-1">{r?.[c.key] ?? ""}</td>))}
+                                {cols.map((c) => (
+                                  <td key={c.key} className="px-2 py-1">
+                                    {r?.[c.key] ?? ""}
+                                  </td>
+                                ))}
                               </tr>
                             ))}
                           </tbody>
@@ -319,15 +349,44 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                   );
                 }
                 case "repeater": {
-                  return <Box key={b.id} rect={b.rect}>{renderRepeater(b as BlockRepeater)}</Box>;
+                  return (
+                    <Box key={b.id} rect={b.rect}>
+                      {renderRepeater(b as BlockRepeater)}
+                    </Box>
+                  );
                 }
+                case "section": {
+                  const kind = (b as BlockSection)?.options?.kind as keyof typeof BLOCK_DEFS | undefined;
+                  if (!kind || !BLOCK_DEFS[kind]) return null;
+
+                  const props = {
+                    ...(BLOCK_DEFS[kind].defaultProps ?? {}),
+                    ...(((b as BlockSection)?.options?.props as any) ?? {}),
+                  };
+                  const payload = v && typeof v === "object" ? v : {};
+
+                  return (
+                    <Box key={b.id} rect={b.rect}>
+                      {kind === "severityOverview" && <RenderSeverityOverview payload={payload} props={props} />}
+                      {kind === "findingsTable" && <RenderFindingsTable payload={payload} props={props} />}
+                      {kind === "photoStrip" && <RenderPhotoStrip payload={payload} props={props} />}
+                      {kind === "siteProperties" && <RenderSiteProperties payload={payload} />}
+                      {kind === "inspectionDetails" && <RenderInspectionDetails payload={payload} />}
+                      {kind === "orthoPair" && <RenderOrthoPair payload={payload} />}
+                      {kind === "thermalAnomalies" && <RenderThermalAnomalies payload={payload} />}
+                    </Box>
+                  );
+                }
+                default:
+                  return null;
               }
-              return null;
             })}
 
             {/* User section blocks (identified by blockStyle.meta.blockKind) */}
             {(userBlocks || []).map((ub) => {
-              const meta = (ub as any)?.blockStyle?.meta as { blockKind?: string; payload?: any; props?: any } | undefined;
+              const meta = (ub as any)?.blockStyle?.meta as
+                | { blockKind?: string; payload?: any; props?: any }
+                | undefined;
               if (!meta?.blockKind || !ub?.rect) return null;
 
               const r = ub.rect as Rect;

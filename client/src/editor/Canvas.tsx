@@ -25,7 +25,11 @@ type BlockRepeater = BlockBase & {
   options?: { previewCount?: number };
   children?: Array<BlockText | BlockImage | BlockBadge>;
 };
-type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
+type BlockSection = BlockBase & {
+  type: "section";
+  options?: { kind?: string; props?: any };
+};
+type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater | BlockSection;
 
 /** User element type mirrors store shape */
 type LinePoint = { x: number; y: number };
@@ -86,6 +90,20 @@ type UserBlock =
 
 function pct(n: number) {
   return `${n}%`;
+}
+
+// Absolute-positioned container used throughout template/user block rendering
+function Box({ rect, children }: { rect: Rect; children: React.ReactNode }) {
+  const style: React.CSSProperties = {
+    position: "absolute",
+    left: pct(rect.x),
+    top: pct(rect.y),
+    width: pct(rect.w),
+    height: pct(rect.h),
+    padding: 8,
+    overflow: "hidden",
+  };
+  return <div style={style}>{children}</div>;
 }
 
 function Frame({
@@ -849,9 +867,6 @@ export default function Canvas() {
         ) as Extract<UserBlock, { type: "line" | "rect" | "ellipse" | "divider" }> | undefined)
       : undefined;
 
-  // Reserve vertical space when a toolbar is visible (no longer used for layout; kept for reference)
-  const showToolbar = !!activeTextBlock || !!activeShapeBlock;
-
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
       <div
@@ -997,9 +1012,7 @@ export default function Canvas() {
                 const tplBinding = typeof (b as BlockText).value === "string" ? (b as BlockText).value : "";
                 const runtimeBinding = vStr.includes("{{") ? vStr : "";
                 const hasBinding = !!tplBinding || !!runtimeBinding;
-                const content = hasBinding
-                  ? renderBoundText(tplBinding || runtimeBinding)
-                  : (vStr || b.placeholder || "");
+                const content = hasBinding ? renderBoundText(tplBinding || runtimeBinding) : (vStr || b.placeholder || "");
                 return (
                   <Frame key={b.id} rect={b.rect} active={active}>
                     {hasBinding ? (
@@ -1072,8 +1085,92 @@ export default function Canvas() {
                   </Frame>
                 );
               }
+
+              case "section": {
+                const kind = (b as any)?.options?.kind as keyof typeof BLOCK_DEFS | undefined;
+                if (!kind || !BLOCK_DEFS[kind]) return null;
+
+                const props = {
+                  ...(BLOCK_DEFS[kind].defaultProps ?? {}),
+                  ...((b as any)?.options?.props ?? {}),
+                };
+                const payload = (v && typeof v === "object") ? v : {};
+
+                return (
+                  <Frame key={b.id} rect={b.rect} active={active}>
+                    {kind === "severityOverview" && (
+                      <div className="w-full h-full grid grid-cols-3 gap-2 p-2">
+                        {[1, 3, 5].map((sev) => {
+                          const counts: number[] = Array.isArray((payload as any).counts) ? (payload as any).counts : [];
+                          const idx = Math.max(0, Math.min(4, sev - 1));
+                          const n = Number.isFinite(counts[idx]) ? counts[idx] : 0;
+                          return (
+                            <div key={sev} className="border rounded text-center p-2">
+                              <div className="text-[11px] text-gray-500">Severity {sev}</div>
+                              <div className="text-xl font-semibold">{props?.showIcons ? "⚠️ " : null}{n}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {kind === "findingsTable" && (
+                      <div className="w-full h-full overflow-auto">
+                        <table className="min-w-full text-xs border">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-2 py-1 text-left border-b">Title</th>
+                              {!props?.showSeverityIcons && <th className="px-2 py-1 text-left border-b">Sev</th>}
+                              <th className="px-2 py-1 text-left border-b">Location</th>
+                              <th className="px-2 py-1 text-left border-b">Category</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {((payload as any).rows || []).slice(0, Math.max(1, Number(props?.pageSize || 6))).map((row: any, ri: number) => (
+                              <tr key={ri} className="border-b align-top">
+                                <td className="px-2 py-1">{row?.title ?? ""}</td>
+                                {!props?.showSeverityIcons && <td className="px-2 py-1">{row?.severity ?? ""}</td>}
+                                <td className="px-2 py-1">{row?.location ?? ""}</td>
+                                <td className="px-2 py-1">{row?.category ?? ""}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {kind === "photoStrip" && (
+                      <div className="w-full h-full flex gap-2">
+                        {(() => {
+                          const urls: string[] = Array.isArray((payload as any).urls) ? (payload as any).urls : [];
+                          const derived = urls.length
+                            ? urls
+                            : (findings || []).slice(0, props?.count ?? 3).map((f) => {
+                                const mid = (f as any).photoId;
+                                const media = (draft as any)?.media || [];
+                                const m = Array.isArray(media) ? media.find((mm: any) => mm.id === mid) : null;
+                                return m?.url || "";
+                              });
+                          const final = (derived.length ? derived : ["", "", ""]).slice(0, props?.count ?? 3);
+                          return final.map((u, idx) =>
+                            u ? <img key={idx} src={u} className="flex-1 object-cover rounded border" />
+                              : <div key={idx} className="flex-1 rounded bg-gray-200 border" />
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {kind === "siteProperties"    && <SitePropertiesBlock        {...({ pageId: pageInstance.id, blockId: b.id, value: payload } as any)} />}
+                    {kind === "inspectionDetails" && <InspectionDetailsBlock     {...({ pageId: pageInstance.id, blockId: b.id, value: payload } as any)} />}
+                    {kind === "orthoPair"         && <OrthoPairBlock             {...({ pageId: pageInstance.id, blockId: b.id, value: payload } as any)} />}
+                    {kind === "thermalAnomalies"  && <ThermalAnomaliesTableBlock {...({ pageId: pageInstance.id, blockId: b.id, value: payload } as any)} />}
+                  </Frame>
+                );
+              }
+
+              default:
+                return null;
             }
-            return null;
           })}
 
           {/* User elements with move + resize handles */}

@@ -2,24 +2,32 @@
 import React from "react";
 
 export type InspectionDetailsProps = {
-  showIcons: boolean;
-  cols: number; // 1 or 2
+  showIcons?: boolean;
+  cols?: number; // 1 or 2
 };
 
-export default function InspectionDetailsBlock({
-  props,
-  payload,
-}: {
-  props: InspectionDetailsProps;
-  payload: Record<string, any>;
-}) {
+type Incoming =
+  | { props?: InspectionDetailsProps; payload?: Record<string, any> }
+  | { value?: Record<string, any>; props?: InspectionDetailsProps } // legacy shape used by Canvas
+
+export default function InspectionDetailsBlock(incoming: Incoming) {
+  // Normalize inputs (support both {props,payload} and {value})
+  const payload: Record<string, any> =
+    (incoming as any)?.payload ?? (incoming as any)?.value ?? {};
+  const props: InspectionDetailsProps = {
+    showIcons: Boolean((incoming as any)?.props?.showIcons),
+    cols: Number.isFinite((incoming as any)?.props?.cols)
+      ? Number((incoming as any)?.props?.cols)
+      : 1,
+  };
+
   const items: Array<{ k: string; v: any }> = [
-    { k: "Date", v: payload.date ?? "" },
-    { k: "Inspector", v: payload.inspector ?? "" },
-    { k: "Weather", v: payload.weather ?? "" },
-    { k: "Wind", v: payload.wind ?? "" },
-    { k: "Temperature", v: payload.temperature ?? "" },
-    { k: "Notes", v: payload.notes ?? "" },
+    { k: "Date",         v: payload?.date ?? "" },
+    { k: "Inspector",    v: payload?.inspector ?? "" },
+    { k: "Weather",      v: payload?.weather ?? "" },
+    { k: "Wind",         v: payload?.wind ?? "" },
+    { k: "Temperature",  v: payload?.temperature ?? "" },
+    { k: "Notes",        v: payload?.notes ?? "" },
   ].filter((x) => String(x.v || "").trim().length);
 
   const colClass = props.cols === 2 ? "grid-cols-2" : "grid-cols-1";
