@@ -99,7 +99,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
               if (ch.type === "badge") {
                 const lbl = renderString((ch as any).label || "", { ...ctx, item });
                 return (
-                  <span className="inline-block px-2 py-1 rounded text-[11px] bg-amber-200 text-amber-900 mr-2" key={ci}>
+                  <span className="inline-block px-2 py-1 rounded text:[11px] text-[11px] bg-amber-200 text-amber-900 mr-2" key={ci}>
                     {lbl}
                   </span>
                 );
@@ -223,7 +223,9 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
   }
 
   function RenderOrthoPair({ payload }: any) {
-    const urls: string[] = Array.isArray(payload?.urls) ? payload.urls : [payload?.leftUrl, payload?.rightUrl].filter(Boolean);
+    const urls: string[] = Array.isArray(payload?.urls)
+      ? payload.urls
+      : [payload?.leftUrl, payload?.rightUrl].filter(Boolean);
     const [u1, u2] = [urls[0] || "", urls[1] || ""];
     return (
       <div className="grid grid-cols-2 gap-2 w-full h-full">
@@ -282,8 +284,11 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
 
               switch (b.type) {
                 case "image_slot": {
+                  // Support both template-level binding (b.source) and runtime binding in value (v with {{ }})
+                  const vStr = typeof v === "string" ? v : "";
+                  const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
                   const boundSrc = (b as BlockImage).source ? renderBoundText((b as BlockImage).source) : "";
-                  const url = boundSrc || (typeof v === "string" ? v : "");
+                  const url = boundFromValue || boundSrc || vStr;
                   return (
                     <Box key={b.id} rect={b.rect}>
                       {url ? <img src={url} className="w-full h-full object-cover" /> : null}
@@ -291,8 +296,14 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                   );
                 }
                 case "text": {
-                  const hasBinding = typeof (b as BlockText).value === "string";
-                  const content = hasBinding ? renderBoundText((b as BlockText).value) : (typeof v === "string" && v) || b.placeholder || "";
+                  // Treat as bound only when template provides a value OR runtime value has {{ }}
+                  const tpl = (b as BlockText).value || "";
+                  const vStr = typeof v === "string" ? v : "";
+                  const runtimeBinding = vStr.includes("{{") ? vStr : "";
+                  const hasBinding = Boolean(tpl || runtimeBinding);
+                  const content = hasBinding
+                    ? renderBoundText(tpl || runtimeBinding)
+                    : vStr || b.placeholder || "";
                   return (
                     <Box key={b.id} rect={b.rect}>
                       <div className="w-full h-full text-sm whitespace-pre-wrap">{content}</div>
@@ -428,10 +439,12 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                 width: "100%",
                 height: "100%",
               };
+              const raw = (ub as any).value || "";
+              const display = typeof raw === "string" && raw.includes("{{") ? renderBoundText(raw) : raw;
               return (
                 <Box key={ub.id} rect={ub.rect}>
                   <div className="w-full h-full text-sm whitespace-pre-wrap" style={style}>
-                    {(ub as any).value || ""}
+                    {display}
                   </div>
                 </Box>
               );

@@ -1,21 +1,24 @@
 // client/src/editor/blocks/ElementsPanel.tsx
+import React from "react";
 import { useEditor } from "../../state/editorStore";
+
+type ElemKind = "text" | "line" | "rect" | "ellipse" | "divider";
 
 export default function ElementsPanel() {
   const { draft, tool, startInsert, cancelInsert } = useEditor();
 
-  const disabled = !draft || !draft.pageInstances?.length;
+  const disabled = !draft || !(draft as any).pageInstances?.length;
 
-  const isActive = (k: "text" | "line" | "rect" | "ellipse" | "divider") =>
-    tool.mode === "insert" && (tool as any).kind === k;
+  const isActive = (k: ElemKind) =>
+    (tool?.mode === "insert") && ((tool as any)?.kind === k);
 
-  const toggle = (k: "text" | "line" | "rect" | "ellipse" | "divider") => {
+  const toggle = (k: ElemKind) => {
     if (disabled) return;
     if (isActive(k)) cancelInsert();
     else startInsert(k as any);
   };
 
-  const btn = (label: string, k: "text" | "line" | "rect" | "ellipse" | "divider", title: string) => (
+  const Btn = ({ label, k, title }: { label: string; k: ElemKind; title: string }) => (
     <button
       className={`px-3 py-2 border rounded text-sm disabled:opacity-50 ${
         isActive(k) ? "bg-green-50 border-green-300" : "hover:bg-gray-50"
@@ -23,6 +26,8 @@ export default function ElementsPanel() {
       disabled={disabled}
       onClick={() => toggle(k)}
       title={title}
+      aria-pressed={isActive(k)}
+      data-active={isActive(k) ? "true" : "false"}
     >
       {isActive(k) ? "Cancel" : label}
     </button>
@@ -41,7 +46,7 @@ export default function ElementsPanel() {
       <div>
         <div className="text-xs font-medium text-gray-600 mb-2">Text</div>
         <div className="grid grid-cols-2 gap-2">
-          {btn("Text", "text", "Insert a text box")}
+          <Btn label="Text" k="text" title="Insert a text box" />
         </div>
       </div>
 
@@ -49,10 +54,10 @@ export default function ElementsPanel() {
       <div>
         <div className="text-xs font-medium text-gray-600 mb-2">Shapes</div>
         <div className="grid grid-cols-3 gap-2">
-          {btn("Line", "line", "Insert a line")}
-          {btn("Rect", "rect", "Insert a rectangle")}
-          {btn("Ellipse", "ellipse", "Insert an ellipse")}
-          {btn("Divider", "divider", "Insert a horizontal divider")}
+          <Btn label="Line" k="line" title="Insert a line" />
+          <Btn label="Rect" k="rect" title="Insert a rectangle" />
+          <Btn label="Ellipse" k="ellipse" title="Insert an ellipse" />
+          <Btn label="Divider" k="divider" title="Insert a horizontal divider" />
         </div>
         <p className="text-[11px] text-gray-400 mt-1">
           Press Esc to cancel placement.

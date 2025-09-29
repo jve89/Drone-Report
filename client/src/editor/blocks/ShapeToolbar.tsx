@@ -19,6 +19,7 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
     style?.stroke?.color?.hex ??
     style?.strokeColor ??
     "#111827";
+
   const strokeW: number =
     Number.isFinite(style?.stroke?.width)
       ? style.stroke.width
@@ -27,45 +28,67 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
       : kind === "divider"
       ? 2
       : 2;
+
   const dashVal: number =
     Array.isArray(style?.stroke?.dash) && style.stroke.dash.length
       ? Number(style.stroke.dash[0])
       : Number.isFinite(style?.dash)
       ? Number(style.dash)
       : 0;
+
   const fillHex: string =
     style?.fill?.hex ??
     style?.fillColor ??
     (kind === "rect" || kind === "ellipse" ? "#ffffff" : "#ffffff");
 
-  // Write into canonical blockStyle
+  // Helper to compose a full blockStyle so we don't clobber sibling keys
+  const composeBlockStyle = (patch: { stroke?: any; fill?: any }) => {
+    const prevStroke = style?.stroke ?? {};
+    const prevFill = style?.fill ?? {};
+    return {
+      stroke: {
+        // keep what's there
+        ...prevStroke,
+        // ensure current normalized values are persisted (unless overridden by patch)
+        width: strokeW,
+        dash: dashVal > 0 ? [dashVal, dashVal] : [],
+        color: { hex: strokeHex },
+        // apply overrides from the specific setter
+        ...(patch.stroke ?? {}),
+      },
+      // only meaningfully include fill for rect/ellipse
+      ...(kind === "rect" || kind === "ellipse"
+        ? {
+            fill: {
+              ...prevFill,
+              hex: fillHex,
+              ...(patch.fill ?? {}),
+            },
+          }
+        : {}),
+    };
+  };
+
+  // Setters that preserve the rest of blockStyle
   const setStrokeHex = (hex: string) =>
     updateUserBlock(blockId, {
-      blockStyle: {
-        stroke: { color: { hex } },
-      } as any,
-    });
+      blockStyle: composeBlockStyle({ stroke: { color: { hex } } }),
+    } as any);
 
   const setStrokeW = (n: number) =>
     updateUserBlock(blockId, {
-      blockStyle: {
-        stroke: { width: n },
-      } as any,
-    });
+      blockStyle: composeBlockStyle({ stroke: { width: n } }),
+    } as any);
 
   const setDash = (n: number) =>
     updateUserBlock(blockId, {
-      blockStyle: {
-        stroke: { dash: n > 0 ? [n, n] : [] },
-      } as any,
-    });
+      blockStyle: composeBlockStyle({ stroke: { dash: n > 0 ? [n, n] : [] } }),
+    } as any);
 
   const setFillHex = (hex: string) =>
     updateUserBlock(blockId, {
-      blockStyle: {
-        fill: { hex },
-      } as any,
-    });
+      blockStyle: composeBlockStyle({ fill: { hex } }),
+    } as any);
 
   return (
     <div className="flex items-center gap-2 bg-white/95 border shadow-sm rounded px-2 py-1">

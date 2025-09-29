@@ -1,5 +1,5 @@
 // client/src/editor/panels/MediaPanel.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uploadDraftMedia, deleteDraftMedia } from "../../lib/api";
 import { useEditor } from "../../state/editorStore";
 import { useMediaStore } from "../../state/mediaStore";
@@ -30,11 +30,10 @@ export default function MediaPanel() {
     if (folderInputRef.current) folderInputRef.current.setAttribute("webkitdirectory", "");
   }, []);
 
-  // ---- NEW: keep media store scoped to current draft ----
+  // Keep media store in sync with current draft’s media
   useEffect(() => {
     if (!draft) return;
     const serverMedia = ((draft as any).media || []) as MediaItem[];
-    // If lists already match, skip churn.
     const cur = new Set(items.map((m) => m.id));
     const nxt = new Set(serverMedia.map((m) => m.id));
     const identical = cur.size === nxt.size && [...cur].every((id) => nxt.has(id));
@@ -43,32 +42,38 @@ export default function MediaPanel() {
     if (items.length) removeItems(items.map((m) => m.id));
     if (serverMedia.length) addItems(serverMedia);
     setQuery("");
-  }, [draft?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  // ------------------------------------------------------
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.id]);
 
   if (!draft) return null;
 
-  const renderable = useMemo(() => items.filter((m) => m && m.id && mediaSrc(m)), [items]);
+  const renderable = useMemo(
+    () => items.filter((m) => m && m.id && mediaSrc(m)),
+    [items]
+  );
 
   const filtered = useMemo(() => {
     if (!query) return renderable;
-    const q = query.toLowerCase();
+    const q = String(query || "").toLowerCase();
     return renderable.filter((m) => (m.filename || "").toLowerCase().includes(q));
   }, [renderable, query]);
 
-  async function handleUpload(files: File[]) {
-    if (!files.length || !draft) return;
-    setIsUploading(true);
-    try {
-      const before = new Set(items.map((x) => x.id));
-      const resp = await uploadDraftMedia(draft.id, files);
-      const all = normalizeUploadResponse(resp) as MediaItem[];
-      const picked = pickJustUploaded(all, files, before) as MediaItem[];
-      if (picked.length) addItems(picked);
-    } finally {
-      setIsUploading(false);
-    }
-  }
+  const handleUpload = useCallback(
+    async (files: File[]) => {
+      if (!files.length || !draft) return;
+      setIsUploading(true);
+      try {
+        const before = new Set(items.map((x) => x.id));
+        const resp = await uploadDraftMedia(draft.id, files);
+        const all = normalizeUploadResponse(resp) as MediaItem[];
+        const picked = pickJustUploaded(all, files, before) as MediaItem[];
+        if (picked.length) addItems(picked);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [draft, items, addItems]
+  );
 
   const onChoose =
     (cb: (files: File[]) => void) =>
@@ -78,19 +83,31 @@ export default function MediaPanel() {
       await cb(files);
     };
 
+  // Drag-and-drop onto the panel (stable listeners)
   useEffect(() => {
     const el = panelRef.current;
     if (!el) return;
-    const stop = (ev: DragEvent) => { ev.preventDefault(); ev.stopPropagation(); };
-    const onEnter = (ev: DragEvent) => { stop(ev); setDragOver(true); };
+
+    const stop = (ev: DragEvent) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    const onEnter = (ev: DragEvent) => {
+      stop(ev);
+      setDragOver(true);
+    };
     const onOver = (ev: DragEvent) => stop(ev);
-    const onLeave = (ev: DragEvent) => { stop(ev); if (ev.target === el) setDragOver(false); };
+    const onLeave = (ev: DragEvent) => {
+      stop(ev);
+      if (ev.target === el) setDragOver(false);
+    };
     const onDrop = async (ev: DragEvent) => {
       stop(ev);
       setDragOver(false);
       const files = await extractFilesFromDataTransfer(ev.dataTransfer);
       await handleUpload(files);
     };
+
     el.addEventListener("dragenter", onEnter);
     el.addEventListener("dragover", onOver);
     el.addEventListener("dragleave", onLeave);
@@ -101,7 +118,7 @@ export default function MediaPanel() {
       el.removeEventListener("dragleave", onLeave);
       el.removeEventListener("drop", onDrop);
     };
-  }, [panelRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleUpload]);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const rowH = 96;
@@ -119,7 +136,11 @@ export default function MediaPanel() {
     try {
       await deleteDraftMedia(draft.id, id);
     } finally {
-      setBusyIds((s) => { const n = new Set(s); n.delete(id); return n; });
+      setBusyIds((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
     }
   }
 
@@ -138,10 +159,13 @@ export default function MediaPanel() {
     ev.dataTransfer.effectAllowed = "copy";
   }
 
-  const currentPageId = draft.pageInstances[pageIndex]?.id || null;
+  const currentPageId = draft.pageInstances?.[pageIndex]?.id || null;
 
   return (
-    <div ref={panelRef} className="border-t p-2 text-sm relative h-full flex flex-col min-h-[300px] overflow-hidden">
+    <div
+      ref={panelRef}
+      className="border-t p-2 text-sm relative h-full flex flex-col min-h-[300px] overflow-hidden"
+    >
       <div className="flex flex-wrap items-center gap-2 mb-2 overflow-visible">
         <input
           type="text"
@@ -158,49 +182,79 @@ export default function MediaPanel() {
               disabled={isUploading}
               onClick={async () => {
                 const fs = await pickFilesViaFS({ allowZip: true, id: "dr-media-files" });
-                if (fs) { await handleUpload(fs); return; }
+                if (fs) {
+                  await handleUpload(fs);
+                  return;
+                }
                 fileInputRef.current?.click();
               }}
             >
               Add media
             </button>
-            <button className="px-2 py-1 rounded-r border-l-0 border hover:bg-gray-50" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+            <button
+              className="px-2 py-1 rounded-r border-l-0 border hover:bg-gray-50"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
               ▾
             </button>
           </div>
 
           {menuOpen && (
-            <ul role="menu" className="absolute left-0 z-50 mt-1 w-36 bg-white text-gray-900 border rounded shadow" onMouseLeave={() => setMenuOpen(false)}>
+            <ul
+              role="menu"
+              className="absolute left-0 z-50 mt-1 w-36 bg-white text-gray-900 border rounded shadow"
+              onMouseLeave={() => setMenuOpen(false)}
+            >
               <li>
-                <button role="menuitem" className="block w-full text-left px-3 py-2 hover:bg-gray-50"
+                <button
+                  role="menuitem"
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-50"
                   onClick={async () => {
                     setMenuOpen(false);
                     const fs = await pickFilesViaFS({ allowZip: false, id: "dr-media-files" });
-                    if (fs) { await handleUpload(fs); return; }
+                    if (fs) {
+                      await handleUpload(fs);
+                      return;
+                    }
                     fileInputRef.current?.click();
-                  }}>
+                  }}
+                >
                   Files
                 </button>
               </li>
               <li>
-                <button role="menuitem" className="block w-full text-left px-3 py-2 hover:bg-gray-50"
+                <button
+                  role="menuitem"
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-50"
                   onClick={async () => {
                     setMenuOpen(false);
                     const fs = await pickDirectoryViaFS({ id: "dr-media-folder" });
-                    if (fs) { await handleUpload(fs); return; }
+                    if (fs) {
+                      await handleUpload(fs);
+                      return;
+                    }
                     folderInputRef.current?.click();
-                  }}>
+                  }}
+                >
                   Folder
                 </button>
               </li>
               <li>
-                <button role="menuitem" className="block w-full text-left px-3 py-2 hover:bg-gray-50"
+                <button
+                  role="menuitem"
+                  className="block w-full text-left px-3 py-2 hover:bg-gray-50"
                   onClick={async () => {
                     setMenuOpen(false);
                     const fs = await pickFilesViaFS({ allowZip: true, id: "dr-media-zip" });
-                    if (fs) { await handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))); return; }
+                    if (fs) {
+                      await handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip")));
+                      return;
+                    }
                     zipInputRef.current?.click();
-                  }}>
+                  }}
+                >
                   ZIP
                 </button>
               </li>
@@ -208,23 +262,56 @@ export default function MediaPanel() {
           )}
         </div>
 
-        <input ref={fileInputRef} type="file" multiple accept="image/*,.zip" onChange={onChoose(handleUpload)} className="hidden" />
-        <input ref={folderInputRef} type="file" multiple onChange={onChoose(handleUpload)} className="hidden" />
-        <input ref={zipInputRef} type="file" accept=".zip" onChange={onChoose((fs) => handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip"))))} className="hidden" />
+        <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.zip"
+            onChange={onChoose(handleUpload)}
+            className="hidden"
+        />
+        <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            onChange={onChoose(handleUpload)}
+            className="hidden"
+        />
+        <input
+            ref={zipInputRef}
+            type="file"
+            accept=".zip"
+            onChange={onChoose((fs) =>
+              handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip")))
+            )}
+            className="hidden"
+        />
 
-        <button className="ml-auto px-2 py-1 rounded border hover:bg-gray-50" onClick={() => setIsOpen(true)} aria-label="Open Media Manager" title="Open Media Manager">
+        <button
+          className="ml-auto px-2 py-1 rounded border hover:bg-gray-50"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open Media Manager"
+          title="Open Media Manager"
+        >
           Expand
         </button>
       </div>
 
       {isUploading && <div className="text-xs text-gray-600 mb-2">Uploading…</div>}
 
-      <div ref={gridRef} onScroll={onScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden border rounded p-2" role="list" aria-label="Media items">
+      <div
+        ref={gridRef}
+        onScroll={onScroll}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden border rounded p-2"
+        role="list"
+        aria-label="Media items"
+      >
         <div style={{ height: filtered.length * rowH }} className="relative">
           {filtered.slice(start, end).map((m, i) => {
             const index = start + i;
             const top = index * rowH + 4;
             const busy = busyIds.has(m.id);
+            const src = mediaSrc(m);
             return (
               <div key={m.id} className="absolute inset-x-0" style={{ top }} role="listitem">
                 <div
@@ -235,7 +322,7 @@ export default function MediaPanel() {
                 >
                   <div className="flex-none w-20 h-20 border rounded overflow-hidden bg-white relative">
                     <img
-                      src={mediaSrc(m)}
+                      src={src}
                       alt={m.filename || m.id}
                       className="w-full h-full object-cover pointer-events-none select-none"
                       draggable={false}
@@ -248,7 +335,9 @@ export default function MediaPanel() {
                           );
                       }}
                     />
-                    <div className="absolute bottom-1 right-1 text-[10px] px-1 py-0.5 bg-white/90 border rounded">Drag</div>
+                    <div className="absolute bottom-1 right-1 text-[10px] px-1 py-0.5 bg-white/90 border rounded">
+                      Drag
+                    </div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px]">{m.filename || "unnamed"}</div>
@@ -258,14 +347,12 @@ export default function MediaPanel() {
                   <div className="ml-auto flex items-center gap-2">
                     <button
                       className="px-2 py-1 text-[12px] border rounded hover:bg-gray-50 disabled:opacity-50"
-                      disabled={!currentPageId || !mediaSrc(m)}
+                      disabled={!currentPageId || !src}
                       onClick={() => {
-                        if (!currentPageId) return;
-                        const url = mediaSrc(m) || "";
-                        if (!url) return;
+                        if (!currentPageId || !src) return;
                         insertImageAppend(currentPageId, {
                           id: m.id,
-                          url,
+                          url: src,
                           filename: m.filename || "",
                           kind: m.kind || "image",
                         });
@@ -274,7 +361,11 @@ export default function MediaPanel() {
                     >
                       Insert
                     </button>
-                    <button className="px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50" onClick={() => onDelete(m.id)} disabled={busy}>
+                    <button
+                      className="px-2 py-1 text-[12px] border rounded hover:bg-red-50 disabled:opacity-50"
+                      onClick={() => onDelete(m.id)}
+                      disabled={busy}
+                    >
                       {busy ? "…" : "Delete"}
                     </button>
                   </div>
@@ -283,7 +374,11 @@ export default function MediaPanel() {
             );
           })}
         </div>
-        {filtered.length === 0 && <div className="text-center text-xs text-gray-500 py-6">Drop files here or use “Add media”.</div>}
+        {filtered.length === 0 && (
+          <div className="text-center text-xs text-gray-500 py-6">
+            Drop files here or use “Add media”.
+          </div>
+        )}
       </div>
 
       {dragOver && (
@@ -293,7 +388,11 @@ export default function MediaPanel() {
       )}
 
       {isOpen && draft && (
-        <MediaManagerModal draftId={draft.id} onClose={() => setIsOpen(false)} onUploaded={addItems} />
+        <MediaManagerModal
+          draftId={draft.id}
+          onClose={() => setIsOpen(false)}
+          onUploaded={addItems}
+        />
       )}
     </div>
   );
@@ -305,18 +404,23 @@ async function extractFilesFromDataTransfer(dt: DataTransfer | null): Promise<Fi
   const items = dt.items ? Array.from(dt.items) : [];
   const hasEntries = items.some((it) => typeof (it as any).webkitGetAsEntry === "function");
   if (!hasEntries) return files;
+
   const out: File[] = [...files];
   const walkers: Promise<void>[] = [];
   for (const it of items) {
     // @ts-ignore Chromium API
     const entry = (it as any).webkitGetAsEntry && (it as any).webkitGetAsEntry();
     if (!entry) continue;
+
     if (entry.isFile) {
       const p = new Promise<void>((resolve) => {
-        entry.file((f: File) => {
-          out.push(f);
-          resolve();
-        }, () => resolve());
+        entry.file(
+          (f: File) => {
+            out.push(f);
+            resolve();
+          },
+          () => resolve()
+        );
       });
       walkers.push(p);
     } else if (entry.isDirectory) {
@@ -326,6 +430,7 @@ async function extractFilesFromDataTransfer(dt: DataTransfer | null): Promise<Fi
   await Promise.all(walkers);
   return out;
 }
+
 // @ts-ignore Chromium directory reader types
 function walkDirectory(dirEntry: any, sink: File[]): Promise<void> {
   return new Promise((resolve) => {
@@ -338,10 +443,13 @@ function walkDirectory(dirEntry: any, sink: File[]): Promise<void> {
             const ops = entries.map((ent) =>
               ent.isFile
                 ? new Promise<void>((res) =>
-                    ent.file((f: File) => {
-                      sink.push(f);
-                      res();
-                    }, () => res())
+                    ent.file(
+                      (f: File) => {
+                        sink.push(f);
+                        res();
+                      },
+                      () => res()
+                    )
                   )
                 : walkDirectory(ent, sink)
             );

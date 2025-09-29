@@ -32,7 +32,11 @@ export type OrthoPairProps = {
   leftLabel?: string;
   rightLabel?: string;
 };
-export type ThermalAnomaliesProps = { pageSize: number; showDelta: boolean; unit: "°C" | "K" };
+export type ThermalAnomaliesProps = {
+  pageSize: number;
+  showDelta: boolean;
+  unit: "°C" | "K";
+};
 
 export type BlockPropsByKind = {
   severityOverview: SeverityOverviewProps;
@@ -48,7 +52,7 @@ type Field =
   | { type: "checkbox"; key: string; label: string }
   | { type: "number"; key: string; label: string; min?: number; max?: number; step?: number }
   | { type: "text"; key: string; label: string }
-  | { type: "select"; key: string; label: string; options: { value: string; label: string } };
+  | { type: "select"; key: string; label: string; options: Array<{ value: string; label: string }> };
 
 export const BLOCK_DEFS: {
   [K in BlockKind]: { defaultProps: BlockPropsByKind[K]; inspectorFields: Field[] };
@@ -69,6 +73,7 @@ export const BLOCK_DEFS: {
     inspectorFields: [{ type: "number", key: "count", label: "Photos", min: 1, max: 12, step: 1 }],
   },
   siteProperties: {
+    // These act as initial values for the editable table
     defaultProps: {
       address: "",
       peakPowerMWp: 0,
@@ -98,9 +103,23 @@ export const BLOCK_DEFS: {
     ],
   },
   orthoPair: {
-    defaultProps: { layout: "horizontal", showNorth: true, showScale: true, leftLabel: "Ortho", rightLabel: "Detail" },
+    defaultProps: {
+      layout: "horizontal",
+      showNorth: true,
+      showScale: true,
+      leftLabel: "Ortho",
+      rightLabel: "Detail",
+    },
     inspectorFields: [
-      { type: "select", key: "layout", label: "Layout", options: { value: "horizontal", label: "Horizontal" } },
+      {
+        type: "select",
+        key: "layout",
+        label: "Layout",
+        options: [
+          { value: "horizontal", label: "Horizontal" },
+          { value: "vertical", label: "Vertical" },
+        ],
+      },
       { type: "checkbox", key: "showNorth", label: "Show north arrow" },
       { type: "checkbox", key: "showScale", label: "Show scale bar" },
       { type: "text", key: "leftLabel", label: "Left caption" },

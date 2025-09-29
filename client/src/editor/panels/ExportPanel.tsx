@@ -15,14 +15,17 @@ export default function ExportPanel() {
   const blocked = !template;
 
   async function exportHtml() {
-    if (blocked) return;
+    if (blocked || !draftId) return;
     try {
       setBusy(true);
       setError(null);
-      const html = await exportDraftHtml(draftId!);
+      const html = await exportDraftHtml(draftId);
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
+      // Open in a new tab; if blocked, user can still copy the URL from address bar
       window.open(url, "_blank", "noopener,noreferrer");
+      // Best-effort cleanup
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e: any) {
       setError(e?.message || "Export failed");
     } finally {
@@ -32,12 +35,16 @@ export default function ExportPanel() {
 
   async function onPickMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.currentTarget.files || []);
+    // reset input so re-selecting same files fires change
     e.currentTarget.value = "";
     if (!files.length || !draft) return;
+
     try {
       setBusy(true);
-      const media = await uploadDraftMedia(draft.id, files);
-      setDraft({ ...draft, media } as Draft);
+      setError(null);
+      const uploaded = await uploadDraftMedia(draft.id, files);
+      const nextMedia = [...(draft.media || []), ...(uploaded || [])];
+      setDraft({ ...(draft as Draft), media: nextMedia });
     } catch (e: any) {
       setError(e?.message || "Upload failed");
     } finally {
@@ -63,6 +70,7 @@ export default function ExportPanel() {
             onClick={() => fileRef.current?.click()}
             disabled={busy}
             title="Add photos"
+            aria-label="Add media"
           >
             Add media
           </button>
@@ -78,6 +86,7 @@ export default function ExportPanel() {
             onClick={exportHtml}
             disabled={busy || blocked}
             title={blocked ? "Select a template to enable export" : "Export HTML"}
+            aria-label="Export HTML"
           >
             {busy ? "Working…" : "Export HTML"}
           </button>

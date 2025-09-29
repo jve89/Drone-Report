@@ -54,9 +54,25 @@ export default function Inspector() {
     );
   }
 
-  const page = draft.pageInstances[pageIndex];
-  const tPage = template.pages.find((p: any) => p.id === page.templatePageId);
-  if (!tPage) return null;
+  const page = draft.pageInstances?.[pageIndex];
+  if (!page) {
+    return (
+      <div className="p-3">
+        <div className="text-sm font-medium mb-2">Inspector</div>
+        <div className="text-xs text-gray-500">No page selected.</div>
+      </div>
+    );
+  }
+
+  const tPage = (template.pages || []).find((p: any) => p.id === page.templatePageId);
+  if (!tPage) {
+    return (
+      <div className="p-3">
+        <div className="text-sm font-medium mb-2">Inspector</div>
+        <div className="text-xs text-red-600">Template page not found.</div>
+      </div>
+    );
+  }
 
   // If a user element is selected, show its panel and short-circuit.
   if (selectedUserBlockId) {
@@ -128,7 +144,7 @@ export default function Inspector() {
                         min={f.min ?? 0}
                         max={f.max ?? 999}
                         step={f.step ?? 1}
-                        value={Number(props[f.key] ?? 0)}
+                        value={Number.isFinite(Number(props[f.key])) ? Number(props[f.key]) : 0}
                         onChange={(e) =>
                           updateBlockProps(ub.id, {
                             [f.key]: Math.max(
@@ -151,6 +167,25 @@ export default function Inspector() {
                         value={props[f.key] ?? ""}
                         onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.value })}
                       />
+                    </div>
+                  );
+                }
+                if ((f as any).type === "select") {
+                  const rawOpts = (f as any).options;
+                  const opts = Array.isArray(rawOpts) ? rawOpts : (rawOpts ? [rawOpts] : []);
+                  const current = props[f.key] ?? (opts[0]?.value ?? "");
+                  return (
+                    <div key={f.key}>
+                      <div className="text-xs text-gray-600">{f.label}</div>
+                      <select
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={current}
+                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.value })}
+                      >
+                        {opts.map((o: any) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </div>
                   );
                 }

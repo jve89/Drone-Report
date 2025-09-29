@@ -17,33 +17,50 @@ function Card({
 }
 
 export default function BlocksPanel() {
-  const { draft, pageIndex, startInsert, placeUserBlock, updateUserBlock, selectUserBlock, findings } = useEditor();
+  const {
+    draft,
+    pageIndex,
+    startInsert,
+    placeUserBlock,
+    updateUserBlock,
+    selectUserBlock,
+    findings,
+  } = useEditor();
+
   const canInsert = !!draft && pageIndex >= 0;
   if (!canInsert) return <div className="p-3 text-xs text-gray-500">Open a draft page to insert blocks.</div>;
 
+  const findingsArr = Array.isArray(findings) ? findings : [];
+
   function makePayload(kind: BlockKind) {
     if (kind === "severityOverview") {
-      const counts = [1, 2, 3, 4, 5].map((s) => findings.filter((f) => f.severity === s).length);
+      const counts = [1, 2, 3, 4, 5].map(
+        (s) => findingsArr.filter((f: any) => f?.severity === s).length
+      );
       return { counts };
     }
     if (kind === "findingsTable") {
-      const rows = findings.slice(0, 4).map((f) => ({
-        title: f.title || "(untitled)",
-        severity: f.severity,
-        location: f.location || "",
-        category: f.category || "",
+      const rows = findingsArr.slice(0, 4).map((f: any) => ({
+        title: f?.title || "(untitled)",
+        severity: f?.severity,
+        location: f?.location || "",
+        category: f?.category || "",
       }));
-      return { rows: rows.length ? rows : [
-        { title: "Loose fastener at panel A3", severity: 3, location: "Roof NE", category: "Mechanical" },
-        { title: "Cracked sealant", severity: 2, location: "Roof SW", category: "Sealant" },
-        { title: "Corrosion on bracket", severity: 4, location: "Tower mid", category: "Corrosion" },
-      ]};
+      return {
+        rows: rows.length
+          ? rows
+          : [
+              { title: "Loose fastener at panel A3", severity: 3, location: "Roof NE", category: "Mechanical" },
+              { title: "Cracked sealant", severity: 2, location: "Roof SW", category: "Sealant" },
+              { title: "Corrosion on bracket", severity: 4, location: "Tower mid", category: "Corrosion" },
+            ],
+      };
     }
     if (kind === "photoStrip") {
       return { urls: [] as string[] };
     }
     if (kind === "siteProperties") {
-      return {}; // values typed as props, no payload table
+      return {}; // values are edited inline by the block component
     }
     if (kind === "inspectionDetails") {
       return { date: "", inspector: "", weather: "", wind: "", temperature: "", notes: "" };
@@ -55,7 +72,7 @@ export default function BlocksPanel() {
       return {
         rows: [
           { type: "Hotspot", cause: "Loose connector", tMin: 32.1, tMean: 38.2, tMax: 45.9, tDelta: 13.8, lat: 52.1, lon: 5.1 },
-          { type: "String", cause: "Diode failure", tMin: 28.4, tMean: 33.0, tMax: 39.2, tDelta: 10.8, lat: 52.1, lon: 5.1 },
+          { type: "String", cause: "Diode failure",   tMin: 28.4, tMean: 33.0, tMax: 39.2, tDelta: 10.8, lat: 52.1, lon: 5.1 },
         ],
       };
     }
@@ -63,8 +80,9 @@ export default function BlocksPanel() {
   }
 
   function insert(kind: BlockKind) {
-    startInsert("rect");
-    const h = kind === "photoStrip" ? 18 : kind === "inspectionDetails" ? 24 : 24;
+    // Use a shape container to host the section block UI
+    startInsert("rect" as any);
+    const h = kind === "photoStrip" ? 18 : 24;
     const id = placeUserBlock({ x: 10, y: 10, w: 80, h });
     if (!id) return;
 

@@ -8,18 +8,22 @@ export type InspectionDetailsProps = {
 
 type Incoming =
   | { props?: InspectionDetailsProps; payload?: Record<string, any> }
-  | { value?: Record<string, any>; props?: InspectionDetailsProps } // legacy shape used by Canvas
+  | { value?: Record<string, any>; props?: InspectionDetailsProps }; // legacy shape used by Canvas
 
-export default function InspectionDetailsBlock(incoming: Incoming) {
-  // Normalize inputs (support both {props,payload} and {value})
+export default function InspectionDetailsBlock(incoming: Incoming = {} as any) {
+  // Normalize inputs (support both {props,payload} and legacy {value})
+  const rawProps = (incoming as any)?.props ?? {};
   const payload: Record<string, any> =
     (incoming as any)?.payload ?? (incoming as any)?.value ?? {};
-  const props: InspectionDetailsProps = {
-    showIcons: Boolean((incoming as any)?.props?.showIcons),
-    cols: Number.isFinite((incoming as any)?.props?.cols)
-      ? Number((incoming as any)?.props?.cols)
-      : 1,
-  };
+
+  // Robust coercion
+  const showIcons =
+    rawProps.showIcons === true ||
+    rawProps.showIcons === "true" ||
+    rawProps.showIcons === 1;
+
+  const colsNum = Number(rawProps.cols);
+  const cols = Number.isFinite(colsNum) ? (colsNum === 2 ? 2 : 1) : 1;
 
   const items: Array<{ k: string; v: any }> = [
     { k: "Date",         v: payload?.date ?? "" },
@@ -28,16 +32,16 @@ export default function InspectionDetailsBlock(incoming: Incoming) {
     { k: "Wind",         v: payload?.wind ?? "" },
     { k: "Temperature",  v: payload?.temperature ?? "" },
     { k: "Notes",        v: payload?.notes ?? "" },
-  ].filter((x) => String(x.v || "").trim().length);
+  ].filter((x) => String(x.v ?? "").trim().length > 0);
 
-  const colClass = props.cols === 2 ? "grid-cols-2" : "grid-cols-1";
+  const colClass = cols === 2 ? "grid-cols-2" : "grid-cols-1";
 
   return (
     <div className={`w-full h-full p-2 grid gap-2 ${colClass}`}>
       {items.map((it, i) => (
         <div key={i} className="border rounded p-2 text-xs">
           <div className="text-[11px] text-gray-500 mb-0.5">
-            {props.showIcons ? "📝 " : null}
+            {showIcons ? "📝 " : null}
             {it.k}
           </div>
           <div className="text-sm whitespace-pre-wrap">{String(it.v)}</div>
