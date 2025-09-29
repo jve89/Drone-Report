@@ -974,10 +974,16 @@ export const useEditor = create<EditorState>((set, get) => ({
           (p.blocks || []).forEach((b: any) => {
             switch (b.type) {
               case "text": values[b.id] = ""; break;
+              case "divider": values[b.id] = ""; break;
+              case "line": values[b.id] = ""; break;
+              case "rect": values[b.id] = ""; break;
+              case "ellipse": values[b.id] = ""; break;
               case "image_slot": values[b.id] = ""; break;
               case "table": values[b.id] = []; break;
               case "badge": values[b.id] = { label: "", color: "gray" }; break;
               case "repeater": values[b.id] = { count: 0 }; break;
+              case "siteProperties": values[b.id] = {}; break; // legacy
+              case "section": values[b.id] = { kind: (b as any)?.options?.kind || "" }; break;
               default: values[b.id] = "";
             }
           });

@@ -1,19 +1,37 @@
 {
   "id": "solar-pv-v1",
   "name": "Solar PV",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "pages": [
     {
       "id": "cover",
       "name": "Cover",
       "kind": "cover",
       "blocks": [
-        { "id": "report_title", "type": "text", "rect": { "x": 10, "y": 15, "w": 80, "h": 8 }, "placeholder": "Solar PV Inspection", "help": "Enter the report title." },
-        { "id": "client_name", "type": "text", "rect": { "x": 10, "y": 26, "w": 40, "h": 6 }, "help": "Enter the client or site owner." },
-        { "id": "site_name", "type": "text", "rect": { "x": 10, "y": 33, "w": 40, "h": 6 }, "help": "Enter the site name." },
-        { "id": "date", "type": "date", "rect": { "x": 10, "y": 40, "w": 20, "h": 6 }, "help": "Select the inspection date." },
-        { "id": "logo", "type": "image_slot", "rect": { "x": 70, "y": 8, "w": 20, "h": 10 }, "options": { "crop": true }, "help": "Add your company logo." },
-        { "id": "cover_image", "type": "image_slot", "rect": { "x": 10, "y": 58, "w": 80, "h": 32 }, "options": { "crop": true }, "help": "Add a site overview photo." }
+        { "id": "top_band", "type": "rect", "rect": { "x": 0, "y": 0, "w": 100, "h": 12 }, "label": "Top band" },
+        { "id": "logo_box", "type": "rect", "rect": { "x": 82, "y": 2, "w": 14, "h": 8 }, "label": "Logo" },
+
+        { "id": "title", "type": "text", "rect": { "x": 10, "y": 18, "w": 80, "h": 8 }, "placeholder": "Solar PV Inspection" },
+        { "id": "subtitle", "type": "text", "rect": { "x": 10, "y": 26.5, "w": 60, "h": 5 }, "placeholder": "Project / Site name" },
+        { "id": "divider_top", "type": "divider", "rect": { "x": 10, "y": 33, "w": 80, "h": 1 } },
+
+        {
+          "id": "site_properties",
+          "type": "section",
+          "rect": { "x": 10, "y": 36, "w": 80, "h": 30 },
+          "label": "Site Properties",
+          "help": "Fill in site details.",
+          "options": { "kind": "siteProperties", "props": { "orientation": "", "inclinationDeg": 0 } }
+        },
+
+        { "id": "divider_bottom", "type": "divider", "rect": { "x": 10, "y": 68, "w": 80, "h": 1 } },
+
+        { "id": "meta_left", "type": "text", "rect": { "x": 10, "y": 72, "w": 38, "h": 4 }, "placeholder": "Prepared for: {{run.clientName}}" },
+        { "id": "meta_right", "type": "text", "rect": { "x": 52, "y": 72, "w": 38, "h": 4 }, "placeholder": "Prepared by: {{run.company}}" },
+
+        { "id": "footer_divider", "type": "divider", "rect": { "x": 10, "y": 90, "w": 80, "h": 1 } },
+        { "id": "footer_left", "type": "text", "rect": { "x": 10, "y": 92, "w": 40, "h": 4 }, "placeholder": "Company • Confidential" },
+        { "id": "footer_right", "type": "text", "rect": { "x": 70, "y": 92, "w": 20, "h": 4 }, "placeholder": "Page {{draft.page}}/{{draft.pages}}" }
       ]
     },
     {
@@ -21,36 +39,70 @@
       "name": "Executive Summary",
       "kind": "exec_summary",
       "blocks": [
-        { "id": "overview_text", "type": "rich_text", "rect": { "x": 10, "y": 10, "w": 80, "h": 25 }, "help": "Write a concise executive summary." },
-        { "id": "loss_estimate", "type": "metric", "rect": { "x": 10, "y": 38, "w": 25, "h": 10 }, "options": { "unit": "%" }, "help": "Estimate total production loss (%)" },
-        { "id": "counts_by_severity", "type": "table", "rect": { "x": 40, "y": 38, "w": 50, "h": 18 }, "options": { "columns": [ { "key": "sev", "label": "Severity" }, { "key": "count", "label": "Count" } ] }, "help": "Fill the issue counts by severity." }
-      ],
-      "freeformZones": [ { "x": 10, "y": 60, "w": 80, "h": 30 } ]
+        { "id": "summary_header", "type": "text", "rect": { "x": 10, "y": 8, "w": 80, "h": 6 }, "placeholder": "Executive summary", "help": "Write a concise overview." },
+        { "id": "summary_divider", "type": "divider", "rect": { "x": 10, "y": 15, "w": 80, "h": 1 } },
+        {
+          "id": "severity_overview",
+          "type": "section",
+          "rect": { "x": 10, "y": 18, "w": 80, "h": 28 },
+          "label": "Severity Overview",
+          "help": "Review overall severity distribution.",
+          "options": { "kind": "severityOverview", "props": { "showIcons": true } }
+        },
+        {
+          "id": "inspection_details",
+          "type": "section",
+          "rect": { "x": 10, "y": 48, "w": 80, "h": 30 },
+          "label": "Inspection Details",
+          "help": "Confirm drone, date, weather, and method.",
+          "options": { "kind": "inspectionDetails", "props": { "cols": 2, "showIcons": true } }
+        }
+      ]
     },
     {
-      "id": "detail",
-      "name": "Detail",
-      "kind": "detail",
-      "repeatable": true,
+      "id": "findings",
+      "name": "Findings",
+      "kind": "issue_index",
       "blocks": [
-        { "id": "photo", "type": "image_slot", "rect": { "x": 8, "y": 10, "w": 58, "h": 62 }, "options": { "crop": true }, "help": "Add the anomaly photo." },
-        { "id": "module_id", "type": "text", "rect": { "x": 70, "y": 10, "w": 22, "h": 6 }, "help": "Enter the module ID." },
-        { "id": "string_id", "type": "text", "rect": { "x": 70, "y": 18, "w": 22, "h": 6 }, "help": "Enter the string ID." },
-        { "id": "anomaly", "type": "select", "rect": { "x": 70, "y": 26, "w": 22, "h": 6 }, "options": { "choices": ["hotspot", "PID", "crack"] }, "help": "Select the anomaly type." },
-        { "id": "temp_delta_C", "type": "number", "rect": { "x": 70, "y": 34, "w": 22, "h": 6 }, "help": "Enter temperature delta (°C)." },
-        { "id": "estimated_loss_pct", "type": "number", "rect": { "x": 70, "y": 42, "w": 22, "h": 6 }, "help": "Enter estimated loss (%)" },
-        { "id": "notes", "type": "rich_text", "rect": { "x": 70, "y": 50, "w": 22, "h": 22 }, "help": "Add any notes or observations." }
-      ],
-      "freeformZones": [ { "x": 8, "y": 74, "w": 84, "h": 16 } ]
+        {
+          "id": "findings_table",
+          "type": "section",
+          "rect": { "x": 8, "y": 10, "w": 84, "h": 70 },
+          "label": "Findings Table",
+          "help": "Populate or verify all anomalies.",
+          "options": { "kind": "findingsTable", "props": { "pageSize": 10, "showSeverityIcons": true } }
+        }
+      ]
     },
-    { "id": "media_appendix", "name": "Media Appendix", "kind": "media_appendix", "blocks": [] },
     {
-      "id": "signoff",
-      "name": "Sign-off",
-      "kind": "signoff",
+      "id": "media",
+      "name": "Media Evidence",
+      "kind": "media_appendix",
       "blocks": [
-        { "id": "prepared_by", "type": "text", "rect": { "x": 10, "y": 20, "w": 35, "h": 6 }, "help": "Enter the preparer’s name." },
-        { "id": "approved_by", "type": "text", "rect": { "x": 55, "y": 20, "w": 35, "h": 6 }, "help": "Enter the approver’s name." }
+        {
+          "id": "photo_strip",
+          "type": "section",
+          "rect": { "x": 8, "y": 10, "w": 84, "h": 30 },
+          "label": "Photo Strip",
+          "help": "Select key visual evidence photos.",
+          "options": { "kind": "photoStrip", "props": { "count": 3 } }
+        },
+        {
+          "id": "ortho_pair",
+          "type": "section",
+          "rect": { "x": 8, "y": 44, "w": 84, "h": 22 },
+          "label": "Ortho Pair",
+          "help": "Add overview and detail ortho imagery.",
+          "options": { "kind": "orthoPair", "props": { "layout": "horizontal", "showNorth": true, "showScale": true } }
+        },
+        {
+          "id": "thermal_anomalies",
+          "type": "section",
+          "rect": { "x": 8, "y": 68, "w": 84, "h": 24 },
+          "label": "Thermal Anomalies",
+          "help": "List thermal anomalies with ΔT.",
+          "options": { "kind": "thermalAnomalies", "props": { "pageSize": 8, "showDelta": true, "unit": "°C" } }
+        }
       ]
     }
   ]

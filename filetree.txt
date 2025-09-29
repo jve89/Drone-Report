@@ -29,9 +29,12 @@
 │   │   │   │   ├── BlocksPanel.tsx
 │   │   │   │   ├── defs.ts
 │   │   │   │   ├── ElementsPanel.tsx
+│   │   │   │   ├── InspectionDetailsBlock.tsx
+│   │   │   │   ├── OrthoPairBlock.tsx
 │   │   │   │   ├── ShapeToolbar.tsx
 │   │   │   │   ├── SitePropertiesBlock.tsx
-│   │   │   │   └── TextToolbar.tsx
+│   │   │   │   ├── TextToolbar.tsx
+│   │   │   │   └── ThermalAnomaliesTableBlock.tsx
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── FileMenu.tsx
 │   │   │   ├── GuidePanel.tsx
@@ -303,4 +306,4 @@
         ├── style.ts
         └── template.ts
 
-68 directories, 235 files
+68 directories, 238 files

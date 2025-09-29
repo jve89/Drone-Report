@@ -1,7 +1,28 @@
 // shared/types/template.ts
 export type Rect = { x: number; y: number; w: number; h: number }; // percents 0–100
 
-export type BlockType = "text" | "image_slot" | "table" | "badge" | "repeater" | "siteProperties";
+// Section kinds must mirror client/src/editor/blocks/defs.ts BlockKind
+export type SectionKind =
+  | "severityOverview"
+  | "findingsTable"
+  | "photoStrip"
+  | "siteProperties"
+  | "inspectionDetails"
+  | "orthoPair"
+  | "thermalAnomalies";
+
+export type BlockType =
+  | "text"
+  | "divider"
+  | "line"
+  | "rect"
+  | "ellipse"
+  | "image_slot"
+  | "table"
+  | "badge"
+  | "repeater"
+  | "siteProperties" // legacy
+  | "section";       // preferred going forward
 
 export type BlockBase = {
   id: string;
@@ -14,8 +35,9 @@ export type BlockBase = {
 };
 
 export type BlockText = BlockBase & {
-  type: "text";
-  options?: { binding?: string; align?: "left" | "center" | "right" };
+  type: "text" | "divider" | "line" | "rect" | "ellipse";
+  // style is intentionally open; renderer interprets per type
+  options?: Record<string, any>;
 };
 
 export type BlockImage = BlockBase & {
@@ -45,10 +67,18 @@ export type BlockRepeater = BlockBase & {
   };
 };
 
+// Legacy direct site properties block (kept for backward compatibility)
 export type BlockSiteProperties = BlockBase & {
   type: "siteProperties";
-  options?: {
-    fields?: string[]; // keys of SiteProperties to show
+  options?: { fields?: string[] };
+};
+
+// New: first-class Section reference with props passthrough
+export type BlockSection = BlockBase & {
+  type: "section";
+  options: {
+    kind: SectionKind;
+    props?: Record<string, any>;
   };
 };
 
@@ -58,7 +88,8 @@ export type Block =
   | BlockTable
   | BlockBadge
   | BlockRepeater
-  | BlockSiteProperties;
+  | BlockSiteProperties
+  | BlockSection;
 
 export type TemplatePage = {
   id: string;
@@ -70,7 +101,8 @@ export type TemplatePage = {
     | "detail"
     | "media_appendix"
     | "compliance"
-    | "toc";
+    | "toc"
+    | string;
   repeatable?: boolean;
   blocks: Block[];
 };
