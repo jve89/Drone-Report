@@ -1,4 +1,6 @@
 // shared/types/media.ts
+// Shared contract for uploaded media items between client and server.
+// Represents files stored under /uploads/<draftId>/<id>.
 export type MediaItem = {
   id: string;                 // stored filename (unique, includes extension)
   filename: string;           // original filename

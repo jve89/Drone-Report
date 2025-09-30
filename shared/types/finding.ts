@@ -7,8 +7,16 @@ export type AnnotationKind = "box";
 export interface Annotation {
   id: string;
   kind: AnnotationKind; // "box" for v1
-  rect: { x: number; y: number; w: number; h: number }; // normalized 0..1
-  index: number; // visible label on photo, unique per photo
+  /**
+   * Normalized rectangle coordinates in percent units.
+   * Invariant: 0 <= x,y,w,h <= 1 and x+w,y+h <= 1 after clamping.
+   */
+  rect: { x: number; y: number; w: number; h: number };
+  /**
+   * 1-based visible label on photo.
+   * Invariant: unique per photo (reindexed sequentially as 1..N).
+   */
+  index: number;
 }
 
 export interface Finding {

@@ -1,26 +1,43 @@
+// server/src/pdf.ts
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chunkArray } from "./utils/chunkMedia";
-import type { Intake } from "@drone-report/shared/dist/types/intake";
+import type { Intake } from "@drone-report/shared/schema/intake.schema"; // patched import
 
 function esc(s?: string) {
   return (s ?? "").replace(/[&<>"]/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as any)[c]
   );
 }
-function fmt(val?: unknown) { if (val === undefined || val === null || val === "") return "—"; return String(val); }
-function themeColor(hex?: string) { return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280"; }
-async function loadTemplate(): Promise<string> { const p = path.join(__dirname, "templates", "report.html"); return fs.readFile(p, "utf8"); }
+function fmt(val?: unknown) {
+  if (val === undefined || val === null || val === "") return "—";
+  return String(val);
+}
+function themeColor(hex?: string) {
+  return hex && /^#([0-9A-Fa-f]{6})$/.test(hex) ? hex : "#6B7280";
+}
+async function loadTemplate(): Promise<string> {
+  const override = process.env.REPORT_TEMPLATE_PATH;
+  const p = override || path.resolve(__dirname, "templates", "report.html");
+  try {
+    return await fs.readFile(p, "utf8");
+  } catch {
+    throw new Error(`Report template not found at ${p}`);
+  }
+}
 
 function severityBuckets(findings: any[]) {
   const buckets: Record<string, number> = { Low: 0, Medium: 0, High: 0, Critical: 0 };
-  for (const f of findings || []) { const s = (f?.severity ?? "").toString(); if (buckets[s] !== undefined) buckets[s]++; }
+  for (const f of findings || []) {
+    const s = (f?.severity ?? "").toString();
+    if (buckets[s] !== undefined) buckets[s]++;
+  }
   return buckets;
 }
 const SEV_ORDER: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1, None: 0 };
 
-type Region = { id:number; rect:{x:number;y:number;w:number;h:number}; label?:string; note?:string };
-type Finding = { imageUrl:string; severity?:string; issue?:string; comment?:string; filename?:string; notes?:string; regions?:Region[] };
+type Region = { id: number; rect: { x: number; y: number; w: number; h: number }; label?: string; note?: string };
+type Finding = { imageUrl: string; severity?: string; issue?: string; comment?: string; filename?: string; notes?: string; regions?: Region[] };
 
 const TILES_PER_DETAIL_PAGE = 3;
 const APPENDIX_PAGE_SIZE = 1;
@@ -29,7 +46,9 @@ const APPENDIX_PAGE_SIZE = 1;
 
 function coverSectionHtml(intake: Intake): string {
   const color = themeColor(intake.branding?.color);
-  const logoTag = intake.branding?.logoUrl ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo" data-dr-select="cover"/>` : `<div data-dr-select="cover"></div>`;
+  const logoTag = intake.branding?.logoUrl
+    ? `<img class="logo" src="${esc(intake.branding.logoUrl)}" alt="Logo" data-dr-select="cover"/>`
+    : `<div data-dr-select="cover"></div>`;
   const dateStr = fmt(intake.inspection?.date);
   const project = esc(intake.contact?.project || "Inspection report");
   const company = esc(intake.contact?.company || "—");
@@ -69,7 +88,7 @@ function coverSectionHtml(intake: Intake): string {
 
 function summarySectionHtml(intake: Intake): string {
   const hasSummary = Boolean(intake.summary?.condition || intake.summary?.urgency || intake.summary?.topIssues?.length);
-  const summaryBullets = (intake.summary?.topIssues || []).map(t => `<li>${esc(t)}</li>`).join("");
+  const summaryBullets = (intake.summary?.topIssues || []).map((t) => `<li>${esc(t)}</li>`).join("");
   return `
   <div class="card" data-dr-select="summary">
     <h2>Executive summary</h2>
@@ -85,17 +104,19 @@ function overviewSectionHtml(intake: Intake): string {
   const images = intake.media?.images ?? [];
   const findings = (intake as any).findings || [];
 
-  const normalized = (findings as any[]).map((f) => {
-    const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
-    const img = images.find(x => x.url === url) || null;
-    return {
-      image: img?.filename || url || "",
-      severity: f.severity || "None",
-      issue: f.issue || "",
-      comment: f.comment || "",
-      page: url ? (images.findIndex(x => x.url === url) + 1 || "—") : "—",
-    };
-  }).sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0));
+  const normalized = (findings as any[])
+    .map((f) => {
+      const url = f.imageUrl || (Array.isArray(f.imageRefs) ? f.imageRefs[0] : undefined);
+      const img = images.find((x) => x.url === url) || null;
+      return {
+        image: img?.filename || url || "",
+        severity: f.severity || "None",
+        issue: f.issue || "",
+        comment: f.comment || "",
+        page: url ? images.findIndex((x) => x.url === url) + 1 || "—" : "—",
+      };
+    })
+    .sort((a, b) => (SEV_ORDER[b.severity] ?? 0) - (SEV_ORDER[a.severity] ?? 0));
 
   return normalized.length
     ? `
@@ -110,14 +131,18 @@ function overviewSectionHtml(intake: Intake): string {
     </tr>
   </thead>
   <tbody>
-    ${normalized.map(r => `
+    ${normalized
+      .map(
+        (r) => `
       <tr>
         <td>${esc(r.image)}</td>
         <td>${esc(r.severity)}</td>
         <td>${esc(r.issue)}</td>
         <td>${esc(r.comment)}</td>
         <td>${r.page}</td>
-      </tr>`).join("")}
+      </tr>`
+      )
+      .join("")}
   </tbody>
 </table>`
     : `<p class="muted" data-dr-select="overview">No annotations added.</p>`;
@@ -151,7 +176,7 @@ function methodologySectionHtml(intake: Intake): string {
         <table class="kv">
           <tr><th>Manufacturer</th><td>${fmt(equip?.drone?.manufacturer)}</td></tr>
           <tr><th>Model</th><td>${fmt(equip?.drone?.model)}</td></tr>
-          <tr><th>Type</</td></tr>
+          <tr><th>Type</th><td>${fmt(equip?.drone?.type)}</td></tr> <!-- fixed -->
           <tr><th>Span</th><td>${fmt(equip?.specs?.spanM)} m</td></tr>
           <tr><th>MTOM</th><td>${fmt(equip?.specs?.tomKg)} kg</td></tr>
           <tr><th>Max speed</th><td>${fmt(equip?.specs?.maxSpeedMs)} m/s</td></tr>
@@ -159,9 +184,7 @@ function methodologySectionHtml(intake: Intake): string {
           <tr><th>UA reg mark</th><td>${fmt(equip?.identifiers?.uaReg)}</td></tr>
         </table>
         <p><strong>Certificates:</strong> ${fmt(
-          [equip?.certificates?.tc, equip?.certificates?.dvr, equip?.certificates?.cofa, equip?.certificates?.noise]
-            .filter(Boolean)
-            .join(", ")
+          [equip?.certificates?.tc, equip?.certificates?.dvr, equip?.certificates?.cofa, equip?.certificates?.noise].filter(Boolean).join(", ")
         )}</p>
       </div>
     </div>
@@ -215,7 +238,7 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
   const img = images[pageIndex1 - 1];
   if (!img) return `<p class="muted">No media supplied.</p>`;
 
-  const f = findings.find(x => x.imageUrl === img.url) || ({} as Finding);
+  const f = findings.find((x) => x.imageUrl === img.url) || ({} as Finding);
 
   const fn = esc(img.filename || "");
   const src = esc(img.thumb || img.url);
@@ -229,17 +252,18 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
   for (let i = 0; i < regions.length; i += TILES_PER_DETAIL_PAGE) chunks.push(regions.slice(i, i + TILES_PER_DETAIL_PAGE));
   const tiles = chunks[0] || [];
 
-  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE }).map((_, i) => {
-    const r = tiles[i];
-    if (!r) {
-      return `
+  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE })
+    .map((_, i) => {
+      const r = tiles[i];
+      if (!r) {
+        return `
       <div class="tile placeholder">
         <div class="frame">+ Add region</div>
         <div class="cap">No zoom</div>
       </div>`;
-    }
-    const cap = `<span class="id">#${r.id}</span>${esc(r.label || "")}${r.note ? " — " + esc(r.note) : ""}`;
-    return `
+      }
+      const cap = `<span class="id">#${r.id}</span>${esc(r.label || "")}${r.note ? " — " + esc(r.note) : ""}`;
+      return `
       <div class="tile" data-dr-select="detail:${pageIndex1}" data-dr-region="${r.id}">
         <div class="frame">
           <img class="inner" src="${src}" alt="zoom"
@@ -254,7 +278,8 @@ function detailPageHtml(intake: Intake, pageIndex1: number): string {
         </div>
         <div class="cap">${cap}</div>
       </div>`;
-  }).join("");
+    })
+    .join("");
 
   return `
     <section class="detail-card" data-dr-select="detail:${pageIndex1}">
@@ -282,7 +307,7 @@ function detailContinuationHtml(intake: Intake, pageIndex1: number, chunkIdx: nu
   const img = images[pageIndex1 - 1];
   if (!img) return "";
 
-  const f = findings.find(x => x.imageUrl === img.url) || ({} as Finding);
+  const f = findings.find((x) => x.imageUrl === img.url) || ({} as Finding);
   const src = esc(img.thumb || img.url);
 
   const regions = (f.regions || []) as Region[];
@@ -291,16 +316,17 @@ function detailContinuationHtml(intake: Intake, pageIndex1: number, chunkIdx: nu
   const tiles = chunks[chunkIdx] || [];
   if (!tiles.length) return "";
 
-  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE }).map((_, i) => {
-    const r = tiles[i];
-    if (!r) {
-      return `
+  const tilesHtml = Array.from({ length: TILES_PER_DETAIL_PAGE })
+    .map((_, i) => {
+      const r = tiles[i];
+      if (!r) {
+        return `
       <div class="tile placeholder">
         <div class="frame">+ Add region</div>
         <div class="cap">No zoom</div>
       </div>`;
-    }
-    return `
+      }
+      return `
       <div class="tile" data-dr-select="detail:${pageIndex1}" data-dr-region="${r.id}">
         <div class="frame">
           <img class="inner" src="${src}" alt="zoom"
@@ -315,7 +341,8 @@ function detailContinuationHtml(intake: Intake, pageIndex1: number, chunkIdx: nu
         </div>
         <div class="cap"><span class="id">#${r.id}</span>${esc(r.label || "")}${r.note ? " — " + esc(r.note) : ""}</div>
       </div>`;
-  }).join("");
+    })
+    .join("");
 
   return `
     <section class="detail-card page-break" data-dr-select="detail:${pageIndex1}">
@@ -330,13 +357,15 @@ function appendixPageHtml(intake: Intake, pageIndex1: number): string {
   const idx = Math.min(Math.max(1, chunks.length ? pageIndex1 : 1), Math.max(1, chunks.length)) - 1;
   const page = chunks[idx] || [];
 
-  if (!page.length) return `<section class="appendix-page" data-dr-select="appendix:1"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`;
+  if (!page.length)
+    return `<section class="appendix-page" data-dr-select="appendix:1"><h2>Media appendix</h2><p class="muted">No media supplied.</p></section>`;
 
-  const figures = page.map((img) => {
-    const fn = esc(img.filename || "");
-    const note = esc((img as any).note || "");
-    const src = esc(img.thumb || img.url);
-    return `
+  const figures = page
+    .map((img) => {
+      const fn = esc(img.filename || "");
+      const note = esc((img as any).note || "");
+      const src = esc(img.thumb || img.url);
+      return `
       <figure data-dr-select="appendix:${idx + 1}">
         <img src="${src}" alt="${fn}" />
         <figcaption>
@@ -344,7 +373,8 @@ function appendixPageHtml(intake: Intake, pageIndex1: number): string {
           ${note ? `<div style="white-space:pre-wrap;line-height:1.4;">${note}</div>` : `<div style="color:#9CA3AF;">&nbsp;</div>`}
         </figcaption>
       </figure>`;
-  }).join("");
+    })
+    .join("");
 
   return `
   <section class="appendix-page">
@@ -368,7 +398,7 @@ export async function buildReportHtml(intake: Intake): Promise<string> {
   const allDetailPages = images.flatMap((_img, idx) => {
     const first = detailPageHtml(intake, idx + 1);
     const findings = ((intake as any).findings || []) as Finding[];
-    const f = findings.find(x => x.imageUrl === _img.url);
+    const f = findings.find((x) => x.imageUrl === _img.url);
     const regCount = f?.regions?.length || 0;
     const conts = [];
     for (let c = 1; c < Math.ceil(regCount / TILES_PER_DETAIL_PAGE); c++) {
@@ -400,7 +430,13 @@ export async function buildPreviewPageHtml(intake: Intake, page: string): Promis
   const tpl = await loadTemplate();
   const color = themeColor(intake.branding?.color);
 
-  let cover = "", summary = "", overview = "", methodology = "", detail = "", appendix = "", compliance = "";
+  let cover = "",
+    summary = "",
+    overview = "",
+    methodology = "",
+    detail = "",
+    appendix = "",
+    compliance = "";
 
   const mDetail = /^detail:(\d+)$/i.exec(page);
   const mAppendix = /^appendix:(\d+)$/i.exec(page);
@@ -416,12 +452,11 @@ export async function buildPreviewPageHtml(intake: Intake, page: string): Promis
     const images = intake.media?.images ?? [];
     const img = images[n - 1];
     const findings = ((intake as any).findings || []) as Finding[];
-    const f = img ? findings.find(x => x.imageUrl === img.url) : undefined;
+    const f = img ? findings.find((x) => x.imageUrl === img.url) : undefined;
     const contsCount = Math.max(0, Math.ceil((f?.regions?.length || 0) / TILES_PER_DETAIL_PAGE) - 1);
     const conts = Array.from({ length: contsCount }, (_, i) => detailContinuationHtml(intake, n, i + 1)).join("");
     detail = base + conts;
-  }
-  else if (mAppendix) appendix = appendixPageHtml(intake, Math.max(1, parseInt(mAppendix[1], 10)));
+  } else if (mAppendix) appendix = appendixPageHtml(intake, Math.max(1, parseInt(mAppendix[1], 10)));
   else cover = coverSectionHtml(intake);
 
   return tpl
@@ -452,11 +487,20 @@ export async function renderPdfViaGotenberg(html: string): Promise<Buffer> {
 
   try {
     const resp = await fetch(url, { method: "POST", body: form as any, signal: controller.signal });
-    if (!resp.ok) { const msg = await safeText(resp as any); throw new Error(`Gotenberg error ${resp.status}: ${msg}`); }
+    if (!resp.ok) {
+      const msg = await safeText(resp as any);
+      throw new Error(`Gotenberg error ${resp.status}: ${msg}`);
+    }
     const arrayBuffer = await resp.arrayBuffer();
     return Buffer.from(arrayBuffer);
   } finally {
     clearTimeout(timeout);
   }
 }
-async function safeText(r: Response) { try { return await r.text(); } catch { return "<no-body>"; } }
+async function safeText(r: Response) {
+  try {
+    return await r.text();
+  } catch {
+    return "<no-body>";
+  }
+}

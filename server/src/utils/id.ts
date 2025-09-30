@@ -1,2 +1,3 @@
 // server/src/utils/id.ts
-export const newId = () => crypto.randomUUID();
+export const newId = (): string => crypto.randomUUID();
+

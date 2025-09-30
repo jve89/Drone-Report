@@ -1,4 +1,6 @@
 // shared/types/template.ts
+// Template schema primitives shared between client and server.
+// Defines blocks, pages, and template-level payload hints.
 export type Rect = { x: number; y: number; w: number; h: number }; // percents 0–100
 
 // Section kinds must mirror client/src/editor/blocks/defs.ts BlockKind

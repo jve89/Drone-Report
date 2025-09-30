@@ -1,3 +1,4 @@
+// server/src/routes/health.ts
 import { Router } from "express";
 
 const router = Router();

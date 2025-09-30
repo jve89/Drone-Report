@@ -22,8 +22,14 @@ type Draft = {
   payload?: any;
 };
 
-function esc(s: any) {
-  return String(s ?? "").replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]!));
+function esc(s: unknown) {
+  const str = String(s ?? "");
+  return str.replace(/[&<>"]/g, (m) =>
+    m === "&" ? "&amp;"
+    : m === "<" ? "&lt;"
+    : m === ">" ? "&gt;"
+    : "&quot;"
+  );
 }
 
 function loadTemplate(): string {
@@ -106,7 +112,9 @@ export function renderDraftHTML(draft: Draft): string {
     .sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0))
     .map((f, i) => {
       const m = byMedia[f.photoId];
-      const img = m?.url ? `<img class="detail-img" src="${esc(m.url)}" alt="${esc(m.filename || m.id)}" />` : "";
+      const img = m?.url
+        ? `<img class="detail-img" src="${esc(m.url)}" alt="${esc(m.filename || m.id)}" />`
+        : "";
       return `
         <div class="detail-card">
           <h3>${i + 1}. ${esc(f.title || "Untitled finding")}</h3>

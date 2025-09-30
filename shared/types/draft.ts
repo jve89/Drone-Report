@@ -2,8 +2,10 @@
 import type { MediaItem } from "./media";
 import type { BlockStyle, PageStyle, TextStyle, Theme } from "./style";
 
-// User-defined overlay elements placed by the editor.
-// Geometry uses percent units 0..100.
+/**
+ * User-defined overlay elements placed by the editor.
+ * Geometry is in percent units 0..100.
+ */
 export type UserBlockType = "text" | "line" | "rect" | "ellipse" | "divider";
 
 export type UserBlock = {
@@ -16,18 +18,17 @@ export type UserBlock = {
   rect?: { x: number; y: number; w: number; h: number };
   points?: Array<{ x: number; y: number }>;
 
-  // Optional rotation (degrees) for shape blocks that use `rect` geometry.
-  // Applies to: "rect" now, and "ellipse" later. Ignored elsewhere.
+  // Optional rotation (degrees) for rect/ellipse-style shapes. Ignored for others.
   rotation?: number;
 
-  // Z-order (higher renders on top). Optional; compute if absent.
+  // Z-order (higher renders on top). Optional; computed if absent.
   z?: number;
 
   // Text payload (text only)
   value?: string;
   style?: TextStyle;
 
-  // Visual style (shapes, divider; optional for text backgrounds later)
+  // Visual style (shapes/divider; optional for text backgrounds later)
   blockStyle?: BlockStyle;
 };
 
@@ -70,7 +71,7 @@ export type Draft = {
   // Free-form payload used by bindings and theming
   payload?: DraftPayload;
 
-  status?: string; // "draft" | "ready" | etc.
+  status?: "draft" | "final";
   createdAt?: string;
   updatedAt?: string;
 };

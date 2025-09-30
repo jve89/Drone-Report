@@ -1,8 +1,8 @@
 // server/src/services/draftService.ts
 import { db } from "../db/client";
 import { newId } from "../utils/id";
-import type { Template } from "@drone-report/shared/dist/types/template";
-import type { Draft, PageInstance } from "@drone-report/shared/dist/types/draft";
+import type { Template } from "@drone-report/shared/types/template"; // patched import
+import type { Draft, PageInstance } from "@drone-report/shared/types/draft"; // patched import
 
 type RawDraftRow = {
   id: string;
@@ -22,11 +22,11 @@ const toDraft = (r: RawDraftRow): Draft => {
     templateId: meta.templateId ?? "",
     title: meta.title ?? "",
     status: (r.status as any) || "draft",
-    media: src.media ?? [],
-    annotations: src.annotations ?? [],
-    pageInstances: src.pageInstances ?? [],
+    media: Array.isArray(src.media) ? src.media : [],
+    annotations: Array.isArray(src.annotations) ? src.annotations : [],
+    pageInstances: Array.isArray(src.pageInstances) ? src.pageInstances : [],
     createdAt: r.created_at,
-    updatedAt: r.updated_at
+    updatedAt: r.updated_at,
   };
 };
 
@@ -43,18 +43,18 @@ export async function listDrafts(userId: string): Promise<Draft[]> {
 
 export async function createDraft(userId: string, template: Template, title?: string): Promise<Draft> {
   const id = newId();
-  const pageInstances: PageInstance[] = template.pages.map(p => ({
+  const pageInstances: PageInstance[] = (template.pages || []).map((p) => ({
     id: newId(),
     templatePageId: p.id,
     values: {},
-    userBlocks: []
+    userBlocks: [],
   }));
 
   const base = {
     meta: { templateId: template.id, title: title ?? template.name },
     media: [],
     annotations: [],
-    pageInstances
+    pageInstances,
   };
 
   const q = `
@@ -123,14 +123,14 @@ export async function patchDraft(userId: string, draftId: string, patch: any): P
 
   const nextMeta = {
     templateId: patch.templateId ?? current.templateId,
-    title: patch.title ?? current.title
+    title: patch.title ?? current.title,
   };
 
   const nextData = {
     meta: nextMeta,
     media: nextMedia,
     annotations: nextAnnotations,
-    pageInstances: nextPageInstances
+    pageInstances: nextPageInstances,
   };
 
   const q = `

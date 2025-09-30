@@ -1,7 +1,9 @@
+// server/src/services/userService.ts
 import { query } from "../db/client";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 
 export type User = { id: string; email: string; created_at: string };
+export type UserWithPassword = User & { password_hash: string };
 
 export async function createUser(email: string, password: string): Promise<User> {
   const hash = await bcrypt.hash(password, 12);
@@ -13,12 +15,12 @@ export async function createUser(email: string, password: string): Promise<User>
   return rows[0];
 }
 
-export async function findUserByEmail(email: string): Promise<(User & { password_hash: string }) | null> {
-  const { rows } = await query<(User & { password_hash: string })>(
+export async function findUserByEmail(email: string): Promise<UserWithPassword | null> {
+  const { rows } = await query<UserWithPassword>(
     `select id, email, password_hash, created_at from users where email = lower($1)`,
     [email]
   );
-  return rows[0] || null;
+  return rows[0] ?? null;
 }
 
 export async function verifyPassword(user: { password_hash: string }, password: string): Promise<boolean> {
@@ -30,5 +32,5 @@ export async function getUserById(id: string): Promise<User | null> {
     `select id, email, created_at from users where id = $1`,
     [id]
   );
-  return rows[0] || null;
+  return rows[0] ?? null;
 }

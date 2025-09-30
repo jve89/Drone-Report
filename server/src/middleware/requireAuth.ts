@@ -23,15 +23,19 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   const token = readToken(req);
 
   if (DEBUG) {
-    console.log("[requireAuth] SECRET.len", SECRET.length, "value starts with", SECRET.slice(0, 4));
+    // Avoid leaking secret contents; length is enough.
+    console.log("[requireAuth] SECRET.length:", SECRET ? String(SECRET.length) : "0");
     console.log("[auth] path:", req.method, req.originalUrl);
     console.log("[auth] cookie keys:", Object.keys(req.cookies || {}));
     console.log("[auth] COOKIE name expected:", COOKIE);
     console.log("[auth] has cookie?", Boolean(req.cookies?.[COOKIE] || req.cookies?.["dr_session"]));
-    console.log("[auth] auth header?", req.header("authorization"));
+    console.log("[auth] auth header present?", Boolean(req.header("authorization") || req.header("Authorization")));
   }
 
-  if (!token) return res.status(401).json({ error: "unauthenticated" });
+  if (!token) {
+    res.setHeader("WWW-Authenticate", 'Bearer realm="api"');
+    return res.status(401).json({ error: "unauthenticated" });
+  }
 
   try {
     const payload = jwt.verify(token, SECRET) as JwtPayload | string;

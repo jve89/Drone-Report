@@ -1,3 +1,6 @@
+// shared/types/intake.ts
+// Type aliases derived from Zod schemas in ../schema/intake.schema.
+// Ensures TS types always match runtime validation.
 import type { z } from "zod";
 import {
   IntakeSchema,

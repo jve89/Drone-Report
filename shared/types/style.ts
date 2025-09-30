@@ -1,5 +1,6 @@
 // shared/types/style.ts
-
+// Shared styling primitives for blocks, pages, and themes.
+// Used across both client and server to ensure consistent rendering.
 // Token-first color reference. Prefer `token`, allow `hex` override.
 export type ColorRef = { token?: string; hex?: string };
 

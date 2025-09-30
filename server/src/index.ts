@@ -3,12 +3,13 @@ import path from "node:path";
 import fs from "node:fs";
 import dotenv from "dotenv";
 
-// --- Load env from repo root .env ---
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+// --- Load env from repo root .env (stable in dev & dist) ---
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 import express, { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { jsonDefault } from "./middleware/jsonDefault";
 
 import healthRouter from "./routes/health";
 import draftsRouter from "./routes/drafts";
@@ -19,12 +20,26 @@ import templatesRouter from "./routes/templates";
 const app = express();
 app.set("trust proxy", true);
 
-// CORS for browser auth cookies
-const ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
-app.use(cors({ origin: ORIGIN, credentials: true }));
+// CORS for browser auth cookies (supports comma-separated origins)
+const ORIGINS = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    credentials: true,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // non-browser clients
+      cb(null, ORIGINS.includes(origin));
+    },
+  })
+);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
+// Default JSON content-type for API and other JSON responses
+app.use(jsonDefault);
 
 // Static uploads (stable path relative to dist)
 const ROOT = path.resolve(__dirname, ".."); // server/dist
@@ -54,9 +69,9 @@ if (staticDir) app.use(express.static(staticDir));
 
 // SPA fallback (preserve API 404s)
 app.get("*", (req, res) => {
-  if (req.path.startsWith("/api")) return res.status(404).send("Not found");
+  if (req.path.startsWith("/api")) return res.status(404).type("application/json").send({ error: "not_found" });
   if (staticDir) return res.sendFile(path.join(staticDir, "index.html"));
-  return res.status(404).send("Client not built");
+  return res.status(404).type("text/plain").send("Client not built");
 });
 
 // Centralized error handler → JSON
@@ -80,4 +95,5 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => console.log(`listening :${port}`, "CORS origin:", ORIGIN));
+console.log(`listening :${port}`, "CORS origins:", ORIGINS.join(", "));
+app.listen(port);
