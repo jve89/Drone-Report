@@ -17,16 +17,13 @@ export default function EditorShell() {
       <Toolbar />
       <div className="flex flex-1 min-h-0 relative">
         {!template && <Coachmark />}
-
         {/* Left: navigation */}
         <LeftPane />
-
         {/* Center: canvas + controls */}
-        <div className="relative flex-1 min-w-0 flex flex-col overflow-auto">
+        <main className="relative flex-1 min-w-0 flex flex-col overflow-auto" role="main" aria-label="Editor canvas">
           <Canvas />
           <ViewerControls />
-        </div>
-
+        </main>
         {/* Right: editors */}
         <RightPane />
       </div>

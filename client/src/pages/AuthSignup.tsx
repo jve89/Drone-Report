@@ -1,3 +1,7 @@
+// client/src/pages/AuthSignup.tsx
+/**
+ * Signup page — posts credentials to /api/auth/signup and redirects to /dashboard.
+ */
 import { useState } from "react";
 import { API_BASE } from "../lib/api";
 
@@ -10,18 +14,23 @@ export default function AuthSignup() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    setBusy(true);
     try {
-      setBusy(true);
       const res = await fetch(`${API_BASE}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error(`Signup failed: ${res.status}`);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Signup failed: ${res.status} ${txt}`);
+      }
       window.location.href = "/dashboard";
-    } catch (e:any) {
-      setErr(e?.message || "Signup failed");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Signup failed";
+      setErr(msg);
+    } finally {
       setBusy(false);
     }
   }
@@ -32,14 +41,34 @@ export default function AuthSignup() {
         <h1 className="text-xl font-semibold">Create account</h1>
         <label className="block">
           <div className="text-xs text-gray-600 mb-1">Email</div>
-          <input className="w-full border rounded px-2 py-1" value={email} onChange={e=>setEmail(e.target.value)} type="email" />
+          <input
+            className="w-full border rounded px-2 py-1"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            aria-label="Email"
+            autoComplete="email"
+            required
+          />
         </label>
         <label className="block">
           <div className="text-xs text-gray-600 mb-1">Password</div>
-          <input className="w-full border rounded px-2 py-1" value={password} onChange={e=>setPassword(e.target.value)} type="password" />
+          <input
+            className="w-full border rounded px-2 py-1"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            aria-label="Password"
+            autoComplete="new-password"
+            required
+          />
         </label>
         {err && <div className="text-sm text-red-600">{err}</div>}
-        <button className="bg-black text-white px-3 py-2 rounded w-full disabled:opacity-50" disabled={busy}>
+        <button
+          type="submit"
+          className="bg-black text-white px-3 py-2 rounded w-full disabled:opacity-50"
+          disabled={busy}
+        >
           {busy ? "Creating…" : "Sign up"}
         </button>
         <div className="text-sm text-center">

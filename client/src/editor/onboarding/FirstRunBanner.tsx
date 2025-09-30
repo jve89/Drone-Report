@@ -5,7 +5,7 @@ export default function FirstRunBanner() {
   const { template } = useEditor();
   if (template) return null;
 
-  function openTemplateDropdown() {
+  function triggerTemplateDropdown() {
     window.dispatchEvent(new CustomEvent("open-template-dropdown"));
   }
 
@@ -16,7 +16,8 @@ export default function FirstRunBanner() {
           Start by selecting a <span className="font-medium">template</span>. Then fill cover, add photos, annotate findings, export.
         </div>
         <button
-          onClick={openTemplateDropdown}
+          type="button"
+          onClick={triggerTemplateDropdown}
           className="text-sm px-3 py-1.5 border border-amber-300 rounded hover:bg-amber-100"
         >
           Pick a template

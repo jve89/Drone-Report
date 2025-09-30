@@ -84,9 +84,10 @@ function clampZoom(z: number) {
   const n = Number.isFinite(z) ? z : 1;
   return Math.min(2, Math.max(0.25, n));
 }
+/** Clamp for preview modal zoom. Keep in sync with preview components. */
 function clampPreviewZoom(z: number) {
   const n = Number.isFinite(z) ? z : 1;
-  return Math.min(2, Math.max(0.6, n));
+  return Math.min(3, Math.max(0.5, n));
 }
 function nowIso() {
   return new Date().toISOString();
@@ -105,6 +106,7 @@ function computeSteps(tpl: Template | null): Step[] {
   return out;
 }
 
+/** Clamp percentage-based geometry (0..100). UserBlock rects and points use % units. */
 function clamp01(x: number) {
   return Math.max(0, Math.min(100, x));
 }
@@ -122,7 +124,7 @@ function normalizeZ(blocks: UserBlock[]): UserBlock[] {
   const withIndex = blocks
     .slice()
     .map((b, i) => ({ ...b, z: Number.isFinite(b.z as any) ? (b.z as number) : i }));
-  withIndex.sort((a, b) => (a.z! - b.z!));
+  withIndex.sort((a, b) => a.z! - b.z!);
   return withIndex.map((b, i) => ({ ...b, z: i }));
 }
 function getSelectedUserBlock(d: Draft, pageIndex: number, id: string | null): { list: UserBlock[]; i: number } | null {
@@ -139,7 +141,7 @@ function makeSnapshot(s: EditorState): Snapshot | null {
   const d = s.draft;
   if (!d) return null;
   const payload = ((d as any).payload ?? {}) as any;
-  const payloadMeta = ((payload.meta ?? {}) as Record<string, unknown>);
+  const payloadMeta = (payload.meta ?? {}) as Record<string, unknown>;
   const payloadTheme = (payload.theme as Theme | undefined) ?? undefined;
   return {
     draftPart: {
@@ -945,6 +947,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   selectTemplate: async (templateId: string) => {
     get().mark();
     const t = templateId ? await loadTemplate(templateId) : null;
+    const stepsFromTemplate = computeSteps(t as Template | null);
     set({ template: (t as Template) ?? null });
 
     set((s) => {
@@ -953,7 +956,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
       // sync payload meta
       const payload = ((d as any).payload ?? {}) as any;
-      const meta = ((payload.meta ?? {}) as any);
+      const meta = (payload.meta ?? {}) as any;
       meta.templateId = templateId || undefined;
       payload.meta = meta;
       if (!Array.isArray(payload.findings)) payload.findings = [];
@@ -1000,7 +1003,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       }
 
       // guide + selection init
-      const steps = computeSteps(get().template);
+      const steps = stepsFromTemplate;
       const guideEnabled = steps.length > 0;
       const next: Partial<EditorState> = {
         draft: d,
@@ -1142,7 +1145,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     set((s) => {
       const d: Draft = structuredClone(s.draft!);
       const payload = ((d as any).payload ?? {}) as any;
-      const meta = ((payload.meta ?? {}) as any);
+      const meta = (payload.meta ?? {}) as any;
       meta.title = t;
       payload.meta = meta;
       (d as any).payload = payload;

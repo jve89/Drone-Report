@@ -1,8 +1,14 @@
 // client/src/lib/zip.ts
-// Placeholder for future client ZIP helpers if needed.
-// Current flow uploads ZIP as a single file to the server where it gets unpacked.
-// Provide function here for future streaming/inspection without adding deps.
+/**
+ * ZIP helpers (client-side).
+ *
+ * Status: minimal as of v0.3.26 — only provides detection.
+ * Current flow uploads ZIPs directly to the server for unpacking.
+ * Extend here in the future if client-side inspection/streaming is needed.
+ */
 
+/** Returns true if the file appears to be a .zip archive (by extension). */
 export function isZip(file: File): boolean {
-  return file.name.toLowerCase().endsWith(".zip");
+  const name = (file?.name || "").toLowerCase();
+  return name.endsWith(".zip");
 }

@@ -1,6 +1,11 @@
 // client/src/types/draft.ts
 
 // Local mirror of shared style types to avoid cross-package client imports.
+
+// --- common geometry aliases ---
+export type RectPct = { x: number; y: number; w: number; h: number }; // 0–100%
+export type PointPct = { x: number; y: number };                       // 0–100%
+
 export type ColorRef = { token?: string; hex?: string };
 export type StrokeStyle = { color?: ColorRef; width?: number; dash?: number[] };
 export type BlockStyle = {
@@ -9,6 +14,7 @@ export type BlockStyle = {
   radius?: number;
   opacity?: number;
 };
+
 export type PageMargins = { top: number; right: number; bottom: number; left: number };
 export type PageStyle = {
   margin?: Partial<PageMargins>;
@@ -16,6 +22,7 @@ export type PageStyle = {
   header?: boolean;
   footer?: boolean;
 };
+
 export type TextStyle = {
   fontFamily?: string;
   fontSize?: number;
@@ -27,6 +34,7 @@ export type TextStyle = {
   lineHeight?: number;
   letterSpacing?: number;
 };
+
 export type Theme = {
   colors: Record<string, ColorRef>;
   fonts?: { ui?: string; mono?: string };
@@ -42,8 +50,8 @@ export type UserBlock = {
   type: UserBlockType;
 
   // Geometry
-  rect?: { x: number; y: number; w: number; h: number }; // 0–100 for text/rect/ellipse/divider
-  points?: Array<{ x: number; y: number }>;              // for line only
+  rect?: RectPct;              // for text/rect/ellipse/divider in percent
+  points?: PointPct[];         // for line only
 
   // Rotation for rect/ellipse-style shapes (degrees). Optional.
   rotation?: number;

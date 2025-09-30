@@ -1,3 +1,4 @@
+// client/src/sections/Pricing.tsx
 export default function Pricing() {
   const tiers = [
     {
@@ -34,11 +35,15 @@ export default function Pricing() {
     },
   ];
 
+  const headingId = "pricing-heading";
+
   return (
-    <section id="pricing" className="py-16 bg-white">
+    <section id="pricing" className="py-16 bg-white" aria-labelledby={headingId}>
       <div className="max-w-6xl mx-auto px-6">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Pricing</h2>
+          <h2 id={headingId} className="text-3xl font-bold text-gray-900">
+            Pricing
+          </h2>
           <p className="mt-2 text-gray-600">Simple choices. Pay per report. No subscriptions required.</p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
             <span className="h-2 w-2 rounded-full bg-indigo-600" aria-hidden="true" />
@@ -47,15 +52,19 @@ export default function Pricing() {
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {tiers.map((t) => (
+          {tiers.map((t, i) => (
             <div
               key={t.name}
               className={`rounded-2xl border p-6 shadow-sm ${
                 t.emphasis ? "border-indigo-200 bg-indigo-50" : "border-gray-100 bg-gray-50"
               }`}
+              aria-labelledby={`tier-title-${i}`}
+              aria-describedby={`tier-desc-${i}`}
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-gray-900">{t.name}</h3>
+                <h3 id={`tier-title-${i}`} className="text-xl font-semibold text-gray-900">
+                  {t.name}
+                </h3>
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
                     t.emphasis ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-800"
@@ -64,13 +73,15 @@ export default function Pricing() {
                   {t.badge}
                 </span>
               </div>
-              <p className="mt-2 text-gray-600">{t.desc}</p>
+              <p id={`tier-desc-${i}`} className="mt-2 text-gray-600">
+                {t.desc}
+              </p>
               <div className="mt-4 text-4xl font-bold">{t.price}</div>
 
               <ul className="mt-6 space-y-2 text-gray-700">
                 {t.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gray-400" />
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gray-400" aria-hidden="true" />
                     <span>{f}</span>
                   </li>
                 ))}
@@ -79,6 +90,7 @@ export default function Pricing() {
               <div className="mt-6">
                 <a
                   href={t.href}
+                  aria-label={`${t.cta} — ${t.name}`}
                   className={`inline-flex items-center px-6 py-3 rounded-md font-medium transition-colors ${
                     t.emphasis
                       ? "bg-indigo-600 text-white hover:bg-indigo-700"
@@ -99,8 +111,11 @@ export default function Pricing() {
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-500">
-        Need &gt;200 photos or ongoing work?{" "}
-        <a href="#contact" className="underline hover:text-gray-700">Contact us</a> for custom pricing.
+          Need &gt;200 photos or ongoing work?{" "}
+          <a href="#contact" className="underline hover:text-gray-700">
+            Contact us
+          </a>{" "}
+          for custom pricing.
         </p>
       </div>
     </section>

@@ -15,14 +15,25 @@ export default function DraftRow({ draft, onDeleted }: DraftRowProps) {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = `draft-row-menu-${draft.id}`;
 
   useEffect(() => {
+    if (!menuOpen) return;
+
     function onDocClick(e: MouseEvent) {
       if (!menuRef.current) return;
       if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
-    if (menuOpen) document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", onDocClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [menuOpen]);
 
   async function onDelete() {
@@ -32,7 +43,6 @@ export default function DraftRow({ draft, onDeleted }: DraftRowProps) {
       onDeleted?.(draft.id); // optimistic
       await deleteDraft(draft.id);
     } catch (e) {
-      // restore on failure by forcing a reload of the list later if needed
       console.error(e);
       alert("Failed to delete report");
       window.location.reload();
@@ -52,13 +62,15 @@ export default function DraftRow({ draft, onDeleted }: DraftRowProps) {
       {/* Kebab */}
       <div className="absolute bottom-2 right-2" ref={menuRef}>
         <button
+          type="button"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
           className="p-1 rounded hover:bg-gray-100"
-          onClick={() => setMenuOpen(v => !v)}
+          onClick={() => setMenuOpen((v) => !v)}
           title="More actions"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="5" cy="12" r="2" />
             <circle cx="12" cy="12" r="2" />
             <circle cx="19" cy="12" r="2" />
@@ -67,10 +79,12 @@ export default function DraftRow({ draft, onDeleted }: DraftRowProps) {
 
         {menuOpen && (
           <div
+            id={menuId}
             role="menu"
             className="absolute z-10 bottom-7 right-0 min-w-36 bg-white border rounded shadow-md"
           >
             <button
+              type="button"
               role="menuitem"
               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
               onClick={onDelete}

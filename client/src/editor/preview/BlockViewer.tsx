@@ -93,13 +93,13 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
               if (ch.type === "image_slot") {
                 const src = renderString((ch as any).source || "", { ...ctx, item });
                 return src ? (
-                  <img key={ci} src={src} className="w-full h-40 object-contain border rounded" />
+                  <img key={ci} src={src} alt="" className="w-full h-40 object-contain border rounded" />
                 ) : null;
               }
               if (ch.type === "badge") {
                 const lbl = renderString((ch as any).label || "", { ...ctx, item });
                 return (
-                  <span className="inline-block px-2 py-1 rounded text:[11px] text-[11px] bg-amber-200 text-amber-900 mr-2" key={ci}>
+                  <span className="inline-block px-2 py-1 rounded text-[11px] bg-amber-200 text-amber-900 mr-2" key={ci}>
                     {lbl}
                   </span>
                 );
@@ -169,7 +169,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
         {Array.from({ length: count }).map((_, idx) => {
           const u = final[idx] || "";
           return u ? (
-            <img key={idx} src={u} className="flex-1 object-cover rounded border" />
+            <img key={idx} src={u} alt="" className="flex-1 object-cover rounded border" />
           ) : (
             <div key={idx} className="flex-1 rounded bg-gray-200 border" />
           );
@@ -230,10 +230,10 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
     return (
       <div className="grid grid-cols-2 gap-2 w-full h-full">
         <div className="w-full h-full bg-gray-50 border rounded overflow-hidden">
-          {u1 ? <img src={u1} className="w-full h-full object-contain" /> : null}
+          {u1 ? <img src={u1} alt="" className="w-full h-full object-contain" /> : null}
         </div>
         <div className="w-full h-full bg-gray-50 border rounded overflow-hidden">
-          {u2 ? <img src={u2} className="w-full h-full object-contain" /> : null}
+          {u2 ? <img src={u2} alt="" className="w-full h-full object-contain" /> : null}
         </div>
       </div>
     );
@@ -269,6 +269,17 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
   }
   /** --- end section block renderers --- */
 
+  function renderSectionByKind(kind: keyof typeof BLOCK_DEFS, payload: any, props?: any) {
+    if (kind === "severityOverview") return <RenderSeverityOverview payload={payload} props={props} />;
+    if (kind === "findingsTable") return <RenderFindingsTable payload={payload} props={props} />;
+    if (kind === "photoStrip") return <RenderPhotoStrip payload={payload} props={props} />;
+    if (kind === "siteProperties") return <RenderSiteProperties payload={payload} />;
+    if (kind === "inspectionDetails") return <RenderInspectionDetails payload={payload} />;
+    if (kind === "orthoPair") return <RenderOrthoPair payload={payload} />;
+    if (kind === "thermalAnomalies") return <RenderThermalAnomalies payload={payload} />;
+    return null;
+  }
+
   return (
     <div className="flex flex-col items-center gap-6 py-6">
       {(draft.pageInstances || []).map((pi: any) => {
@@ -291,7 +302,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                   const url = boundFromValue || boundSrc || vStr;
                   return (
                     <Box key={b.id} rect={b.rect}>
-                      {url ? <img src={url} className="w-full h-full object-cover" /> : null}
+                      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : null}
                     </Box>
                   );
                 }
@@ -376,17 +387,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                   };
                   const payload = v && typeof v === "object" ? v : {};
 
-                  return (
-                    <Box key={b.id} rect={b.rect}>
-                      {kind === "severityOverview" && <RenderSeverityOverview payload={payload} props={props} />}
-                      {kind === "findingsTable" && <RenderFindingsTable payload={payload} props={props} />}
-                      {kind === "photoStrip" && <RenderPhotoStrip payload={payload} props={props} />}
-                      {kind === "siteProperties" && <RenderSiteProperties payload={payload} />}
-                      {kind === "inspectionDetails" && <RenderInspectionDetails payload={payload} />}
-                      {kind === "orthoPair" && <RenderOrthoPair payload={payload} />}
-                      {kind === "thermalAnomalies" && <RenderThermalAnomalies payload={payload} />}
-                    </Box>
-                  );
+                  return <Box key={b.id} rect={b.rect}>{renderSectionByKind(kind, payload, props)}</Box>;
                 }
                 default:
                   return null;
@@ -408,17 +409,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
               const props = { ...(def.defaultProps ?? {}), ...(meta.props ?? {}) } as any;
               const payload = meta.payload || {};
 
-              return (
-                <Box key={ub.id} rect={r}>
-                  {kind === "severityOverview" && <RenderSeverityOverview payload={payload} props={props} />}
-                  {kind === "findingsTable" && <RenderFindingsTable payload={payload} props={props} />}
-                  {kind === "photoStrip" && <RenderPhotoStrip payload={payload} props={props} />}
-                  {kind === "siteProperties" && <RenderSiteProperties payload={payload} />}
-                  {kind === "inspectionDetails" && <RenderInspectionDetails payload={payload} />}
-                  {kind === "orthoPair" && <RenderOrthoPair payload={payload} />}
-                  {kind === "thermalAnomalies" && <RenderThermalAnomalies payload={payload} />}
-                </Box>
-              );
+              return <Box key={ub.id} rect={r}>{renderSectionByKind(kind, payload, props)}</Box>;
             })}
 
             {/* User text blocks */}

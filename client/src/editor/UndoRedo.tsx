@@ -6,25 +6,41 @@ export default function UndoRedo() {
   const { canUndo, canRedo, undo, redo } = useEditor();
 
   useEffect(() => {
+    function isEditableTarget(t: EventTarget | null): boolean {
+      const el = t as HTMLElement | null;
+      if (!el) return false;
+      if (el.closest("[contenteditable=''], [contenteditable='true']")) return true;
+      const tag = (el as HTMLElement).tagName?.toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select";
+    }
+
     function onKey(e: KeyboardEvent) {
-      const isMac = navigator.platform.toLowerCase().includes("mac");
-      const meta = isMac ? e.metaKey : e.ctrlKey;
+      // Do not override native behavior in editable contexts
+      if (isEditableTarget(e.target)) return;
+
+      const meta = e.metaKey || e.ctrlKey; // works across platforms
       if (!meta) return;
       const key = e.key.toLowerCase();
 
       // Cmd/Ctrl+Z
       if (key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        if (canUndo) undo();
+        if (canUndo) {
+          e.preventDefault();
+          undo();
+        }
         return;
       }
-      // Shift+Cmd/Ctrl+Z
+
+      // Shift+Cmd/Ctrl+Z  OR  Cmd/Ctrl+Y
       if ((key === "z" && e.shiftKey) || key === "y") {
-        e.preventDefault();
-        if (canRedo) redo();
+        if (canRedo) {
+          e.preventDefault();
+          redo();
+        }
         return;
       }
     }
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [canUndo, canRedo, undo, redo]);
@@ -32,6 +48,7 @@ export default function UndoRedo() {
   return (
     <div className="flex items-center gap-1">
       <button
+        type="button"
         className={`p-2 border rounded ${canUndo ? "hover:bg-gray-50" : "opacity-50 pointer-events-none"}`}
         onClick={undo}
         title="Undo (Cmd/Ctrl+Z)"
@@ -45,6 +62,7 @@ export default function UndoRedo() {
       </button>
 
       <button
+        type="button"
         className={`p-2 border rounded ${canRedo ? "hover:bg-gray-50" : "opacity-50 pointer-events-none"}`}
         onClick={redo}
         title="Redo (Shift+Cmd/Ctrl+Z)"

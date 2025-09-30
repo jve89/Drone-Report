@@ -1,3 +1,4 @@
+// client/src/sections/HowItWorks.tsx
 export default function HowItWorks() {
   const steps = [
     { title: "1. Upload & Pay", text: "Choose Raw Draft or Polished. Add notes and upload images/logo." },
@@ -24,13 +25,19 @@ export default function HowItWorks() {
 
         {/* Steps */}
         <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {steps.map((s) => (
+          {steps.map((s, i) => (
             <div
               key={s.title}
               className="rounded-xl border border-gray-100 bg-gray-50 p-6 text-center shadow-sm"
+              aria-labelledby={`step-title-${i}`}
+              aria-describedby={`step-text-${i}`}
             >
-              <h3 className="text-lg font-semibold text-gray-900">{s.title}</h3>
-              <p className="mt-3 text-gray-600">{s.text}</p>
+              <h3 id={`step-title-${i}`} className="text-lg font-semibold text-gray-900">
+                {s.title}
+              </h3>
+              <p id={`step-text-${i}`} className="mt-3 text-gray-600">
+                {s.text}
+              </p>
             </div>
           ))}
         </div>
@@ -39,6 +46,7 @@ export default function HowItWorks() {
         <div className="mt-12 text-center">
           <a
             href="#intake"
+            aria-label="Start a new report at intake form"
             className="inline-flex items-center px-6 py-3 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
           >
             Start a report

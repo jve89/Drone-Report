@@ -41,7 +41,9 @@ export default function GuidePanel() {
     return (
       <div className="p-2 text-xs">
         <div className="text-gray-700 mb-2">Guided mode is off.</div>
-        <button className="px-2 py-1 border rounded text-xs" onClick={enableGuide}>Enable guide</button>
+        <button type="button" className="px-2 py-1 border rounded text-xs" onClick={enableGuide}>
+          Enable guide
+        </button>
       </div>
     );
   }
@@ -59,7 +61,12 @@ export default function GuidePanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="font-medium">Guide</div>
-        <button className="px-2 py-1 border rounded text-[11px]" onClick={disableGuide} title="Disable guided mode">
+        <button
+          type="button"
+          className="px-2 py-1 border rounded text-[11px]"
+          onClick={disableGuide}
+          title="Disable guided mode"
+        >
           Disable
         </button>
       </div>
@@ -67,10 +74,19 @@ export default function GuidePanel() {
       {/* Progress */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <div className="text-gray-600">Step {idx + 1} / {total}</div>
+          <div className="text-gray-600">
+            Step {idx + 1} / {total}
+          </div>
           <div className="text-gray-500">{percent}%</div>
         </div>
-        <div className="h-1.5 w-full bg-gray-200 rounded">
+        <div
+          className="h-1.5 w-full bg-gray-200 rounded"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          aria-label="Guide progress"
+        >
           <div className="h-1.5 bg-blue-500 rounded" style={{ width: `${percent}%` }} />
         </div>
       </div>
@@ -78,14 +94,13 @@ export default function GuidePanel() {
       {/* Current hint */}
       <div className="border rounded p-2 bg-white">
         <div className="text-[11px] text-gray-500 mb-1 truncate">{blockLabel}</div>
-        <div className="text-sm whitespace-pre-wrap">
-          {current?.help}
-        </div>
+        <div className="text-sm whitespace-pre-wrap">{current?.help}</div>
       </div>
 
       {/* Controls */}
       <div className="flex gap-2">
         <button
+          type="button"
           className="px-2 py-1 border rounded disabled:opacity-50"
           onClick={guidePrev}
           disabled={idx <= 0}
@@ -94,6 +109,7 @@ export default function GuidePanel() {
           Prev
         </button>
         <button
+          type="button"
           className="px-2 py-1 border rounded"
           onClick={guideSkip}
           title="Skip this step"
@@ -101,6 +117,7 @@ export default function GuidePanel() {
           Skip
         </button>
         <button
+          type="button"
           className="ml-auto px-2 py-1 border rounded disabled:opacity-50"
           onClick={guideNext}
           disabled={idx >= total - 1}
@@ -121,9 +138,11 @@ export default function GuidePanel() {
             return (
               <li key={`${s.pageId}:${s.blockId}`}>
                 <button
+                  type="button"
                   className={`w-full text-left px-2 py-1 ${active ? "bg-blue-50 font-medium" : "hover:bg-gray-50"}`}
                   onClick={() => setGuideStep(i)}
                   title={tp?.name || ""}
+                  aria-current={active ? "step" : undefined}
                 >
                   <span className="mr-2 text-[11px] text-gray-500">{i + 1}.</span>
                   <span className="text-[12px]">{label}</span>

@@ -14,8 +14,14 @@ export type BlockPreset = {
   inputs?: Record<string, unknown>;
 };
 
-export async function loadBlockPresets(): Promise<BlockPreset[]> {
-  const header: BlockPreset = {
+function freezePreset<T extends BlockPreset>(p: T): T {
+  p.elements.forEach(Object.freeze);
+  if (p.inputs) Object.freeze(p.inputs);
+  return Object.freeze(p);
+}
+
+const PRESETS: BlockPreset[] = [
+  freezePreset({
     id: "header-basic",
     name: "Header",
     elements: [
@@ -23,9 +29,8 @@ export async function loadBlockPresets(): Promise<BlockPreset[]> {
       { id: "hdr-sub", type: "text", rect: { x: 10, y: 12, w: 60, h: 4 }, value: "Subtitle or project name" },
       { id: "hdr-divider", type: "divider", rect: { x: 10, y: 18, w: 80, h: 1 } },
     ],
-  };
-
-  const footer: BlockPreset = {
+  }),
+  freezePreset({
     id: "footer-basic",
     name: "Footer",
     elements: [
@@ -33,9 +38,8 @@ export async function loadBlockPresets(): Promise<BlockPreset[]> {
       { id: "ftr-left", type: "text", rect: { x: 10, y: 92, w: 40, h: 4 }, value: "Company • Confidential" },
       { id: "ftr-right", type: "text", rect: { x: 70, y: 92, w: 20, h: 4 }, value: "Page {{draft.page}}/{{draft.pages}}" },
     ],
-  };
-
-  const siteProps: BlockPreset = {
+  }),
+  freezePreset({
     id: "site-properties-basic",
     name: "Site Properties",
     elements: [],
@@ -49,7 +53,11 @@ export async function loadBlockPresets(): Promise<BlockPreset[]> {
       panelModel: "",
       inverterModel: "",
     },
-  };
+  }),
+];
 
-  return [header, footer, siteProps];
+Object.freeze(PRESETS);
+
+export async function loadBlockPresets(): Promise<BlockPreset[]> {
+  return PRESETS;
 }

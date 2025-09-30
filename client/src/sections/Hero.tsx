@@ -1,10 +1,12 @@
+// client/src/sections/Hero.tsx
 export default function Hero() {
+  const headingId = "hero-title";
   return (
-    <section id="hero" className="bg-white">
+    <section id="hero" className="bg-white" aria-labelledby={headingId}>
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center md:justify-between p-8 md:p-16 gap-10">
         {/* Text content */}
         <div className="flex-1 text-center md:text-left md:max-w-xl">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900">
+          <h1 id={headingId} className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900">
             Turn drone photos into client-ready reports.
           </h1>
 
@@ -51,6 +53,8 @@ export default function Hero() {
             src="/og-image.png"
             alt="DroneReport example report preview"
             className="w-full h-full object-contain"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </div>

@@ -1,9 +1,17 @@
 // client/src/editor/media/workers/exifWorker.ts
-// Placeholder worker for future EXIF parsing to keep UI responsive.
-// For now, it simply echoes file names and sizes; wire EXIF libs later.
-self.onmessage = async (e: MessageEvent) => {
-  const files: { name: string; size: number }[] = e.data?.files || [];
-  // No heavy parsing yet. Return minimal metadata.
-  (self as unknown as Worker).postMessage({ ok: true, files });
+
+// Define expected message shape
+type InMsg = { type: "PARSE_EXIF"; files: { name: string; size: number }[] };
+type OutMsg = { type: "EXIF_RESULT"; ok: boolean; files: { name: string; size: number }[] };
+
+// Worker entry
+self.onmessage = (e: MessageEvent<InMsg>) => {
+  if (e.data?.type !== "PARSE_EXIF") return;
+
+  const files = Array.isArray(e.data.files) ? e.data.files : [];
+  // No heavy parsing yet; just echo back basic metadata
+  const msg: OutMsg = { type: "EXIF_RESULT", ok: true, files };
+  self.postMessage(msg);
 };
+
 export {};

@@ -40,18 +40,25 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
 
   const [rects, setRects] = useState<Annotation[]>(() => value.map(a => ({...a, rect: {...a.rect}})));
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [drag, setDrag] = useState<null | { kind: "new"|"move"|"resize", id?: string, ox:number, oy:number, rx:number, ry:number, rw:number, rh:number, handle?: string }>(null);
+  const [drag, setDrag] = useState<null | { kind: "new"|"move"|"resize", id?: string, ox:number, oy:number, rx:number, ry:number, rw:number, rh:number, handle?: "nw"|"ne"|"sw"|"se" }>(null);
+
+  // Focus the panel for immediate keyboard handling
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
 
   // Scale helpers
   function toLocal(e: {clientX:number; clientY:number}) {
-    const img = imgRef.current!;
+    const img = imgRef.current;
+    if (!img) return { x: 0, y: 0 };
     const r = img.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width;
     const y = (e.clientY - r.top) / r.height;
     return { x: clamp01(x), y: clamp01(y) };
   }
   function toScreen(r: {x:number;y:number;w:number;h:number}) {
-    const img = imgRef.current!;
+    const img = imgRef.current;
+    if (!img) return null;
     const b = img.getBoundingClientRect();
     return { left: b.left + r.x*b.width, top: b.top + r.y*b.height, w: r.w*b.width, h: r.h*b.height };
   }
@@ -60,14 +67,14 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
   function onMouseDownNew(e: React.MouseEvent) {
     if (e.button !== 0) return;
     const p = toLocal(e);
-    const id = crypto.randomUUID();
+    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const rect = normRect({ x: p.x, y: p.y, w: 0, h: 0 });
     setRects(rs => [...rs, { id, kind: "box", rect, index: (rs.length || 0) + 1 }]);
     setActiveId(id);
     setDrag({ kind: "new", id, ox: p.x, oy: p.y, rx: rect.x, ry: rect.y, rw: rect.w, rh: rect.h });
   }
 
-  function onMouseMove(e: MouseEvent) {
+  const onMouseMove = (e: MouseEvent) => {
     if (!drag) return;
     const p = toLocal(e as any);
     setRects(rs => {
@@ -94,16 +101,21 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
       next[i] = { ...cur, rect };
       return next;
     });
-  }
-  function onMouseUp() { setDrag(null); }
+  };
+  const onMouseUp = () => setDrag(null);
 
+  // Pointer listeners (install once, respond to latest state via deps)
   useEffect(() => {
-    function mm(e: MouseEvent) { onMouseMove(e); }
-    function mu() { onMouseUp(); }
+    const mm = (e: MouseEvent) => onMouseMove(e);
+    const mu = () => onMouseUp();
     window.addEventListener("mousemove", mm);
     window.addEventListener("mouseup", mu);
-    return () => { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); };
-  });
+    return () => {
+      window.removeEventListener("mousemove", mm);
+      window.removeEventListener("mouseup", mu);
+    };
+    // rebind when drag ref changes so we use latest logic, but don't pile up listeners
+  }, [drag]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function beginMove(id: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -125,9 +137,15 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
     setActiveId(null);
   }
 
-  // Keyboard delete
+  // Keyboard: Delete to remove, Escape to cancel selection/drag or close
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (drag) { setDrag(null); return; }
+        if (activeId) { setActiveId(null); return; }
+        onCancel();
+        return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         onDeleteActive();
@@ -135,7 +153,7 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [drag, activeId, onCancel]);
 
   // Show other findings' boxes on the same photo as ghosts
   const ghosts = useMemo(() => {
@@ -144,29 +162,36 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
   }, [rects, allForPhoto]);
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Image annotator">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
-      <div className="absolute inset-6 bg-white rounded-lg shadow-xl overflow-hidden flex flex-col">
+      <div
+        ref={containerRef}
+        className="absolute inset-6 bg-white rounded-lg shadow-xl overflow-hidden flex flex-col outline-none"
+        tabIndex={-1}
+      >
         <div className="px-3 py-2 border-b flex items-center gap-2">
           <div className="font-medium text-sm truncate">{photo.filename || photo.id}</div>
-          <div className="text-xs text-gray-500">Draw boxes. Click to select. Drag corners to resize. Del to remove.</div>
+          <div className="text-xs text-gray-500">
+            Draw boxes. Click to select. Drag corners to resize. Del to remove. Esc to cancel.
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <button className="px-3 py-1 border rounded text-sm" onClick={() => onSave(rects)}>Save</button>
             <button className="px-3 py-1 border rounded text-sm" onClick={onCancel}>Cancel</button>
           </div>
         </div>
 
-        <div ref={containerRef} className="relative flex-1 bg-black/5">
+        <div className="relative flex-1 bg-black/5">
           <img
             ref={imgRef}
             src={photo.url}
+            alt={photo.filename || "Photo to annotate"}
             className="max-w-full max-h-full m-auto select-none"
             draggable={false}
             onMouseDown={onMouseDownNew}
           />
           {/* Ghosts */}
           {ghosts.map(g => {
-            const s = imgRef.current ? toScreen(g.rect) : null;
+            const s = toScreen(g.rect);
             if (!s) return null;
             return (
               <div key={`ghost-${g.id}`} className="pointer-events-none absolute"
@@ -177,7 +202,7 @@ export default function Annotator({ photo, value, allForPhoto = [], onSave, onCa
           })}
           {/* Active rects */}
           {rects.map(r => {
-            const s = imgRef.current ? toScreen(r.rect) : null;
+            const s = toScreen(r.rect);
             if (!s) return null;
             const active = r.id === activeId;
             return (

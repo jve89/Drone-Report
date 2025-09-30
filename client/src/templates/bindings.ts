@@ -48,6 +48,7 @@ export function select(spec: string, ctx: BindingContext): any[] {
   if (!parts.length) return [];
   const name = parts.shift()!;
   let rows: any[] = resolveCollection(name, ctx);
+  if (!Array.isArray(rows)) rows = [];
 
   let sortKeys: SortKey[] = [];
   let limit: number | null = null;
@@ -64,7 +65,7 @@ export function select(spec: string, ctx: BindingContext): any[] {
     }
     if (p.startsWith("limit=")) {
       const n = Number(p.slice(6));
-      limit = Number.isFinite(n) ? n : null;
+      limit = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
       continue;
     }
     // filter token: field op value  (supports =,!=,>=,<=,>,<)
@@ -81,8 +82,21 @@ export function select(spec: string, ctx: BindingContext): any[] {
       for (const s of sortKeys) {
         const av = get(a, s.key);
         const bv = get(b, s.key);
-        if (av === bv) continue;
-        return (av > bv ? 1 : -1) * s.dir;
+        const base =
+          av == null && bv == null
+            ? 0
+            : av == null
+            ? 1
+            : bv == null
+            ? -1
+            : typeof av === "string" && typeof bv === "string"
+            ? av.localeCompare(bv)
+            : av > bv
+            ? 1
+            : av < bv
+            ? -1
+            : 0;
+        if (base !== 0) return base * s.dir;
       }
       return 0;
     });
@@ -108,9 +122,9 @@ function resolveCollection(name: string, ctx: BindingContext): any[] {
 function getPath(path: string, ctx: BindingContext): unknown {
   // allow raw literals
   if (/^(['"]).*\1$/.test(path)) return path.slice(1, -1);
-  if (/^\d+(\.\d+)?$/.test(path)) return Number(path);
+  if (/^-?\d+(\.\d+)?$/.test(path)) return Number(path);
 
-  // dot paths with roots: run., draft., item., findings[0].title not supported yet
+  // dot paths with roots: run., draft., item., findings
   const [root, ...rest] = path.split(".");
   let base: any;
   if (root === "run") base = ctx.run ?? {};
@@ -139,7 +153,7 @@ function compare(a: any, op: "=" | "!=" | ">" | "<" | ">=" | "<=", b: any): bool
 
 function coerce(v: string): any {
   const s = v.trim().replace(/^['"]|['"]$/g, "");
-  if (/^\d+(\.\d+)?$/.test(s)) return Number(s);
+  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
   if (s.toLowerCase() === "true") return true;
   if (s.toLowerCase() === "false") return false;
   return s;

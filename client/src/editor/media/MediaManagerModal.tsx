@@ -1,5 +1,5 @@
 // client/src/editor/media/MediaManagerModal.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { uploadDraftMedia, deleteDraftMedia } from "../../lib/api";
 import type { MediaItem } from "@drone-report/shared/types/media";
 import type { QueuedFile, ImportGroup } from "./types";
@@ -46,7 +46,12 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
   } = useImportSession();
 
   function queueFiles(list: File[], targetGroupId?: string) {
-    const queued: QueuedFile[] = list.map((f) => ({
+    // dedupe by name:size to avoid duplicate entries on repeated drops
+    const seen = new Set(files.map((f) => `${f.name}:${f.size}`));
+    const fresh = list.filter((f) => !seen.has(`${f.name}:${f.size}`));
+    if (!fresh.length) return;
+
+    const queued: QueuedFile[] = fresh.map((f) => ({
       file: f,
       name: f.name,
       size: f.size,
@@ -74,6 +79,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
 
   function makeGroups() {
     const imgs = files.filter((f) => isImageOrZip(f.name));
+    if (!imgs.length) { setGroups([]); return; }
     const g = groupByFolderOrTime(imgs, 90_000);
     setGroups(g);
   }
@@ -85,6 +91,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
   }, [files, filter]);
 
   async function startUpload() {
+    if (!files.length || isUploading) return;
     setIsUploading(true);
     try {
       const payload: File[] = files.map((f) => f.file);
@@ -95,6 +102,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
       const picked = pickJustUploaded(all, payload, before) as MediaItem[];
       if (picked.length) { onUploaded(picked); addItems(picked); }
       clear();
+      setFilter("");
       setMode("library");
     } finally {
       setIsUploading(false);
@@ -113,6 +121,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
   }
 
   const modalRef = useRef<HTMLDivElement>(null);
+  // Drag listeners on the modal root — stable, bind once
   useEffect(() => {
     const el = modalRef.current;
     if (!el) return;
@@ -137,11 +146,18 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
       el.removeEventListener("dragleave", onLeave);
       el.removeEventListener("drop", onDrop);
     };
-  }, [modalRef.current, files, groups]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // bind once
+
+  // Close on Esc
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const library = useMemo(() => items.filter((m) => m && m.id && mediaSrc(m)), [items]);
 
-  function onDragStartMedia(ev: React.DragEvent, m: MediaItem) {
+  const onDragStartMedia = useCallback((ev: React.DragEvent, m: MediaItem) => {
     if (!draft) return;
     const url = mediaSrc(m) || "";
     if (!url) return;
@@ -154,7 +170,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
     };
     ev.dataTransfer.setData(DR_MEDIA_MIME, JSON.stringify(payload));
     ev.dataTransfer.effectAllowed = "copy";
-  }
+  }, [draft]);
 
   const currentPageId = draft?.pageInstances?.[pageIndex]?.id || null;
 
@@ -162,7 +178,8 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
     <div className="fixed inset-0 bg-black/30 z-50 flex">
       <div
         ref={modalRef}
-        className="m-auto bg-white w-[min(1100px,95vw)] h-[min(88vh,900px)] rounded-xl shadow-xl flex flex-col relative"
+        className="m-auto bg-white w=[min(1100px,95vw)] h=[min(88vh,900px)] rounded-xl shadow-xl flex flex-col relative"
+        style={{ width: "min(1100px,95vw)", height: "min(88vh,900px)" }}
       >
         {dragOverAll && (
           <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl pointer-events-none flex items-center justify-center">
@@ -178,9 +195,23 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
 
         {/* Toolbar */}
         <div className="p-3 border-b flex items-center gap-2">
-          <div className="inline-flex rounded-lg border overflow-hidden mr-2">
-            <button className={`px-3 py-1 text-sm ${mode === "queue" ? "bg-gray-100" : "bg-white"} border-r`} onClick={() => setMode("queue")}>Queue</button>
-            <button className={`px-3 py-1 text-sm ${mode === "library" ? "bg-gray-100" : "bg-white"}`} onClick={() => setMode("library")}>Library</button>
+          <div className="inline-flex rounded-lg border overflow-hidden mr-2" role="tablist" aria-label="Media mode">
+            <button
+              role="tab"
+              aria-selected={mode === "queue"}
+              className={`px-3 py-1 text-sm ${mode === "queue" ? "bg-gray-100" : "bg-white"} border-r`}
+              onClick={() => setMode("queue")}
+            >
+              Queue
+            </button>
+            <button
+              role="tab"
+              aria-selected={mode === "library"}
+              className={`px-3 py-1 text-sm ${mode === "library" ? "bg-gray-100" : "bg-white"}`}
+              onClick={() => setMode("library")}
+            >
+              Library
+            </button>
           </div>
 
           <button className="px-2 py-1 border rounded hover:bg-gray-50"
@@ -207,7 +238,7 @@ export default function MediaManagerModal({ draftId, onClose, onUploaded }: Medi
             <option value="grid">Grid</option>
             <option value="list">List</option>
           </select>
-          <button className="px-2 py-1 border rounded hover:bg-gray-50" onClick={makeGroups}>Auto-group</button>
+          <button className="px-2 py-1 border rounded hover:bg-gray-50 disabled:opacity-50" disabled={!files.length} onClick={makeGroups}>Auto-group</button>
 
           <div className="ml-auto flex items-center gap-2">
             <button disabled={!files.length || isUploading} className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50" onClick={startUpload}>

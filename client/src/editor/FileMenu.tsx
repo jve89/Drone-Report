@@ -9,12 +9,15 @@ export default function FileMenu() {
   const { draft, saveNow, setDraftTitle, dirty, saving, _saveTimer } = useEditor();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const firstItemRef = useRef<HTMLButtonElement>(null);
+  const menuId = "file-menu";
 
   const title =
     (draft as any)?.payload?.meta?.title ||
     (draft as any)?.title ||
     "Untitled";
 
+  // Close on outside click
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!menuRef.current) return;
@@ -22,6 +25,20 @@ export default function FileMenu() {
     }
     if (open) document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  // Close on Escape and focus first item on open
+  useEffect(() => {
+    if (!open) return;
+    firstItemRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   async function onNew() {
@@ -55,9 +72,11 @@ export default function FileMenu() {
   return (
     <div className="relative" ref={menuRef}>
       <button
+        type="button"
         className="px-3 py-1 border rounded hover:bg-gray-50"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={menuId}
         onClick={() => setOpen(v => !v)}
       >
         File ▾
@@ -65,27 +84,50 @@ export default function FileMenu() {
 
       {open && (
         <div
+          id={menuId}
           role="menu"
           className="absolute z-20 mt-1 w-44 bg-white border rounded shadow"
         >
-          <button role="menuitem" className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={onNew}>
+          <button
+            type="button"
+            ref={firstItemRef}
+            role="menuitem"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={onNew}
+          >
             New report
           </button>
-          <button role="menuitem" className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={onOpen}>
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={onOpen}
+          >
             Open…
           </button>
           <button
+            type="button"
             role="menuitem"
             className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${isSaving ? "opacity-60 pointer-events-none" : ""}`}
             onClick={onSave}
           >
             Save
           </button>
-          <button role="menuitem" className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={onRename}>
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={onRename}
+          >
             Rename…
           </button>
           <div className="my-1 border-t" />
-          <button role="menuitem" className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={onClose}>
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={onClose}
+          >
             Close
           </button>
         </div>

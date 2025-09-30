@@ -8,9 +8,7 @@ function clamp(z: number) {
 function isTypingTarget(el: EventTarget | null) {
   return (
     el instanceof HTMLElement &&
-    (el.tagName === "INPUT" ||
-      el.tagName === "TEXTAREA" ||
-      el.isContentEditable)
+    (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
   );
 }
 
@@ -36,14 +34,30 @@ export default function ViewerControls() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (isTypingTarget(e.target)) return;
+
       if (e.key === "PageUp") {
-        e.preventDefault(); onPrev();
-      } else if (e.key === "PageDown") {
-        e.preventDefault(); onNext();
-      } else if (e.key === "-" || e.key === "_") {
-        e.preventDefault(); onZoom(-0.1);
-      } else if (e.key === "=" || e.key === "+") {
-        e.preventDefault(); onZoom(+0.1);
+        if (!prevDisabled) {
+          e.preventDefault();
+          onPrev();
+        }
+        return;
+      }
+      if (e.key === "PageDown") {
+        if (!nextDisabled) {
+          e.preventDefault();
+          onNext();
+        }
+        return;
+      }
+      if (e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        onZoom(-0.1);
+        return;
+      }
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        onZoom(+0.1);
+        return;
       }
     }
     window.addEventListener("keydown", onKey);
@@ -56,10 +70,12 @@ export default function ViewerControls() {
   return (
     <div
       className="pointer-events-auto fixed bottom-4 left-1/2 -translate-x-1/2 z-40"
+      role="toolbar"
       aria-label="Viewer controls"
     >
       <div className="flex items-center gap-4 rounded-lg bg-gray-700 text-white shadow-lg px-4 py-2 select-none">
         <button
+          type="button"
           className={`px-2 py-1 rounded ${prevDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-600"}`}
           onClick={onPrev}
           disabled={prevDisabled}
@@ -72,6 +88,7 @@ export default function ViewerControls() {
           Page {pageIndex + 1} of {pageCount}
         </div>
         <button
+          type="button"
           className={`px-2 py-1 rounded ${nextDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-600"}`}
           onClick={onNext}
           disabled={nextDisabled}
@@ -84,6 +101,7 @@ export default function ViewerControls() {
         <div className="w-px h-5 bg-gray-600 mx-1" />
 
         <button
+          type="button"
           className="px-2 py-1 rounded hover:bg-gray-600"
           onClick={() => onZoom(-0.1)}
           aria-label="Zoom out"
@@ -91,8 +109,11 @@ export default function ViewerControls() {
         >
           ⍗
         </button>
-        <div className="min-w-[52px] text-center text-sm tabular-nums">{Math.round(zoom * 100)}%</div>
+        <div className="min-w-[52px] text-center text-sm tabular-nums">
+          {Math.round(zoom * 100)}%
+        </div>
         <button
+          type="button"
           className="px-2 py-1 rounded hover:bg-gray-600"
           onClick={() => onZoom(+0.1)}
           aria-label="Zoom in"

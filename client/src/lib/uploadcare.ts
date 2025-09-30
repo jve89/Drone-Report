@@ -1,3 +1,38 @@
+// client/src/lib/uploadcare.ts
+/**
+ * Legacy Uploadcare integration.
+ * Status: DISABLED as of v0.3.26 (migrated to server-side /api/drafts/:id/media and FS pickers).
+ *
+ * Why keep this file:
+ * - Historical reference
+ * - Quick fallback if you ever re-enable Uploadcare-based picking
+ *
+ * How to re-enable:
+ * 1) Ensure VITE_UPLOADCARE_PUBLIC_KEY is set.
+ * 2) Replace the stubs below with the commented implementation.
+ * 3) Audit UI flows to ensure they call these pickers intentionally.
+ */
+
+// --- Public API stubs (kept so imports won't break) ---
+
+export async function initUploadcare(): Promise<void> {
+  throw new Error("Uploadcare picker is disabled (legacy). To re-enable, see comments in client/src/lib/uploadcare.ts.");
+}
+
+export async function pickSingle(): Promise<string | null> {
+  throw new Error("Uploadcare picker is disabled (legacy). To re-enable, see comments in client/src/lib/uploadcare.ts.");
+}
+
+export async function pickMultiple(
+  _maxFiles = 200
+): Promise<{ url: string; filename?: string; thumb?: string }[]> {
+  throw new Error("Uploadcare picker is disabled (legacy). To re-enable, see comments in client/src/lib/uploadcare.ts.");
+}
+
+/* --------------------------------------------------------------------------
+   Original implementation (disabled)
+   --------------------------------------------------------------------------
+
 type UcFile = { cdnUrl?: string; cdnUrlMod?: string; name?: string };
 
 const UCARE_PUBLIC_KEY = import.meta.env.VITE_UPLOADCARE_PUBLIC_KEY || "";
@@ -58,7 +93,7 @@ export async function pickMultiple(
     .map((f: any) => {
       const url: string = f.cdnUrl || f.cdnUrlMod || "";
       const filename: string | undefined = f.name;
-      const thumb = url ? `${url}-/preview/320x240/` : undefined;
+      const thumb = url ? \`\${url}-/preview/320x240/\` : undefined;
       return { url, filename, thumb };
     })
     // keep only valid absolute http(s) URLs
@@ -66,3 +101,5 @@ export async function pickMultiple(
 
   return out;
 }
+
+--------------------------------------------------------------------------- */

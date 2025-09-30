@@ -1,16 +1,28 @@
 // client/src/templates/loader.ts
 import { getTemplate } from "../api/templates";
 
-// Prefer local JSON for first-party templates; fall back to API for others.
+function normalize(mod: any) {
+  return mod?.default ?? mod ?? null;
+}
+
+/**
+ * Load a template by id.
+ * - First-party templates are bundled JSON files (imported dynamically).
+ * - All other ids fall back to API fetch.
+ */
 export async function loadTemplate(id: string) {
-  if (id === "building-roof-v1") {
-    // Dynamic import avoids touching shared/templates/index.ts
-    const mod = await import("../../../shared/templates/building-roof-v1.json");
-    return mod.default ?? mod;
+  if (!id || typeof id !== "string") return null;
+
+  switch (id) {
+    case "building-roof-v1": {
+      const mod = await import("../../../shared/templates/building-roof-v1.json");
+      return normalize(mod);
+    }
+    case "blank-v1": {
+      const mod = await import("../../../shared/templates/blank.json");
+      return normalize(mod);
+    }
+    default:
+      return getTemplate(id);
   }
-  if (id === "blank-v1") {
-    const mod = await import("../../../shared/templates/blank.json");
-    return mod.default ?? mod;
-  }
-  return getTemplate(id);
 }
