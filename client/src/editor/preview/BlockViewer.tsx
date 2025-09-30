@@ -13,26 +13,31 @@ const PAGE_H = 1160;
 type Rect = { x: number; y: number; w: number; h: number };
 type BlockBase = { id: string; type: string; rect: Rect; label?: string; placeholder?: string; options?: any };
 type BlockText = BlockBase & { type: "text"; value?: string };
-type BlockImage = BlockBase & { type: "image_slot"; source?: string };
+type BlockImageSlot = BlockBase & { type: "image_slot"; source?: string };
+type BlockImageTpl = BlockBase & {
+  type: "image";
+  url?: string;
+  alt?: string;
+  fit?: "contain" | "cover" | "scale-down";
+  opacity?: number;
+  borderRadius?: number;
+};
 type BlockTable = BlockBase & { type: "table"; options?: { columns?: { key: string; label: string }[] } };
 type BlockBadge = BlockBase & { type: "badge"; options?: { palette?: string } };
 type BlockRepeater = BlockBase & {
   type: "repeater";
   bind?: string;
   options?: { previewCount?: number };
-  children?: Array<BlockText | BlockImage | BlockBadge>;
+  children?: Array<BlockText | BlockImageSlot | BlockBadge>;
 };
-type BlockSection = BlockBase & {
-  type: "section";
-  options?: { kind?: string; props?: any };
-};
-// Back-compat + template utility blocks
+type BlockSection = BlockBase & { type: "section"; options?: { kind?: string; props?: any } };
 type BlockRect = BlockBase & { type: "rect" };
 type BlockDivider = BlockBase & { type: "divider" };
 
 type Block =
   | BlockText
-  | BlockImage
+  | BlockImageSlot
+  | BlockImageTpl
   | BlockTable
   | BlockBadge
   | BlockRepeater
@@ -40,12 +45,12 @@ type Block =
   | BlockRect
   | BlockDivider;
 
-/** Relaxed typing for user blocks so meta-based section blocks render */
+/** Relaxed typing for user blocks */
 type UserBlock = {
   id: string;
   type: string;
   rect: Rect;
-  blockStyle?: any; // may contain meta.blockKind/payload/props
+  blockStyle?: any;
   value?: string;
   style?: any;
 };
@@ -125,7 +130,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
     );
   }
 
-  /** --- Simple read-only renderers for meta section blocks --- */
+  /** Section renderers */
   function RenderSeverityOverview({ payload, props }: any) {
     const counts: number[] = Array.isArray(payload?.counts) ? payload.counts : [];
     return (
@@ -284,7 +289,6 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
   function RenderImage({ props }: any) {
     return <ImageBlock {...props} />;
   }
-  /** --- end section block renderers --- */
 
   function renderSectionByKind(kind: keyof typeof BLOCK_DEFS, payload: any, props?: any) {
     if (kind === "severityOverview") return <RenderSeverityOverview payload={payload} props={props} />;
@@ -315,16 +319,30 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                 case "image_slot": {
                   const vStr = typeof v === "string" ? v : "";
                   const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
-                  const boundSrc = (b as BlockImage).source ? renderBoundText((b as BlockImage).source) : "";
+                  const boundSrc = (b as BlockImageSlot).source ? renderBoundText((b as BlockImageSlot).source) : "";
                   const url = boundFromValue || boundSrc || vStr;
                   return (
                     <Box key={b.id} rect={b.rect}>
-                      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : null}
+                      <ImageBlock src={url} alt="" fit="contain" opacity={100} borderRadius={0} />
+                    </Box>
+                  );
+                }
+                case "image": {
+                  const vStr = typeof v === "string" ? v : "";
+                  const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
+                  const boundUrl = (b as BlockImageTpl).url ? renderBoundText((b as BlockImageTpl).url!) : "";
+                  const url = boundFromValue || boundUrl || vStr;
+                  const alt = (b as BlockImageTpl).alt || "Image";
+                  const fit = (b as BlockImageTpl).fit || "contain";
+                  const opacity = (b as BlockImageTpl).opacity ?? 100;
+                  const borderRadius = (b as BlockImageTpl).borderRadius ?? 0;
+                  return (
+                    <Box key={b.id} rect={b.rect}>
+                      <ImageBlock src={url} alt={alt} fit={fit} opacity={opacity} borderRadius={borderRadius} />
                     </Box>
                   );
                 }
                 case "rect": {
-                  // Back-compat: old templates used a rect labeled "Logo" on the cover
                   const isLogo = typeof (b as BlockRect)?.label === "string" && /logo/i.test((b as BlockRect).label!);
                   if (!isLogo) return null;
                   return (
@@ -432,7 +450,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
               }
             })}
 
-            {/* User section blocks (identified by blockStyle.meta.blockKind) */}
+            {/* User section blocks */}
             {(userBlocks || []).map((ub) => {
               const meta = (ub as any)?.blockStyle?.meta as
                 | { blockKind?: string; payload?: any; props?: any }

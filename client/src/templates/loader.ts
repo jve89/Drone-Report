@@ -22,6 +22,12 @@ export async function loadTemplate(id: string) {
       const mod = await import("../../../shared/templates/blank.json");
       return normalize(mod);
     }
+    // Alias BOTH ids to the same bundled file
+    case "solar-pv":
+    case "solar-pv-v1": {
+      const mod = await import("../../../shared/templates/solar-pv.json");
+      return normalize(mod);
+    }
     default:
       return getTemplate(id);
   }

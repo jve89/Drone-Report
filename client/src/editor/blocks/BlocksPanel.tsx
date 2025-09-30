@@ -56,18 +56,12 @@ export default function BlocksPanel() {
             ],
       };
     }
-    if (kind === "photoStrip") {
-      return { urls: [] as string[] };
-    }
-    if (kind === "siteProperties") {
-      return {}; // values are edited inline by the block component
-    }
+    if (kind === "photoStrip") return { urls: [] as string[] };
+    if (kind === "siteProperties") return {};
     if (kind === "inspectionDetails") {
       return { date: "", inspector: "", weather: "", wind: "", temperature: "", notes: "" };
     }
-    if (kind === "orthoPair") {
-      return { leftUrl: "", rightUrl: "", leftCaption: "", rightCaption: "" };
-    }
+    if (kind === "orthoPair") return { leftUrl: "", rightUrl: "", leftCaption: "", rightCaption: "" };
     if (kind === "thermalAnomalies") {
       return {
         rows: [
@@ -76,15 +70,12 @@ export default function BlocksPanel() {
         ],
       };
     }
-    if (kind === "image") {
-      return { src: "", alt: "Image" };
-    }
+    if (kind === "image") return {}; // props drive ImageBlock
     return {};
   }
 
   function insert(kind: BlockKind) {
-    // Use a shape container to host the section block UI
-    startInsert("rect" as any);
+    startInsert("rect" as any); // user blocks are hosted in a rect
     const h = kind === "photoStrip" ? 18 : kind === "image" ? 20 : 24;
     const id = placeUserBlock({ x: 10, y: 10, w: 80, h });
     if (!id) return;
@@ -108,6 +99,19 @@ export default function BlocksPanel() {
     <div className="p-3 space-y-3">
       <div className="text-sm font-medium">Blocks</div>
       <div className="grid grid-cols-2 gap-2">
+        <Card
+          title="Image"
+          subtitle="Place an image block"
+          onInsert={() => insert("image" as BlockKind)}
+          preview={
+            <div
+              className="w-full h-full grid place-items-center rounded border text-[11px] text-gray-500"
+              style={{ background: "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px" }}
+            >
+              Image
+            </div>
+          }
+        />
         <Card
           title="Severity Overview"
           subtitle="Counts by severity"
@@ -196,19 +200,6 @@ export default function BlocksPanel() {
             <div className="w-full h-full p-2">
               <div className="text-[10px] text-gray-500">Type • Tmin • Tmean • Tmax • ΔT</div>
               <div className="text-[11px]">Hotspot • 32 • 38 • 46 • 14</div>
-            </div>
-          }
-        />
-        <Card
-          title="Image"
-          subtitle="Static image/logo"
-          onInsert={() => insert("image")}
-          preview={
-            <div
-              className="w-full h-full grid place-items-center"
-              style={{ background: "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px" }}
-            >
-              <div className="text-[11px] text-gray-500">Image</div>
             </div>
           }
         />

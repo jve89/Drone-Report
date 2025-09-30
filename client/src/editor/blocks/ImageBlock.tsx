@@ -1,64 +1,70 @@
 // client/src/editor/blocks/ImageBlock.tsx
 import React from "react";
-import type { ImageProps } from "./defs";
 
-export type ImageBlockViewProps = ImageProps & {
-  /** Provided by the canvas container via CSS sizing. Optional here. */
-  width?: number;
-  height?: number;
+export type ImageBlockProps = {
+  src?: string;
+  alt?: string;
+  fit?: "contain" | "cover" | "scale-down";
+  opacity?: number;          // 0–100
+  borderRadius?: number;     // px
+  stroke?: boolean;          // optional outline for visibility
 };
 
-function fitToObjectFit(fit: ImageProps["fit"]): React.CSSProperties["objectFit"] {
-  switch (fit) {
-    case "cover":
-      return "cover";
-    case "scale-down":
-      return "scale-down";
-    case "contain":
-    default:
-      return "contain";
-  }
-}
-
-export default function ImageBlock(props: ImageBlockViewProps) {
-  const { src, alt = "Image", fit, opacity, borderRadius } = props;
-
-  const wrapperStyle: React.CSSProperties = {
-    width: props.width ?? "100%",
-    height: props.height ?? "100%",
-    position: "relative",
-    overflow: "hidden",
+export default function ImageBlock({
+  src,
+  alt = "",
+  fit = "contain",
+  opacity = 100,
+  borderRadius = 0,
+  stroke = true,
+}: ImageBlockProps) {
+  const baseStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
     borderRadius,
+    overflow: "hidden",
+    position: "relative",
   };
 
-  const hasSrc = !!src && src.trim().length > 0;
+  if (!src) {
+    // Visible placeholder when no image is bound
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          border: stroke ? "1px dashed #d1d5db" : undefined,
+          background:
+            "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px",
+          display: "grid",
+          placeItems: "center",
+        }}
+        aria-label="Empty image placeholder"
+      >
+        <span style={{ fontSize: 11, color: "#6b7280" }}>Image</span>
+      </div>
+    );
+  }
 
   return (
-    <div style={wrapperStyle} className="bg-white">
-      {hasSrc ? (
-        <img
-          src={src}
-          alt={alt}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: fitToObjectFit(fit),
-            display: "block",
-            opacity: Math.max(0, Math.min(100, opacity)) / 100,
-          }}
-          draggable={false}
-        />
-      ) : (
-        <div
-          className="w-full h-full grid place-items-center"
-          style={{
-            background:
-              "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px",
-          }}
-        >
-          <div className="text-xs text-gray-500 select-none">Image</div>
-        </div>
-      )}
+    <div
+      style={{
+        ...baseStyle,
+        border: stroke ? "1px solid #e5e7eb" : undefined,
+        backgroundColor: "#fff",
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: fit,
+          opacity: Math.max(0, Math.min(100, opacity)) / 100,
+          display: "block",
+        }}
+        draggable={false}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 {
   "id": "solar-pv-v1",
   "name": "Solar PV",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "pages": [
     {
       "id": "cover",
@@ -25,7 +25,12 @@
           "type": "image",
           "rect": { "x": 35, "y": 35, "w": 30, "h": 20 },
           "label": "Company Logo",
-          "help": "Place your company logo here"
+          "help": "Place your company logo here",
+          "url": "{{run.logo}}",
+          "alt": "Company logo",
+          "fit": "contain",
+          "opacity": 100,
+          "borderRadius": 0
         },
         {
           "id": "slogan",
@@ -88,7 +93,10 @@
           "rect": { "x": 10, "y": 18, "w": 80, "h": 28 },
           "label": "Severity Overview",
           "help": "Review overall severity distribution.",
-          "options": { "kind": "severityOverview", "props": { "showIcons": true } }
+          "options": {
+            "kind": "severityOverview",
+            "props": { "showIcons": true }
+          }
         },
         {
           "id": "inspection_details",
@@ -96,7 +104,10 @@
           "rect": { "x": 10, "y": 48, "w": 80, "h": 30 },
           "label": "Inspection Details",
           "help": "Confirm drone, date, weather, and method.",
-          "options": { "kind": "inspectionDetails", "props": { "cols": 2, "showIcons": true } }
+          "options": {
+            "kind": "inspectionDetails",
+            "props": { "cols": 2, "showIcons": true }
+          }
         }
       ]
     },
@@ -111,7 +122,10 @@
           "rect": { "x": 8, "y": 10, "w": 84, "h": 70 },
           "label": "Findings Table",
           "help": "Populate or verify all anomalies.",
-          "options": { "kind": "findingsTable", "props": { "pageSize": 10, "showSeverityIcons": true } }
+          "options": {
+            "kind": "findingsTable",
+            "props": { "pageSize": 10, "showSeverityIcons": true }
+          }
         }
       ]
     },
@@ -126,7 +140,10 @@
           "rect": { "x": 8, "y": 10, "w": 84, "h": 30 },
           "label": "Photo Strip",
           "help": "Select key visual evidence photos.",
-          "options": { "kind": "photoStrip", "props": { "count": 3 } }
+          "options": {
+            "kind": "photoStrip",
+            "props": { "count": 3 }
+          }
         },
         {
           "id": "ortho_pair",
@@ -134,7 +151,14 @@
           "rect": { "x": 8, "y": 44, "w": 84, "h": 22 },
           "label": "Ortho Pair",
           "help": "Add overview and detail ortho imagery.",
-          "options": { "kind": "orthoPair", "props": { "layout": "horizontal", "showNorth": true, "showScale": true } }
+          "options": {
+            "kind": "orthoPair",
+            "props": {
+              "layout": "horizontal",
+              "showNorth": true,
+              "showScale": true
+            }
+          }
         },
         {
           "id": "thermal_anomalies",
@@ -142,7 +166,10 @@
           "rect": { "x": 8, "y": 68, "w": 84, "h": 24 },
           "label": "Thermal Anomalies",
           "help": "List thermal anomalies with ΔT.",
-          "options": { "kind": "thermalAnomalies", "props": { "pageSize": 8, "showDelta": true, "unit": "°C" } }
+          "options": {
+            "kind": "thermalAnomalies",
+            "props": { "pageSize": 8, "showDelta": true, "unit": "°C" }
+          }
         }
       ]
     }
