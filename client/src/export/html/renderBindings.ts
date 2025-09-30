@@ -5,9 +5,27 @@ type TextBlock = { type: "text"; id: string; value: string };
 type BadgeBlock = { type: "badge"; id: string; value: { label: string; color: string } };
 type TableBlock = { type: "table"; id: string; rows: any[][] };
 type ImageSlotBlock = { type: "image_slot"; id: string; url?: string };
+type ImageBlock = {
+  type: "image";
+  id: string;
+  url?: string;
+  alt?: string;
+  fit?: "contain" | "cover" | "scale-down";
+  opacity?: number;
+  borderRadius?: number;
+};
 type RepeaterBlock = { type: "repeater"; id: string; bind: string; children: Block[] };
-// If you add more block types later, extend here.
-export type Block = TextBlock | BadgeBlock | TableBlock | ImageSlotBlock | RepeaterBlock;
+// Legacy utility
+type RectBlock = { type: "rect"; id: string; label?: string };
+
+export type Block =
+  | TextBlock
+  | BadgeBlock
+  | TableBlock
+  | ImageSlotBlock
+  | ImageBlock
+  | RepeaterBlock
+  | RectBlock;
 
 type Page = { id: string; name?: string; blocks: Block[] };
 type TemplateDoc = { pages: Page[] };
@@ -47,6 +65,27 @@ export function bindBlocks(blocks: Block[], ctx: BindingContext): Block[] {
 }
 
 export function bindBlock(block: Block, ctx: BindingContext): Block[] {
+  // Back-compat: old templates with a rect labeled "Logo" -> export as an <img>
+  if (block.type === "rect" && typeof (block as RectBlock).label === "string") {
+    const label = (block as RectBlock).label as string;
+    if (/logo/i.test(label)) {
+      const url =
+        safeRender("{{run.logo}}", ctx) ||
+        safeRender("{{draft.logo}}", ctx) ||
+        "";
+      const out: ImageBlock = {
+        type: "image",
+        id: (block as any).id,
+        url,
+        alt: "Logo",
+        fit: "contain",
+        opacity: 100,
+        borderRadius: 0,
+      };
+      return [out];
+    }
+  }
+
   if (block.type === "text") {
     return [{ ...block, value: safeRender((block as TextBlock).value, ctx) }];
   }
@@ -57,19 +96,31 @@ export function bindBlock(block: Block, ctx: BindingContext): Block[] {
     return [{ ...block, value: { ...(block as BadgeBlock).value, label } }];
   }
 
+  if (block.type === "image_slot") {
+    const src = (block as ImageSlotBlock).url;
+    const url = safeRender(src, ctx) || (typeof src === "string" ? src : "");
+    return [{ ...block, url }];
+  }
+
+  if (block.type === "image") {
+    const src = (block as ImageBlock).url;
+    const url = safeRender(src, ctx) || (typeof src === "string" ? src : "");
+    return [{ ...(block as ImageBlock), url }];
+  }
+
   if (block.type === "repeater") {
     const coll = safeSelectArray((block as RepeaterBlock).bind, ctx);
     const out: Block[] = [];
     for (const item of coll) {
       const childCtx: BindingContext = { ...ctx, item };
       for (const ch of (block as RepeaterBlock).children || []) {
-        out.push(...bindBlock(ch, childCtx));
+        out.push(...bindBlock(ch as Block, childCtx));
       }
     }
     return out;
   }
 
-  // Pass-through for non-binding blocks
+  // Pass-through
   return [clone(block)];
 }
 

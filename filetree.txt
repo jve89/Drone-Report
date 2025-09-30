@@ -188,6 +188,7 @@
 │   │   │       └── 005_drafts_ownership_and_data.sql
 │   │   ├── index.ts
 │   │   ├── middleware
+│   │   │   ├── jsonDefault.ts
 │   │   │   └── requireAuth.ts
 │   │   ├── pdf
 │   │   │   └── render.ts
@@ -306,4 +307,4 @@
         ├── style.ts
         └── template.ts
 
-68 directories, 238 files
+68 directories, 239 files

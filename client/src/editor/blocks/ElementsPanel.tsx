@@ -1,11 +1,20 @@
 // client/src/editor/blocks/ElementsPanel.tsx
 import React from "react";
 import { useEditor } from "../../state/editorStore";
+import { BLOCK_DEFS } from "./defs";
 
 type ElemKind = "text" | "line" | "rect" | "ellipse" | "divider";
 
 export default function ElementsPanel() {
-  const { draft, tool, startInsert, cancelInsert } = useEditor();
+  const {
+    draft,
+    tool,
+    startInsert,
+    cancelInsert,
+    placeUserBlock,
+    updateUserBlock,
+    selectUserBlock,
+  } = useEditor();
 
   const disabled = !draft || !(draft as any).pageInstances?.length;
 
@@ -32,6 +41,26 @@ export default function ElementsPanel() {
       {isActive(k) ? "Cancel" : label}
     </button>
   );
+
+  function insertImageBlock() {
+    if (disabled) return;
+    // Place a section-style image block inside a rect host
+    startInsert("rect" as any);
+    const id = placeUserBlock({ x: 20, y: 20, w: 40, h: 20 });
+    if (!id) return;
+    updateUserBlock(id, {
+      blockStyle: {
+        stroke: { width: 0 },
+        fill: { token: "surface" },
+        meta: {
+          blockKind: "image",
+          payload: { src: "", alt: "Image" },
+          props: BLOCK_DEFS.image.defaultProps,
+        },
+      } as any,
+    } as any);
+    selectUserBlock(id);
+  }
 
   return (
     <div className="p-3 space-y-4">
@@ -62,6 +91,19 @@ export default function ElementsPanel() {
         <p className="text-[11px] text-gray-400 mt-1">
           Press Esc to cancel placement.
         </p>
+      </div>
+
+      {/* Media */}
+      <div>
+        <div className="text-xs font-medium text-gray-600 mb-2">Media</div>
+        <button
+          className="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+          disabled={disabled}
+          onClick={insertImageBlock}
+          title="Insert an image block"
+        >
+          Image Block
+        </button>
       </div>
 
       {disabled && (

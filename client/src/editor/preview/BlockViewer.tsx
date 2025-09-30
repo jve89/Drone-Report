@@ -4,6 +4,7 @@ import { renderString, select } from "../../templates/bindings";
 import type { Draft } from "../../types/draft";
 import type { Template } from "../../types/template";
 import { BLOCK_DEFS } from "../blocks/defs";
+import ImageBlock from "../blocks/ImageBlock";
 
 /** Mirror Canvas constants */
 const PAGE_W = 820;
@@ -25,7 +26,19 @@ type BlockSection = BlockBase & {
   type: "section";
   options?: { kind?: string; props?: any };
 };
-type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater | BlockSection;
+// Back-compat + template utility blocks
+type BlockRect = BlockBase & { type: "rect" };
+type BlockDivider = BlockBase & { type: "divider" };
+
+type Block =
+  | BlockText
+  | BlockImage
+  | BlockTable
+  | BlockBadge
+  | BlockRepeater
+  | BlockSection
+  | BlockRect
+  | BlockDivider;
 
 /** Relaxed typing for user blocks so meta-based section blocks render */
 type UserBlock = {
@@ -267,6 +280,10 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
       </div>
     );
   }
+
+  function RenderImage({ props }: any) {
+    return <ImageBlock {...props} />;
+  }
   /** --- end section block renderers --- */
 
   function renderSectionByKind(kind: keyof typeof BLOCK_DEFS, payload: any, props?: any) {
@@ -277,6 +294,7 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
     if (kind === "inspectionDetails") return <RenderInspectionDetails payload={payload} />;
     if (kind === "orthoPair") return <RenderOrthoPair payload={payload} />;
     if (kind === "thermalAnomalies") return <RenderThermalAnomalies payload={payload} />;
+    if (kind === "image") return <RenderImage props={props} />;
     return null;
   }
 
@@ -295,7 +313,6 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
 
               switch (b.type) {
                 case "image_slot": {
-                  // Support both template-level binding (b.source) and runtime binding in value (v with {{ }})
                   const vStr = typeof v === "string" ? v : "";
                   const boundFromValue = vStr.includes("{{") ? renderBoundText(vStr) : "";
                   const boundSrc = (b as BlockImage).source ? renderBoundText((b as BlockImage).source) : "";
@@ -306,8 +323,29 @@ export default function BlockViewer({ draft, template }: { draft: Draft; templat
                     </Box>
                   );
                 }
+                case "rect": {
+                  // Back-compat: old templates used a rect labeled "Logo" on the cover
+                  const isLogo = typeof (b as BlockRect)?.label === "string" && /logo/i.test((b as BlockRect).label!);
+                  if (!isLogo) return null;
+                  return (
+                    <Box key={b.id} rect={b.rect}>
+                      <div
+                        className="w-full h-full grid place-items-center rounded border"
+                        style={{ background: "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px" }}
+                      >
+                        <div className="text-xs text-gray-500">Logo</div>
+                      </div>
+                    </Box>
+                  );
+                }
+                case "divider": {
+                  return (
+                    <Box key={b.id} rect={b.rect}>
+                      <div className="w-full h-px bg-gray-300" />
+                    </Box>
+                  );
+                }
                 case "text": {
-                  // Treat as bound only when template provides a value OR runtime value has {{ }}
                   const tpl = (b as BlockText).value || "";
                   const vStr = typeof v === "string" ? v : "";
                   const runtimeBinding = vStr.includes("{{") ? vStr : "";

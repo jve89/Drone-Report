@@ -6,7 +6,8 @@ export type BlockKind =
   | "siteProperties"
   | "inspectionDetails"
   | "orthoPair"
-  | "thermalAnomalies";
+  | "thermalAnomalies"
+  | "image";
 
 export type SeverityOverviewProps = { showIcons: boolean };
 export type FindingsTableProps = {
@@ -38,6 +39,15 @@ export type ThermalAnomaliesProps = {
   unit: "°C" | "K";
 };
 
+// New: Image block props
+export type ImageProps = {
+  src?: string; // URL or local path (server-served uploads)
+  alt?: string;
+  fit: "contain" | "cover" | "scale-down";
+  opacity: number; // 0–100 (%)
+  borderRadius: number; // px
+};
+
 export type BlockPropsByKind = {
   severityOverview: SeverityOverviewProps;
   findingsTable: FindingsTableProps;
@@ -46,6 +56,7 @@ export type BlockPropsByKind = {
   inspectionDetails: InspectionDetailsProps;
   orthoPair: OrthoPairProps;
   thermalAnomalies: ThermalAnomaliesProps;
+  image: ImageProps;
 };
 
 type Field =
@@ -132,6 +143,25 @@ export const BLOCK_DEFS: {
       { type: "number", key: "pageSize", label: "Rows", min: 1, max: 50, step: 1 },
       { type: "checkbox", key: "showDelta", label: "Show ΔT column" },
       { type: "text", key: "unit", label: "Unit (°C or K)" },
+    ],
+  },
+  image: {
+    defaultProps: { src: "", alt: "Image", fit: "contain", opacity: 100, borderRadius: 0 },
+    inspectorFields: [
+      { type: "text", key: "src", label: "Image URL / path" },
+      { type: "text", key: "alt", label: "Alt text" },
+      {
+        type: "select",
+        key: "fit",
+        label: "Object fit",
+        options: [
+          { value: "contain", label: "Contain" },
+          { value: "cover", label: "Cover" },
+          { value: "scale-down", label: "Scale down" },
+        ],
+      },
+      { type: "number", key: "opacity", label: "Opacity (%)", min: 0, max: 100, step: 1 },
+      { type: "number", key: "borderRadius", label: "Border radius (px)", min: 0, max: 64, step: 1 },
     ],
   },
 };

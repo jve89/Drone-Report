@@ -76,13 +76,16 @@ export default function BlocksPanel() {
         ],
       };
     }
+    if (kind === "image") {
+      return { src: "", alt: "Image" };
+    }
     return {};
   }
 
   function insert(kind: BlockKind) {
     // Use a shape container to host the section block UI
     startInsert("rect" as any);
-    const h = kind === "photoStrip" ? 18 : 24;
+    const h = kind === "photoStrip" ? 18 : kind === "image" ? 20 : 24;
     const id = placeUserBlock({ x: 10, y: 10, w: 80, h });
     if (!id) return;
 
@@ -193,6 +196,19 @@ export default function BlocksPanel() {
             <div className="w-full h-full p-2">
               <div className="text-[10px] text-gray-500">Type • Tmin • Tmean • Tmax • ΔT</div>
               <div className="text-[11px]">Hotspot • 32 • 38 • 46 • 14</div>
+            </div>
+          }
+        />
+        <Card
+          title="Image"
+          subtitle="Static image/logo"
+          onInsert={() => insert("image")}
+          preview={
+            <div
+              className="w-full h-full grid place-items-center"
+              style={{ background: "repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px" }}
+            >
+              <div className="text-[11px] text-gray-500">Image</div>
             </div>
           }
         />

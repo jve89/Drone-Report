@@ -1,37 +1,68 @@
 {
   "id": "solar-pv-v1",
   "name": "Solar PV",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "pages": [
     {
       "id": "cover",
       "name": "Cover",
       "kind": "cover",
       "blocks": [
-        { "id": "top_band", "type": "rect", "rect": { "x": 0, "y": 0, "w": 100, "h": 12 }, "label": "Top band" },
-        { "id": "logo_box", "type": "rect", "rect": { "x": 82, "y": 2, "w": 14, "h": 8 }, "label": "Logo" },
-
-        { "id": "title", "type": "text", "rect": { "x": 10, "y": 18, "w": 80, "h": 8 }, "placeholder": "Solar PV Inspection" },
-        { "id": "subtitle", "type": "text", "rect": { "x": 10, "y": 26.5, "w": 60, "h": 5 }, "placeholder": "Project / Site name" },
-        { "id": "divider_top", "type": "divider", "rect": { "x": 10, "y": 33, "w": 80, "h": 1 } },
-
         {
-          "id": "site_properties",
-          "type": "section",
-          "rect": { "x": 10, "y": 36, "w": 80, "h": 30 },
-          "label": "Site Properties",
-          "help": "Fill in site details.",
-          "options": { "kind": "siteProperties", "props": { "orientation": "", "inclinationDeg": 0 } }
+          "id": "title",
+          "type": "text",
+          "rect": { "x": 10, "y": 12, "w": 80, "h": 8 },
+          "placeholder": "Solar PV Inspection"
         },
-
-        { "id": "divider_bottom", "type": "divider", "rect": { "x": 10, "y": 68, "w": 80, "h": 1 } },
-
-        { "id": "meta_left", "type": "text", "rect": { "x": 10, "y": 72, "w": 38, "h": 4 }, "placeholder": "Prepared for: {{run.clientName}}" },
-        { "id": "meta_right", "type": "text", "rect": { "x": 52, "y": 72, "w": 38, "h": 4 }, "placeholder": "Prepared by: {{run.company}}" },
-
-        { "id": "footer_divider", "type": "divider", "rect": { "x": 10, "y": 90, "w": 80, "h": 1 } },
-        { "id": "footer_left", "type": "text", "rect": { "x": 10, "y": 92, "w": 40, "h": 4 }, "placeholder": "Company • Confidential" },
-        { "id": "footer_right", "type": "text", "rect": { "x": 70, "y": 92, "w": 20, "h": 4 }, "placeholder": "Page {{draft.page}}/{{draft.pages}}" }
+        {
+          "id": "subtitle",
+          "type": "text",
+          "rect": { "x": 10, "y": 22, "w": 80, "h": 6 },
+          "placeholder": "Project / Site name"
+        },
+        {
+          "id": "logo",
+          "type": "image",
+          "rect": { "x": 35, "y": 35, "w": 30, "h": 20 },
+          "label": "Company Logo",
+          "help": "Place your company logo here"
+        },
+        {
+          "id": "slogan",
+          "type": "text",
+          "rect": { "x": 20, "y": 58, "w": 60, "h": 5 },
+          "placeholder": "Reliable aerial inspections"
+        },
+        {
+          "id": "meta_left",
+          "type": "text",
+          "rect": { "x": 10, "y": 72, "w": 30, "h": 4 },
+          "placeholder": "Prepared for: {{run.clientName}}"
+        },
+        {
+          "id": "meta_center",
+          "type": "text",
+          "rect": { "x": 42, "y": 72, "w": 16, "h": 4 },
+          "placeholder": "{{run.date}}"
+        },
+        {
+          "id": "meta_right",
+          "type": "text",
+          "rect": { "x": 60, "y": 72, "w": 30, "h": 4 },
+          "placeholder": "Prepared by: {{run.company}}"
+        },
+        {
+          "id": "footer_left",
+          "type": "text",
+          "rect": { "x": 10, "y": 92, "w": 50, "h": 4 },
+          "placeholder": "{{run.company|Company}} • Confidential"
+        },
+        {
+          "id": "footer_right",
+          "type": "text",
+          "rect": { "x": 70, "y": 92, "w": 20, "h": 4 },
+          "placeholder": "Page {{draft.page}}/{{draft.pages}}"
+        }
       ]
     },
     {
@@ -39,8 +70,18 @@
       "name": "Executive Summary",
       "kind": "exec_summary",
       "blocks": [
-        { "id": "summary_header", "type": "text", "rect": { "x": 10, "y": 8, "w": 80, "h": 6 }, "placeholder": "Executive summary", "help": "Write a concise overview." },
-        { "id": "summary_divider", "type": "divider", "rect": { "x": 10, "y": 15, "w": 80, "h": 1 } },
+        {
+          "id": "summary_header",
+          "type": "text",
+          "rect": { "x": 10, "y": 8, "w": 80, "h": 6 },
+          "placeholder": "Executive summary",
+          "help": "Write a concise overview."
+        },
+        {
+          "id": "summary_divider",
+          "type": "divider",
+          "rect": { "x": 10, "y": 15, "w": 80, "h": 1 }
+        },
         {
           "id": "severity_overview",
           "type": "section",
