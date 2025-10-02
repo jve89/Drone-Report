@@ -6,8 +6,6 @@ type Rect = { x: number; y: number; w: number; h: number };
 type LinePoint = { x: number; y: number };
 
 const DR_MEDIA_MIME = "application/x-dr-media";
-const PAGE_W = 820;
-const PAGE_H = 1160;
 const MIN_W = 6;
 const MIN_H = 6;
 
@@ -57,30 +55,44 @@ export function useCanvasEvents(opts: {
 
   const [rotHUD, setRotHUD] = useState({ active: false, deg: 0, cursor: { x: 0, y: 0 }, targetId: undefined as string | undefined });
 
+  // Allow drop for our custom payload
   const onDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }
+    if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+    }
   }, []);
 
+  // Drop handler: insert image user-block at pointer or bind first image slot
   const onDrop = useCallback((e: React.DragEvent) => {
     if (!pageRef.current) return;
     const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
     if (!raw) return;
+
     e.preventDefault();
+    e.stopPropagation();
+
     let payload: { draftId: string; id: string; url: string; filename?: string; kind?: string } | null = null;
     try { payload = JSON.parse(raw); } catch { payload = null; }
     if (!payload) return;
     if (!draft?.id || payload.draftId !== draft.id) return;
 
     const rect = pageRef.current.getBoundingClientRect();
-    const nx = clamp01(((e.clientX - rect.left) / 820) * 100);
-    const ny = clamp01(((e.clientY - rect.top) / 1160) * 100);
+    const nx = clamp01(((e.clientX - rect.left) / rect.width) * 100);
+    const ny = clamp01(((e.clientY - rect.top) / rect.height) * 100);
 
     const pageInstance = draft.pageInstances?.[pageIndex];
     if (!pageInstance) return;
 
-    const ok = insertImageAtPoint?.(pageInstance.id, { x: nx, y: ny }, { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" });
+    const ok = insertImageAtPoint?.(
+      pageInstance.id,
+      { x: nx, y: ny },
+      { id: payload.id, url: payload.url, filename: payload.filename || "", kind: payload.kind || "image" }
+    );
+
     if (!ok) {
-      const tPage = template?.pages.find((p: any) => p.id === pageInstance.templatePageId);
+      const tPage = template?.pages?.find((p: any) => p.id === pageInstance.templatePageId);
       const firstImg = (tPage?.blocks || []).find((b: any) => b.type === "image_slot");
       if (firstImg) {
         setValue(pageInstance.id, firstImg.id, payload.url);
@@ -103,6 +115,7 @@ export function useCanvasEvents(opts: {
     selectUserBlock(null);
   }, [tool.mode, selectUserBlock]);
 
+  // Keyboard shortcuts
   useEffect(() => {
     function isTyping(): boolean {
       const el = document.activeElement as HTMLElement | null;
@@ -121,6 +134,7 @@ export function useCanvasEvents(opts: {
     return () => window.removeEventListener("keydown", onKey);
   }, [tool.mode, selectedUserBlockId, cancelInsert, selectUserBlock, deleteUserBlock, undo, redo]);
 
+  // Drag: simple blocks
   useEffect(() => {
     function onMove(e: MouseEvent) {
       const d = dragRef.current;
@@ -149,6 +163,7 @@ export function useCanvasEvents(opts: {
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [updateUserBlock, pageRef]);
 
+  // Drag: line
   useEffect(() => {
     function onMove(e: MouseEvent) {
       const d = lineDragRef.current;
@@ -218,6 +233,7 @@ export function useCanvasEvents(opts: {
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [setLinePoints, pageRef]);
 
+  // Drag: rect/ellipse with rotation
   useEffect(() => {
     function onMove(e: MouseEvent) {
       const d = rectDragRef.current;

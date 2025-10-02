@@ -26,14 +26,12 @@ export type StrokeStyle = {
 export type FillStyle = { fillColor?: string };
 
 export type BlockStyle = {
-  // optional design-time metadata for previews
   meta?: { blockKind?: string; payload?: any; props?: any };
-  // optional normalized shape styles
   stroke?: { color?: { hex?: string }; width?: number; dash?: number[] };
   fill?: { hex?: string };
 };
 
-// Union of user-created elements rendered on the canvas
+// User-created elements
 export type UserText = {
   id: string;
   type: "text";
@@ -56,7 +54,7 @@ export type UserLine = {
 export type UserDivider = {
   id: string;
   type: "divider";
-  rect: Rect; // height acts as thickness
+  rect: Rect;
   style?: StrokeStyle;
   blockStyle?: BlockStyle;
   z?: number;
@@ -82,9 +80,17 @@ export type UserEllipse = {
   z?: number;
 };
 
-export type UserBlock = UserText | UserLine | UserDivider | UserRect | UserEllipse;
+export type UserImage = {
+  id: string;
+  type: "image";
+  rect: Rect;
+  src: string;
+  z?: number;
+};
 
-// Rotation heads-up display
+export type UserBlock = UserText | UserLine | UserDivider | UserRect | UserEllipse | UserImage;
+
+// Rotation HUD
 export type RotHUD = {
   active: boolean;
   deg: number;

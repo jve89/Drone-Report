@@ -196,8 +196,7 @@
 │   │           │   └── bee61b867ff7c2f4.png
 │   │           ├── a42aa0df-a9fd-4d26-a1a5-f9a7e00da87f
 │   │           ├── b3c11f83-fe78-407a-b69b-8223d0217ee5
-│   │           │   ├── 2c67750e293a9152.png
-│   │           │   └── 6f0ea1083c952e3d.png
+│   │           │   └── 2c67750e293a9152.png
 │   │           ├── ba04749c-9a36-4b4c-b306-43b686f7a23d
 │   │           │   ├── 453e24f237d2eebb.png
 │   │           │   └── 465c301b3ea50e52.png
@@ -335,4 +334,4 @@
         ├── style.ts
         └── template.ts
 
-73 directories, 262 files
+73 directories, 261 files

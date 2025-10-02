@@ -44,6 +44,32 @@ export function CanvasElements({
         const baseZ = ub.type === "text" ? 1000 : 0;
         const zIndex = baseZ + ((ub as any).z ?? i);
 
+        if (ub.type === "image") {
+          const r = ub.rect;
+          return (
+            <div
+              key={ub.id}
+              className="absolute"
+              style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
+              onMouseDown={(e) => { e.stopPropagation(); onSelectBlock(ub.id); }}
+            >
+              <img
+                src={(ub as any).src}
+                alt="image"
+                className="w-full h-full object-contain border rounded bg-white"
+                draggable={false}
+              />
+              {active && (
+                <>
+                  <div onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)} className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize" />
+                  <div onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)} className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize" />
+                  <div onMouseDown={(e) => startDrag("move", ub.id, r, e)} className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm">⤧</div>
+                </>
+              )}
+            </div>
+          );
+        }
+
         if (ub.type === "text") {
           const st = ub.style || {};
           const textareaStyle: React.CSSProperties = {
@@ -134,7 +160,7 @@ export function CanvasElements({
           const strokeW = st.strokeWidth ?? 1;
           const fill = st.fillColor || "transparent";
           const r = ub.rect;
-          const rotation = ub.rotation || 0;
+          const rotation = (ub as any).rotation || 0;
 
           return (
             <div
