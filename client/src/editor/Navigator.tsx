@@ -1,6 +1,6 @@
 // client/src/editor/Navigator.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 
 type NavMode = "list" | "thumbs";
 
@@ -128,7 +128,7 @@ export default function Navigator() {
       <div className="flex-1 min-h-0 overflow-auto">
         {mode === "list" ? (
           <ul className="py-1">
-            {items.map((it) => {
+            {items.map((it: any) => {
               const menuId = `page-menu-${it.id}`;
               const isOpen = openMenuId === it.id;
               return (
@@ -179,7 +179,7 @@ export default function Navigator() {
           </ul>
         ) : (
           <div className="p-2 grid grid-cols-1 gap-3">
-            {items.map((it) => {
+            {items.map((it: any) => {
               const menuId = `page-menu-${it.id}`;
               const isOpen = openMenuId === it.id;
               return (

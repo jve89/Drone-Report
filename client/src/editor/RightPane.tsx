@@ -1,5 +1,5 @@
 // client/src/editor/RightPane.tsx
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 import { Accordion, AccordionItem } from "../components/Accordion";
 import ElementsPanel from "./blocks/ElementsPanel";
 import BlocksPanel from "./blocks/BlocksPanel";

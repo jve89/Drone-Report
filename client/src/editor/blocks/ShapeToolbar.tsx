@@ -1,6 +1,6 @@
 // client/src/editor/blocks/ShapeToolbar.tsx
 import React from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 type ShapeKind = "line" | "rect" | "ellipse" | "divider";
 

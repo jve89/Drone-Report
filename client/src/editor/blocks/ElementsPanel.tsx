@@ -1,6 +1,6 @@
 // client/src/editor/blocks/ElementsPanel.tsx
 import React from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import { BLOCK_DEFS } from "./defs";
 
 type ElemKind = "text" | "line" | "rect" | "ellipse" | "divider";

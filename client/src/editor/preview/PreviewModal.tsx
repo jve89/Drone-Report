@@ -1,6 +1,6 @@
 // client/src/editor/preview/PreviewModal.tsx
 import React, { useEffect, useRef } from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 const clampZoom = (z: number) => Math.max(0.5, Math.min(3, z));
 

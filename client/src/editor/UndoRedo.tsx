@@ -1,6 +1,6 @@
 // client/src/editor/UndoRedo.tsx
 import { useEffect } from "react";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 
 export default function UndoRedo() {
   const { canUndo, canRedo, undo, redo } = useEditor();

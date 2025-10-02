@@ -1,6 +1,6 @@
 // client/src/editor/blocks/BlocksPanel.tsx
 import React from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import { BLOCK_DEFS, BlockKind } from "./defs";
 
 function Card({

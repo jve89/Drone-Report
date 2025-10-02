@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createDraftRecord } from "../lib/api";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 
 export default function FileMenu() {
   const nav = useNavigate();

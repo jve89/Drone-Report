@@ -1,7 +1,7 @@
 // client/src/editor/panels/MediaPanel.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uploadDraftMedia, deleteDraftMedia } from "../../lib/api";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import { useMediaStore } from "../../state/mediaStore";
 import type { MediaItem } from "@drone-report/shared/types/media";
 import MediaManagerModal from "../media/MediaManagerModal";

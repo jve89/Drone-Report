@@ -1,6 +1,8 @@
 // client/src/editor/GuidePanel.tsx
 import { useEffect, useMemo } from "react";
-import { useEditor } from "../state/editorStore";
+import { useEditor, type Step } from "../state/editor";
+import type { Template } from "../types/template";
+import type { PageInstance } from "../types/draft";
 
 export default function GuidePanel() {
   const {
@@ -25,7 +27,9 @@ export default function GuidePanel() {
   // Sync page and focused block when guide/step changes.
   useEffect(() => {
     if (!draft || !template || !guide.enabled || !current) return;
-    const pageIdx = draft.pageInstances.findIndex((pi) => pi.templatePageId === current.pageId);
+    const pageIdx = draft.pageInstances.findIndex(
+      (pi: PageInstance) => pi.templatePageId === current.pageId
+    );
     if (pageIdx >= 0) setPageIndex(pageIdx);
     setSelectedBlock(current.blockId);
   }, [draft, template, guide.enabled, current, setPageIndex, setSelectedBlock]);
@@ -51,7 +55,7 @@ export default function GuidePanel() {
   const percent = total ? Math.round(((idx + 1) / total) * 100) : 0;
   const blockLabel = (() => {
     if (!current) return "";
-    const tp = template.pages.find((p) => p.id === current.pageId);
+    const tp = (template as Template).pages.find((p: any) => p.id === current.pageId);
     const b = tp?.blocks.find((x: any) => x.id === current.blockId) as any | undefined;
     return b?.label || b?.placeholder || current.blockId;
   })();
@@ -130,8 +134,8 @@ export default function GuidePanel() {
       {/* Step list */}
       <div className="max-h-48 overflow-auto border rounded">
         <ul className="divide-y">
-          {steps.map((s, i) => {
-            const tp = template.pages.find((p) => p.id === s.pageId);
+          {steps.map((s: Step, i: number) => {
+            const tp = (template as Template).pages.find((p: any) => p.id === s.pageId);
             const b = tp?.blocks.find((x: any) => x.id === s.blockId) as any | undefined;
             const label = b?.label || b?.placeholder || s.blockId;
             const active = i === idx;

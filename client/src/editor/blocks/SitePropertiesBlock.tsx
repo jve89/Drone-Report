@@ -1,6 +1,6 @@
 // client/src/editor/blocks/SitePropertiesBlock.tsx
 import React from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 type SitePropsValue = {
   address?: string;
@@ -39,15 +39,14 @@ const NUMERIC_KEYS = new Set<FieldKey>([
 ]);
 
 export default function SitePropertiesBlock({ pageId, blockId, value = {} }: Props) {
-  const setValue = useEditor((s) => s.setValue);
+  const setValue = useEditor((s: any) => s.setValue);
 
   function parseMaybeNumber(k: FieldKey, raw: string): number | "" | string {
     if (!NUMERIC_KEYS.has(k)) return raw;
-    // Allow clearing the field without turning it into NaN
     if (raw.trim() === "") return "";
     const n = Number(raw);
     return Number.isFinite(n) ? n : "";
-  }
+    }
 
   function handleChange(key: FieldKey, v: string) {
     const next = parseMaybeNumber(key, v);

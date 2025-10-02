@@ -6,7 +6,7 @@ import type { QueuedFile, ImportGroup } from "./types";
 import { useImportSession } from "./ImportSessionStore";
 import { groupByFolderOrTime } from "./utils/grouping";
 import { pickFilesViaFS, pickDirectoryViaFS } from "../../lib/pickers";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import { useMediaStore } from "../../state/mediaStore";
 import { normalizeUploadResponse, mediaSrc, pickJustUploaded } from "./utils/mediaResponse";
 

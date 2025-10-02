@@ -1,6 +1,6 @@
 // client/src/editor/panels/TemplatePanel.tsx
 import React, { useMemo } from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 export default function TemplatePanel() {
   const { template, draft } = useEditor();

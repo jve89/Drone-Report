@@ -1,6 +1,6 @@
 // client/src/editor/panels/StartChecklist.tsx
 import React, { useMemo } from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 type Step = {
   key: string;

@@ -1,5 +1,5 @@
 // client/src/editor/onboarding/FirstRunBanner.tsx
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 export default function FirstRunBanner() {
   const { template } = useEditor();

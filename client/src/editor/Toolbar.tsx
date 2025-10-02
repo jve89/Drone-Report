@@ -1,6 +1,6 @@
 // client/src/editor/Toolbar.tsx
 import { useEffect } from "react";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 import TemplateDropdown from "./TemplateDropdown";
 import EditorPreviewModal from "./preview/EditorPreviewModal";
 import FileMenu from "./FileMenu";

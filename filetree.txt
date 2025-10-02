@@ -2,8 +2,11 @@
 ├── client
 │   ├── dist
 │   │   ├── assets
-│   │   │   ├── index-BNsFgFp-.css
-│   │   │   └── index-BW0_nXFh.js
+│   │   │   ├── blank-xwNahe7U.js
+│   │   │   ├── building-roof-v1-CgGvjDca.js
+│   │   │   ├── index-BeDdtw74.js
+│   │   │   ├── index-CKz6vGi2.css
+│   │   │   └── solar-pv-Y9eaKnSf.js
 │   │   ├── index.html
 │   │   └── logo.svg
 │   ├── index.html
@@ -29,12 +32,20 @@
 │   │   │   │   ├── BlocksPanel.tsx
 │   │   │   │   ├── defs.ts
 │   │   │   │   ├── ElementsPanel.tsx
+│   │   │   │   ├── ImageBlock.tsx
 │   │   │   │   ├── InspectionDetailsBlock.tsx
 │   │   │   │   ├── OrthoPairBlock.tsx
 │   │   │   │   ├── ShapeToolbar.tsx
 │   │   │   │   ├── SitePropertiesBlock.tsx
 │   │   │   │   ├── TextToolbar.tsx
 │   │   │   │   └── ThermalAnomaliesTableBlock.tsx
+│   │   │   ├── canvas
+│   │   │   │   ├── CanvasElements.tsx
+│   │   │   │   ├── CanvasHUD.tsx
+│   │   │   │   ├── CanvasSurface.tsx
+│   │   │   │   ├── RenderHelpers.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   └── useCanvasEvents.ts
 │   │   │   ├── Canvas.tsx
 │   │   │   ├── FileMenu.tsx
 │   │   │   ├── GuidePanel.tsx
@@ -96,7 +107,19 @@
 │   │   │   ├── Pricing.tsx
 │   │   │   └── WhatYouGet.tsx
 │   │   ├── state
-│   │   │   ├── editorStore.ts
+│   │   │   ├── editor
+│   │   │   │   ├── draftSlice.ts
+│   │   │   │   ├── findingsSlice.ts
+│   │   │   │   ├── guideSlice.ts
+│   │   │   │   ├── historySlice.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── ioSlice.ts
+│   │   │   │   ├── mediaSlice.ts
+│   │   │   │   ├── selectionSlice.ts
+│   │   │   │   ├── store.ts
+│   │   │   │   ├── toolSlice.ts
+│   │   │   │   ├── types.ts
+│   │   │   │   └── userBlocksSlice.ts
 │   │   │   └── mediaStore.ts
 │   │   ├── styles
 │   │   │   └── tailwind.css
@@ -163,6 +186,7 @@
 │   │           │   ├── 68308c668616bdf7.png
 │   │           │   └── f757b1c88b1782b1.png
 │   │           ├── 42e30ce2f8765836ca4ce0ba7dc62510
+│   │           ├── 5e7a8aeb-4aac-4837-a187-4a5d692e7a20
 │   │           ├── 70b52e41-679b-408d-8381-2120b15f50ae
 │   │           │   ├── 0412ac1057253c5a.png
 │   │           │   └── c2b12a5a75846ec0.png
@@ -170,6 +194,10 @@
 │   │           ├── 97897e5a-c60a-49cc-abe1-4dbb343cb575
 │   │           │   ├── 8f2dbad09f60154e.png
 │   │           │   └── bee61b867ff7c2f4.png
+│   │           ├── a42aa0df-a9fd-4d26-a1a5-f9a7e00da87f
+│   │           ├── b3c11f83-fe78-407a-b69b-8223d0217ee5
+│   │           │   ├── 2c67750e293a9152.png
+│   │           │   └── 6f0ea1083c952e3d.png
 │   │           ├── ba04749c-9a36-4b4c-b306-43b686f7a23d
 │   │           │   ├── 453e24f237d2eebb.png
 │   │           │   └── 465c301b3ea50e52.png
@@ -307,4 +335,4 @@
         ├── style.ts
         └── template.ts
 
-68 directories, 239 files
+73 directories, 262 files

@@ -1,6 +1,6 @@
 // client/src/editor/blocks/TextToolbar.tsx
 import React from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 type TextStyle = {
   fontFamily?: string;

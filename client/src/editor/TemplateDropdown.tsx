@@ -1,7 +1,7 @@
 // client/src/editor/TemplateDropdown.tsx
 import { useEffect, useId, useRef, useState } from "react";
 import { listTemplates } from "../api/templates";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 
 type TSummary = { id: string; name: string; version?: string };
 

@@ -3,7 +3,7 @@ import Canvas from "../Canvas";
 import Toolbar from "../Toolbar";
 import FirstRunBanner from "../onboarding/FirstRunBanner";
 import Coachmark from "../onboarding/Coachmark";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import ViewerControls from "../ViewerControls";
 import LeftPane from "../LeftPane";
 import RightPane from "../RightPane";

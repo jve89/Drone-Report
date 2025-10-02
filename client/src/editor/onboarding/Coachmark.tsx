@@ -8,7 +8,7 @@ export default function Coachmark() {
 
 /* --- Disabled old implementation ---
 import { useEffect, useState } from "react";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 
 export default function Coachmark() {
   const { template } = useEditor();

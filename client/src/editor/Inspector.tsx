@@ -1,5 +1,5 @@
 // client/src/editor/Inspector.tsx
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 import { BLOCK_DEFS, BlockKind } from "./blocks/defs";
 
 /** Local, file-scoped types to avoid mismatch with external unions */

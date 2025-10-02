@@ -1,7 +1,7 @@
 // client/src/editor/panels/ExportPanel.tsx
 import React, { useRef, useState } from "react";
 import { exportDraftHtml, uploadDraftMedia } from "../../lib/api";
-import { useEditor } from "../../state/editorStore";
+import { useEditor } from "../../state/editor";
 import type { Draft } from "../../types/draft";
 
 export default function ExportPanel() {

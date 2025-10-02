@@ -6,7 +6,7 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import AuthGuard from "../auth/AuthGuard";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 import EditorShell from "../editor/layout/EditorShell";
 
 export default function Annotate() {

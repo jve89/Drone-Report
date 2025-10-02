@@ -1,6 +1,6 @@
 // client/src/editor/panels/FindingsPanel.tsx
 import { useMemo, useState } from "react";
-import { useEditor, type Finding } from "../../state/editorStore";
+import { useEditor, type Finding } from "../../state/editor";
 import Annotator, { type Annotation as BoxAnn } from "../annotations/Annotator";
 
 type MediaItem = { id: string; url: string; kind?: string; filename?: string; thumb?: string };
@@ -37,7 +37,7 @@ export default function FindingsPanel() {
     const ids = Object.keys(selected).filter((k) => selected[k]);
     if (!ids.length) return;
     createFindingsFromPhotos(ids);
-    saveDebounced();
+    saveDebounced?.();
     closePicker();
   }
 
@@ -46,8 +46,8 @@ export default function FindingsPanel() {
   // All annotations per photo for ghost rendering (always return an array)
   function allAnnForPhoto(photoId: string): BoxAnn[] {
     return (findings || [])
-      .filter((f) => f.photoId === photoId)
-      .flatMap((f) => (Array.isArray(f.annotations) ? (f.annotations as unknown as BoxAnn[]) : []));
+      .filter((f: any) => f.photoId === photoId)
+      .flatMap((f: any) => (Array.isArray(f.annotations) ? (f.annotations as unknown as BoxAnn[]) : []));
   }
 
   if (!draft) return null;
@@ -114,11 +114,11 @@ export default function FindingsPanel() {
           {list.map((f) => (
             <FindingRow
               key={f.id}
-              finding={f}
+              finding={f as Finding}
               media={media}
               onAnnotate={() => setAnnotateFor({ findingId: f.id })}
-              onChange={(patch) => { updateFinding(f.id, patch); saveDebounced(); }}
-              onDelete={() => { deleteFinding(f.id); saveDebounced(); }}
+              onChange={(patch) => { updateFinding(f.id, patch); saveDebounced?.(); }}
+              onDelete={() => { deleteFinding(f.id); saveDebounced?.(); }}
             />
           ))}
         </ul>
@@ -126,7 +126,7 @@ export default function FindingsPanel() {
 
       {/* Annotator modal */}
       {annotateFor && (() => {
-        const f = (findings || []).find((x) => x.id === annotateFor.findingId);
+        const f = (findings || []).find((x: any) => x.id === annotateFor.findingId) as Finding | undefined;
         if (!f || !f.photoId) return null; // invalid selection
         const p = photoById(f.photoId);
         if (!p) return null; // photo missing
@@ -144,7 +144,7 @@ export default function FindingsPanel() {
               const nextCast = next as unknown as Finding["annotations"];
               updateFinding(f.id, { annotations: nextCast });
               reindexAnnotations(f.photoId);
-              saveDebounced();
+              saveDebounced?.();
               setAnnotateFor(null);
             }}
           />

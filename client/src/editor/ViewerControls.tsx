@@ -1,6 +1,6 @@
 // client/src/editor/ViewerControls.tsx
 import { useEffect } from "react";
-import { useEditor } from "../state/editorStore";
+import { useEditor } from "../state/editor";
 
 function clamp(z: number) {
   return Math.min(2, Math.max(0.25, Number.isFinite(z) ? z : 1));
