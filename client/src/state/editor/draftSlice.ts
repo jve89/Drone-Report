@@ -6,9 +6,22 @@ import { loadTemplate } from "../../templates/loader";
 
 type Step = { pageId: string; blockId: string; help?: string };
 
-function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
-function clampZoom(z: number) { return clamp(Number.isFinite(z) ? z : 1, 0.25, 2); }
-function clampPreviewZoom(z: number) { return clamp(Number.isFinite(z) ? z : 1, 0.5, 3); }
+// --- robust clamps -------------------------------------------------
+function clamp(v: number, min: number, max: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+function clampZoom(z: number) {
+  const n = Number(z);
+  if (!Number.isFinite(n)) return 1;
+  return clamp(n, 0.25, 2);
+}
+function clampPreviewZoom(z: number) {
+  const n = Number(z);
+  if (!Number.isFinite(n)) return 1;
+  return clamp(n, 0.5, 3);
+}
 
 function computeSteps(tpl: Template | null | undefined): Step[] {
   if (!tpl) return [];
@@ -60,13 +73,20 @@ export const createDraftSlice: StateCreator<
       if (s.guide.enabled) {
         next.guide = { enabled: true, stepIndex: Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1)) };
       }
+      // keep pageIndex valid if pages changed
+      if (s.draft && s.pageIndex != null) {
+        const max = Math.max(0, ((s.draft.pageInstances?.length ?? 1) - 1));
+        const safe = clamp(Number(s.pageIndex), 0, max);
+        next.pageIndex = safe;
+      }
       return next as any;
     }),
 
   setPageIndex: (pageIndex) => {
     const d = get().draft;
-    const max = (d?.pageInstances?.length ?? 1) - 1;
-    set({ pageIndex: clamp(pageIndex, 0, Math.max(0, max)) });
+    const max = Math.max(0, (d?.pageInstances?.length ?? 1) - 1);
+    const safe = clamp(Number(pageIndex), 0, max);
+    set({ pageIndex: safe });
   },
 
   setZoom: (z) => set({ zoom: clampZoom(z) }),
@@ -98,7 +118,7 @@ export const createDraftSlice: StateCreator<
           const target = s.steps[nextIdx];
           if (target && s.draft) {
             const idx = s.draft.pageInstances.findIndex((p) => p.templatePageId === target.pageId);
-            if (idx >= 0) next.pageIndex = idx;
+            if (idx >= 0) next.pageIndex = clamp(idx, 0, Math.max(0, d.pageInstances.length - 1));
           }
         }
       }
@@ -123,7 +143,7 @@ export const createDraftSlice: StateCreator<
       };
       d.pageInstances.splice(idx + 1, 0, clone);
       const nextIndex = Math.min(idx + 1, d.pageInstances.length - 1);
-      return { draft: d, pageIndex: nextIndex, dirty: true };
+      return { draft: d, pageIndex: clamp(nextIndex, 0, d.pageInstances.length - 1), dirty: true };
     });
     try { (get() as any).saveDebounced?.(); } catch {}
   },
@@ -139,7 +159,7 @@ export const createDraftSlice: StateCreator<
       if (idx < 0 || d.pageInstances.length <= 1) return {};
       d.pageInstances.splice(idx, 1);
       const nextIndex = Math.min(Math.max(0, idx - 1), d.pageInstances.length - 1);
-      return { draft: d, pageIndex: nextIndex, dirty: true };
+      return { draft: d, pageIndex: clamp(nextIndex, 0, d.pageInstances.length - 1), dirty: true };
     });
     try { (get() as any).saveDebounced?.(); } catch {}
   },
@@ -207,7 +227,7 @@ export const createDraftSlice: StateCreator<
       if (guideEnabled) {
         const first = steps[0];
         const idx = d.pageInstances.findIndex((p) => p.templatePageId === first.pageId);
-        if (idx >= 0) next.pageIndex = idx;
+        if (idx >= 0) next.pageIndex = clamp(idx, 0, Math.max(0, d.pageInstances.length - 1));
       }
 
       return next as any;
