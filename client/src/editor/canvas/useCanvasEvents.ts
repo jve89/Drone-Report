@@ -64,7 +64,7 @@ export function useCanvasEvents(opts: {
     }
   }, []);
 
-  // Drop handler: insert image user-block at pointer or bind first image slot
+  // Drop handler
   const onDrop = useCallback((e: React.DragEvent) => {
     if (!pageRef.current) return;
     const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
@@ -106,9 +106,17 @@ export function useCanvasEvents(opts: {
     const rect = pageRef.current.getBoundingClientRect();
     const nx = clamp01(((e.clientX - rect.left) / rect.width) * 100);
     const ny = clamp01(((e.clientY - rect.top) / rect.height) * 100);
+
+    // Lines: treat click as the center point. Do not pre-clamp to keep a rect inside.
+    if (tool.kind === "line") {
+      placeUserBlock({ x: nx, y: ny, w: 0, h: 0 });
+      return;
+    }
+
+    // Other elements: use a sensible default box placed at click, clamped to fit.
     const w = 40, h = 8;
     placeUserBlock({ x: Math.min(nx, 100 - w), y: Math.min(ny, 100 - h), w, h });
-  }, [tool.mode, placeUserBlock, pageRef]);
+  }, [tool.mode, tool.kind, placeUserBlock, pageRef]);
 
   const onCanvasBackgroundMouseDown = useCallback(() => {
     if (tool.mode === "insert") return;

@@ -88,8 +88,12 @@ export const createUserBlocksSlice: StateCreator<
       const thin = { ...rect, h: Math.max(0.4, Math.min(rect.h, 2)) };
       block = { id, type: "divider", rect: thin, blockStyle: { stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
     } else if (kind === "line") {
-      const p1 = { x: rect.x, y: rect.y };
-      const p2 = { x: rect.x + rect.w, y: rect.y + rect.h };
+      // Treat rectPct.x/y as the click CENTER. If w/h are 0, use a default half-length.
+      const cx = clamp01(rectPct.w === 0 && rectPct.h === 0 ? rectPct.x : rectPct.x + rectPct.w / 2);
+      const cy = clamp01(rectPct.w === 0 && rectPct.h === 0 ? rectPct.y : rectPct.y + rectPct.h / 2);
+      const L = 10; // half-length in percent
+      const p1 = { x: clamp01(cx - L), y: cy };
+      const p2 = { x: clamp01(cx + L), y: cy };
       block = { id, type: "line", points: clampPointsPct([p1, p2]), blockStyle: { stroke: { width: 2 } }, z: pi.userBlocks.length } as any;
     }
 
