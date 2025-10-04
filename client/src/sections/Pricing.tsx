@@ -1,6 +1,17 @@
 // client/src/sections/Pricing.tsx
+type Tier = {
+  name: string;
+  price: string;
+  badge: string;
+  desc: string;
+  features: string[];
+  cta: string;
+  href: string;
+  emphasis?: boolean;
+};
+
 export default function Pricing() {
-  const tiers = [
+  const tiers: Tier[] = [
     {
       name: "Raw Draft",
       price: "$99",
@@ -15,7 +26,6 @@ export default function Pricing() {
       ],
       cta: "Get Raw Draft",
       href: "#intake",
-      emphasis: false,
     },
     {
       name: "Polished Report",
@@ -53,7 +63,7 @@ export default function Pricing() {
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           {tiers.map((t, i) => (
-            <div
+            <article
               key={t.name}
               className={`rounded-2xl border p-6 shadow-sm ${
                 t.emphasis ? "border-indigo-200 bg-indigo-50" : "border-gray-100 bg-gray-50"
@@ -61,7 +71,7 @@ export default function Pricing() {
               aria-labelledby={`tier-title-${i}`}
               aria-describedby={`tier-desc-${i}`}
             >
-              <div className="flex items-center justify-between">
+              <header className="flex items-center justify-between">
                 <h3 id={`tier-title-${i}`} className="text-xl font-semibold text-gray-900">
                   {t.name}
                 </h3>
@@ -72,11 +82,15 @@ export default function Pricing() {
                 >
                   {t.badge}
                 </span>
-              </div>
+              </header>
+
               <p id={`tier-desc-${i}`} className="mt-2 text-gray-600">
                 {t.desc}
               </p>
-              <div className="mt-4 text-4xl font-bold">{t.price}</div>
+
+              <div className="mt-4 text-4xl font-bold" aria-label={`Price ${t.price}`}>
+                {t.price}
+              </div>
 
               <ul className="mt-6 space-y-2 text-gray-700">
                 {t.features.map((f) => (
@@ -106,7 +120,7 @@ export default function Pricing() {
                   Clearly watermarked “DRAFT – not client-ready.” Findings unverified.
                 </p>
               )}
-            </div>
+            </article>
           ))}
         </div>
 
