@@ -1,4 +1,3 @@
-// client/src/editor/Canvas.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor } from "../state/editor";
 import { CanvasSurface } from "./canvas/CanvasSurface";
@@ -9,11 +8,18 @@ import { useCanvasEvents } from "./canvas/useCanvasEvents";
 const PAGE_W = 820;
 const PAGE_H = 1160;
 
+function clamp(v: number, min: number, max: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
 export default function Canvas() {
   const {
     draft,
     template,
     pageIndex,
+    setPageIndex,
     setValue,
     zoom,
     findings,
@@ -22,9 +28,7 @@ export default function Canvas() {
     selectedBlockId,
     setSelectedBlock,
     guideNext,
-    // history
     undo, redo,
-    // Elements tool + user blocks
     tool,
     placeUserBlock,
     selectUserBlock,
@@ -118,7 +122,15 @@ export default function Canvas() {
     );
   }
 
-  const pageInstance = draft.pageInstances?.[pageIndex];
+  // Compute a safe index locally and fix the store if needed.
+  const count = Math.max(1, draft.pageInstances?.length ?? 1);
+  const safeIndex = clamp(Number(pageIndex), 0, count - 1);
+  useEffect(() => {
+    if (pageIndex !== safeIndex) setPageIndex(safeIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageIndex, count]);
+
+  const pageInstance = draft.pageInstances?.[safeIndex];
   if (!pageInstance) return <div className="p-6 text-gray-500">No page to display</div>;
 
   const tPage = template.pages.find((p: any) => p.id === pageInstance.templatePageId);

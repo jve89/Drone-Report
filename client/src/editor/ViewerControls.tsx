@@ -28,7 +28,9 @@ export default function ViewerControls() {
     if (!nextDisabled) setPageIndex(pageIndex + 1);
   }
   function onZoom(delta: number) {
-    setZoom(clamp(Number((zoom + delta).toFixed(2))));
+    const base = Number.isFinite(zoom) ? (zoom as number) : 1;
+    const next = Number((base + delta).toFixed(2));
+    setZoom(clamp(next));
   }
 
   useEffect(() => {
@@ -62,10 +64,11 @@ export default function ViewerControls() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIndex, prevDisabled, nextDisabled, zoom]);
+  }, [pageIndex, prevDisabled, nextDisabled, zoom]); // deps OK
 
   if (!hasPages) return null;
+
+  const displayZoom = Number.isFinite(zoom) ? (zoom as number) : 1;
 
   return (
     <div
@@ -110,7 +113,7 @@ export default function ViewerControls() {
           ⍗
         </button>
         <div className="min-w-[52px] text-center text-sm tabular-nums">
-          {Math.round(zoom * 100)}%
+          {Math.round(displayZoom * 100)}%
         </div>
         <button
           type="button"

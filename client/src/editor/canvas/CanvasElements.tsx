@@ -37,11 +37,19 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
+  // dashed = true if stroke.dash has any positive number
+  function isDashed(ub: any): boolean {
+    const dash = ub?.blockStyle?.stroke?.dash as unknown;
+    if (Array.isArray(dash)) return dash.some((n) => Number(n) > 0);
+    const n = Number(dash);
+    return Number.isFinite(n) && n > 0;
+  }
+
   return (
     <>
       {userBlocks.map((ub, i) => {
         const active = selectedUserBlockId === ub.id;
-        const baseZ = ub.type === "text" ? 1000 : 0;
+        const baseZ = ub.type === "text" ? 1000 : 0; // text should float above shapes
         const zIndex = baseZ + ((ub as any).z ?? i);
 
         if (ub.type === "image") {
@@ -86,6 +94,7 @@ export function CanvasElements({
 
         if (ub.type === "text") {
           const st = ub.style || {};
+          const r = ub.rect;
           const textareaStyle: React.CSSProperties = {
             color: st.color,
             fontFamily: st.fontFamily,
@@ -103,16 +112,23 @@ export function CanvasElements({
           const displayVal = isBinding ? renderString(rawVal, ctx) : rawVal;
 
           return (
-            <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
+            <div
+              key={ub.id}
+              className="absolute"
+              style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onSelectBlock(ub.id);
+              }}
+            >
+              {active && (
+                <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
+              )}
               <textarea
                 className="w-full h-full outline-none resize-none bg-transparent"
                 style={textareaStyle}
                 value={displayVal}
                 readOnly={isBinding}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
-                }}
                 onChange={(e) => {
                   if (!isBinding) onUpdateBlock(ub.id, { value: e.target.value });
                 }}
@@ -120,27 +136,26 @@ export function CanvasElements({
               {active && (
                 <>
                   <div
-                    onMouseDown={(e) => startDrag("resize-tl", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
                     className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
                   />
                   <div
-                    onMouseDown={(e) => startDrag("resize-right", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
                   />
                   <div
-                    onMouseDown={(e) => startDrag("move", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("move", ub.id, r, e)}
                     className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
                   >
                     ⤧
                   </div>
                 </>
               )}
-            </Frame>
+            </div>
           );
         }
 
         if (ub.type === "line") {
-          // Normalize style
           const bs = (ub as any).blockStyle || {};
           const strokeHex =
             bs.stroke?.color?.hex ?? (ub as any).style?.strokeColor ?? "#111827";
@@ -160,7 +175,6 @@ export function CanvasElements({
           const p2 = points[points.length - 1];
           const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 
-          // Hit area thickness independent of visual width
           const hitW = Math.max(12, Number(strokeW) || 2);
 
           return (
@@ -169,7 +183,6 @@ export function CanvasElements({
               className="absolute inset-0"
               style={{ zIndex, width: "100%", height: "100%" }}
             >
-              {/* 1) Wide, almost-transparent hit line to capture drags */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -184,7 +197,6 @@ export function CanvasElements({
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
-              {/* 2) Visible line */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -203,7 +215,6 @@ export function CanvasElements({
               />
               {active && (
                 <>
-                  {/* Endpoints */}
                   <circle
                     cx={pct(p1.x)}
                     cy={pct(p1.y)}
@@ -218,7 +229,6 @@ export function CanvasElements({
                     className="fill-white stroke-slate-400 cursor-grab"
                     onMouseDown={(e) => startLineDrag("p2", ub.id, p1, p2, e)}
                   />
-                  {/* Controls near midpoint */}
                   <foreignObject
                     x={pct(mid.x)}
                     y={`calc(${pct(mid.y)} + 20px)`}
@@ -247,9 +257,10 @@ export function CanvasElements({
         }
 
         if (ub.type === "divider") {
-          const st = ub.style || {};
-          const stroke = st.strokeColor || "#111827";
-          const strokeW = st.strokeWidth ?? 2;
+          const bs = (ub as any).blockStyle || {};
+          const legacy = (ub as any).style || {};
+          const stroke = bs.stroke?.color?.hex ?? legacy.strokeColor ?? "#111827";
+          const strokeW = (Number.isFinite(bs.stroke?.width) ? bs.stroke?.width : legacy.strokeWidth) ?? 2;
           const r = ub.rect;
           return (
             <div
@@ -257,7 +268,7 @@ export function CanvasElements({
               className="absolute"
               style={{
                 left: pct(r.x),
-                top: pct(r.y + r.h / 2 - (strokeW / 1160) * 50),
+                top: pct(r.y + r.h / 2 - (Number(strokeW) / 1160) * 50),
                 width: pct(r.w),
                 height: strokeW,
                 background: stroke,
@@ -272,10 +283,12 @@ export function CanvasElements({
         }
 
         if (ub.type === "rect" || ub.type === "ellipse") {
-          const st = ub.style || {};
-          const stroke = st.strokeColor || "#111827";
-          const strokeW = st.strokeWidth ?? 1;
-          const fill = st.fillColor || "transparent";
+          const bs = (ub as any).blockStyle || {};
+          const legacy = (ub as any).style || {};
+          const stroke = bs.stroke?.color?.hex ?? legacy.strokeColor ?? "#111827";
+          const strokeW = (Number.isFinite(bs.stroke?.width) ? bs.stroke?.width : legacy.strokeWidth) ?? 1;
+
+          const dashed = isDashed(ub);
           const r = ub.rect;
           const rotation = (ub as any).rotation || 0;
 
@@ -288,8 +301,10 @@ export function CanvasElements({
                 top: pct(r.y),
                 width: pct(r.w),
                 height: pct(r.h),
-                border: `${strokeW}px solid ${stroke}`,
-                background: fill,
+                borderWidth: strokeW,
+                borderStyle: dashed ? "dashed" : "solid",
+                borderColor: stroke,
+                background: "transparent", // fill removed per final plan
                 borderRadius: ub.type === "ellipse" ? "50%" : 4,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",

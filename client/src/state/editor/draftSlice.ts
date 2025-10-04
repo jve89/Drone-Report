@@ -43,18 +43,15 @@ export type DraftSlice = {
   setSelectedBlock: (blockId: string | null) => void;
   selectUserBlock: (id: string | null) => void;
 
-  // preview modal
   openPreview: () => void;
   closePreview: () => void;
   setPreviewZoom: (z: number) => void;
 
-  // values + page ops
   setValue: (pageId: string, blockId: string, value: unknown) => void;
   duplicatePage: (pageId: string) => void;
   repeatPage: (pageId: string) => void;
   deletePage: (pageId: string) => void;
 
-  // template switch
   selectTemplate: (templateId: string) => Promise<void>;
 };
 
@@ -64,7 +61,14 @@ export const createDraftSlice: StateCreator<
   [],
   DraftSlice
 > = (set, get, _store) => ({
-  setDraft: (draft) => set({ draft }),
+  // Ensure pageIndex is valid as soon as a draft arrives
+  setDraft: (draft) =>
+    set((s) => {
+      const count = Math.max(1, (draft?.pageInstances?.length ?? 1));
+      const cur = Number(s.pageIndex);
+      const safe = Number.isFinite(cur) ? clamp(cur, 0, count - 1) : 0;
+      return { draft, pageIndex: safe } as Partial<EditorState>;
+    }),
 
   setTemplate: (template) =>
     set((s) => {
@@ -74,7 +78,7 @@ export const createDraftSlice: StateCreator<
         next.guide = { enabled: true, stepIndex: Math.min(s.guide.stepIndex, Math.max(0, steps.length - 1)) };
       }
       // keep pageIndex valid if pages changed
-      if (s.draft && s.pageIndex != null) {
+      if (s.draft) {
         const max = Math.max(0, ((s.draft.pageInstances?.length ?? 1) - 1));
         const safe = clamp(Number(s.pageIndex), 0, max);
         next.pageIndex = safe;

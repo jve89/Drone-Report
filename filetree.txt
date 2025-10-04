@@ -1,0 +1,342 @@
+.
+├── client
+│   ├── dist
+│   │   ├── assets
+│   │   │   ├── blank-xwNahe7U.js
+│   │   │   ├── building-roof-v1-CgGvjDca.js
+│   │   │   ├── index-BeDdtw74.js
+│   │   │   ├── index-CKz6vGi2.css
+│   │   │   └── solar-pv-Y9eaKnSf.js
+│   │   ├── index.html
+│   │   └── logo.svg
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.cjs
+│   ├── public
+│   │   └── logo.svg
+│   ├── src
+│   │   ├── api
+│   │   │   └── templates.ts
+│   │   ├── App.tsx
+│   │   ├── auth
+│   │   │   ├── AuthGuard.tsx
+│   │   │   └── useSession.ts
+│   │   ├── components
+│   │   │   ├── Accordion.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   └── Header.tsx
+│   │   ├── editor
+│   │   │   ├── annotations
+│   │   │   │   └── Annotator.tsx
+│   │   │   ├── blocks
+│   │   │   │   ├── BlocksPanel.tsx
+│   │   │   │   ├── defs.ts
+│   │   │   │   ├── ElementsPanel.tsx
+│   │   │   │   ├── ImageBlock.tsx
+│   │   │   │   ├── InspectionDetailsBlock.tsx
+│   │   │   │   ├── OrthoPairBlock.tsx
+│   │   │   │   ├── ShapeToolbar.tsx
+│   │   │   │   ├── SitePropertiesBlock.tsx
+│   │   │   │   ├── TextToolbar.tsx
+│   │   │   │   └── ThermalAnomaliesTableBlock.tsx
+│   │   │   ├── canvas
+│   │   │   │   ├── CanvasElements.tsx
+│   │   │   │   ├── CanvasHUD.tsx
+│   │   │   │   ├── CanvasSurface.tsx
+│   │   │   │   ├── RenderHelpers.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   └── useCanvasEvents.ts
+│   │   │   ├── Canvas.tsx
+│   │   │   ├── FileMenu.tsx
+│   │   │   ├── GuidePanel.tsx
+│   │   │   ├── Inspector.tsx
+│   │   │   ├── layout
+│   │   │   │   └── EditorShell.tsx
+│   │   │   ├── LeftPane.tsx
+│   │   │   ├── media
+│   │   │   │   ├── ImportSessionStore.ts
+│   │   │   │   ├── MediaManagerModal.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   ├── utils
+│   │   │   │   │   ├── grouping.ts
+│   │   │   │   │   ├── mediaResponse.ts
+│   │   │   │   │   ├── mediaThumb.ts
+│   │   │   │   │   └── virtualGrid.ts
+│   │   │   │   └── workers
+│   │   │   │       └── exifWorker.ts
+│   │   │   ├── Navigator.tsx
+│   │   │   ├── onboarding
+│   │   │   │   └── FirstRunBanner.tsx
+│   │   │   ├── panels
+│   │   │   │   ├── ExportPanel.tsx
+│   │   │   │   ├── FindingsPanel.tsx
+│   │   │   │   ├── LayersPanel.tsx
+│   │   │   │   ├── MediaPanel.tsx
+│   │   │   │   ├── StartChecklist.tsx
+│   │   │   │   └── TemplatePanel.tsx
+│   │   │   ├── preview
+│   │   │   │   ├── BlockViewer.tsx
+│   │   │   │   ├── EditorPreviewModal.tsx
+│   │   │   │   └── PreviewModal.tsx
+│   │   │   ├── RightPane.tsx
+│   │   │   ├── TemplateDropdown.tsx
+│   │   │   ├── Toolbar.tsx
+│   │   │   ├── UndoRedo.tsx
+│   │   │   └── ViewerControls.tsx
+│   │   ├── export
+│   │   │   ├── html
+│   │   │   │   └── renderBindings.ts
+│   │   │   └── images
+│   │   │       └── annotate.ts
+│   │   ├── lib
+│   │   │   ├── api.ts
+│   │   │   ├── pickers.ts
+│   │   │   ├── uploadcare.ts
+│   │   │   └── zip.ts
+│   │   ├── main.tsx
+│   │   ├── pages
+│   │   │   ├── Annotate.tsx
+│   │   │   ├── AuthLogin.tsx
+│   │   │   ├── AuthSignup.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   └── DraftRow.tsx
+│   │   ├── sections
+│   │   │   ├── Hero.tsx
+│   │   │   ├── HowItWorks.tsx
+│   │   │   ├── Pricing.tsx
+│   │   │   └── WhatYouGet.tsx
+│   │   ├── state
+│   │   │   ├── editor
+│   │   │   │   ├── draftSlice.ts
+│   │   │   │   ├── findingsSlice.ts
+│   │   │   │   ├── guideSlice.ts
+│   │   │   │   ├── historySlice.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── ioSlice.ts
+│   │   │   │   ├── mediaSlice.ts
+│   │   │   │   ├── selectionSlice.ts
+│   │   │   │   ├── store.ts
+│   │   │   │   ├── toolSlice.ts
+│   │   │   │   ├── types.ts
+│   │   │   │   └── userBlocksSlice.ts
+│   │   │   └── mediaStore.ts
+│   │   ├── styles
+│   │   │   └── tailwind.css
+│   │   ├── templates
+│   │   │   ├── bindings.ts
+│   │   │   ├── loader.ts
+│   │   │   └── presets.ts
+│   │   ├── types
+│   │   │   ├── draft.ts
+│   │   │   ├── fs-access.d.ts
+│   │   │   └── template.ts
+│   │   └── vite-env.d.ts
+│   ├── tailwind.config.cjs
+│   ├── tsconfig.json
+│   └── vite.config.mjs
+├── .env
+├── .env.example
+├── filetree.txt
+├── fly.toml
+├── .gitignore
+├── .gitpod.yml
+├── LICENSE
+├── .nvmrc
+├── package.json
+├── package-lock.json
+├── Procfile
+├── README.md
+├── report.pdf
+├── server
+│   ├── dist
+│   │   ├── db
+│   │   │   └── client.js
+│   │   ├── index.js
+│   │   ├── middleware
+│   │   │   └── requireAuth.js
+│   │   ├── pdf
+│   │   │   └── render.js
+│   │   ├── pdf.js
+│   │   ├── routes
+│   │   │   ├── auth.js
+│   │   │   ├── drafts.js
+│   │   │   ├── health.js
+│   │   │   ├── preview.js
+│   │   │   └── templates.js
+│   │   ├── services
+│   │   │   ├── authService.js
+│   │   │   ├── draftService.js
+│   │   │   ├── mediaService.js
+│   │   │   ├── templateService.js
+│   │   │   └── userService.js
+│   │   ├── templates
+│   │   │   └── report.html
+│   │   └── utils
+│   │       ├── asyncHandler.js
+│   │       ├── chunkMedia.js
+│   │       ├── id.js
+│   │       ├── mailer.js
+│   │       └── validate.js
+│   ├── package.json
+│   ├── server
+│   │   └── src
+│   │       └── uploads
+│   │           ├── 2044c74e-7bc7-4927-8425-ee46c31fa2f4
+│   │           │   ├── 68308c668616bdf7.png
+│   │           │   └── f757b1c88b1782b1.png
+│   │           ├── 36618db8-93f1-4be8-a1d5-896a4660bdf0
+│   │           │   └── af28c260934bf29d.png
+│   │           ├── 42e30ce2f8765836ca4ce0ba7dc62510
+│   │           ├── 5e7a8aeb-4aac-4837-a187-4a5d692e7a20
+│   │           ├── 70b52e41-679b-408d-8381-2120b15f50ae
+│   │           │   ├── 0412ac1057253c5a.png
+│   │           │   └── c2b12a5a75846ec0.png
+│   │           ├── 8bf09348b349349810b0ed1531502e15
+│   │           ├── 97897e5a-c60a-49cc-abe1-4dbb343cb575
+│   │           │   ├── 8f2dbad09f60154e.png
+│   │           │   └── bee61b867ff7c2f4.png
+│   │           ├── a42aa0df-a9fd-4d26-a1a5-f9a7e00da87f
+│   │           ├── b3c11f83-fe78-407a-b69b-8223d0217ee5
+│   │           │   └── 2c67750e293a9152.png
+│   │           ├── b78bf624-33a1-4a33-951b-764f7bb1859c
+│   │           │   ├── 0f51791c14ad4a74.png
+│   │           │   ├── 537898020af7b9a5.png
+│   │           │   └── f9a48d6745b2be58.png
+│   │           ├── ba04749c-9a36-4b4c-b306-43b686f7a23d
+│   │           │   ├── 453e24f237d2eebb.png
+│   │           │   └── 465c301b3ea50e52.png
+│   │           └── da86f3b8-3a34-4b9e-baad-5cc37cdf3904
+│   │               ├── 0af412cc1d6d2caf.png
+│   │               ├── 196fd78adeec0e7c.png
+│   │               ├── 3c76008dae6e111d.png
+│   │               ├── b2ad1f6e78188714.png
+│   │               └── c158f3272fdd5ba3.png
+│   ├── src
+│   │   ├── db
+│   │   │   ├── client.ts
+│   │   │   └── migrations
+│   │   │       ├── 001_users.sql
+│   │   │       ├── 002_drafts.sql
+│   │   │       └── 005_drafts_ownership_and_data.sql
+│   │   ├── index.ts
+│   │   ├── middleware
+│   │   │   ├── jsonDefault.ts
+│   │   │   └── requireAuth.ts
+│   │   ├── pdf
+│   │   │   └── render.ts
+│   │   ├── pdf.ts
+│   │   ├── routes
+│   │   │   ├── auth.ts
+│   │   │   ├── drafts.ts
+│   │   │   ├── health.ts
+│   │   │   ├── preview.ts
+│   │   │   └── templates.ts
+│   │   ├── services
+│   │   │   ├── authService.ts
+│   │   │   ├── draftService.ts
+│   │   │   ├── mediaService.ts
+│   │   │   ├── templateService.ts
+│   │   │   └── userService.ts
+│   │   ├── templates
+│   │   │   └── report.html
+│   │   ├── uploads
+│   │   │   ├── 844b2457-f791-4276-b32b-819ba6014688
+│   │   │   │   ├── 02c84a2b6a120e98.png
+│   │   │   │   ├── 13603d62a1a5f113.png
+│   │   │   │   ├── 1b18b0b8df8a272e.png
+│   │   │   │   ├── 1dc947e9db05b4f0.png
+│   │   │   │   ├── 1ff13733da56a9ef.png
+│   │   │   │   ├── 34d5488fdef35ff2.png
+│   │   │   │   ├── 3b65c43d6d80b525.png
+│   │   │   │   ├── 4db77c04b868426b.png
+│   │   │   │   ├── 4fb0986529a66248.png
+│   │   │   │   ├── 54cd4ff284b61482.png
+│   │   │   │   ├── 570cb0e09de967b7.png
+│   │   │   │   ├── 5cd1215b5444c8af.png
+│   │   │   │   ├── 69220b8f096db429.png
+│   │   │   │   ├── 72cdc5c80ccf70bf.png
+│   │   │   │   ├── 7bc674217e125ed8.png
+│   │   │   │   ├── 8c245e65310f65f4.png
+│   │   │   │   ├── 8c2b5328ad789495.png
+│   │   │   │   ├── a745435e6a7a6e05.png
+│   │   │   │   ├── b0ca67d6d97a703f.png
+│   │   │   │   ├── b48d02eb05c50908.png
+│   │   │   │   ├── b58899e1643644c7.png
+│   │   │   │   ├── b63b9b12f9291f56.png
+│   │   │   │   ├── c6450e36dc41a956.png
+│   │   │   │   ├── e1e71aee959bac3d.png
+│   │   │   │   ├── e3674928e899bc11.png
+│   │   │   │   ├── e3ae94aa7b8f09bf.png
+│   │   │   │   ├── ec92c887b93875b1.png
+│   │   │   │   ├── fb153e0601f0b4a3.png
+│   │   │   │   └── ff88f4874976606c.png
+│   │   │   └── ba04749c-9a36-4b4c-b306-43b686f7a23d
+│   │   │       ├── 6f3800be046d497c.jpeg
+│   │   │       └── fcef0c1c42f2ca99.jpeg
+│   │   └── utils
+│   │       ├── asyncHandler.ts
+│   │       ├── chunkMedia.ts
+│   │       ├── id.ts
+│   │       ├── mailer.ts
+│   │       └── validate.ts
+│   ├── tsconfig.json
+│   └── uploads
+└── shared
+    ├── blocks
+    │   ├── footer.json
+    │   └── header.json
+    ├── dist
+    │   ├── schema
+    │   │   ├── intake.schema.d.ts
+    │   │   ├── intake.schema.d.ts.map
+    │   │   └── intake.schema.js
+    │   ├── templates
+    │   │   ├── blank.json
+    │   │   ├── generic-building.json
+    │   │   ├── index.d.ts
+    │   │   ├── index.d.ts.map
+    │   │   ├── index.js
+    │   │   ├── solar-pv.json
+    │   │   └── wind-blade.json
+    │   └── types
+    │       ├── draft.d.ts
+    │       ├── draft.d.ts.map
+    │       ├── draft.js
+    │       ├── finding.d.ts
+    │       ├── finding.d.ts.map
+    │       ├── finding.js
+    │       ├── intake.d.ts
+    │       ├── intake.d.ts.map
+    │       ├── intake.js
+    │       ├── media.d.ts
+    │       ├── media.d.ts.map
+    │       ├── media.js
+    │       ├── style.d.ts
+    │       ├── style.d.ts.map
+    │       ├── style.js
+    │       ├── template.d.ts
+    │       ├── template.d.ts.map
+    │       └── template.js
+    ├── mapping
+    │   └── report.map.md
+    ├── package.json
+    ├── schema
+    │   ├── intake.schema.ts
+    │   └── template.v1.json
+    ├── templates
+    │   ├── blank.json
+    │   ├── building-roof-v1.json
+    │   ├── generic-building.json
+    │   ├── index.ts
+    │   ├── solar-pv.json
+    │   └── wind-blade.json
+    ├── tsconfig.json
+    └── types
+        ├── draft.ts
+        ├── finding.ts
+        ├── intake.ts
+        ├── media.ts
+        ├── style.ts
+        └── template.ts
+
+75 directories, 264 files
