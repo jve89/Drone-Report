@@ -256,32 +256,6 @@ export function CanvasElements({
           );
         }
 
-        if (ub.type === "divider") {
-          const bs = (ub as any).blockStyle || {};
-          const legacy = (ub as any).style || {};
-          const stroke = bs.stroke?.color?.hex ?? legacy.strokeColor ?? "#111827";
-          const strokeW = (Number.isFinite(bs.stroke?.width) ? bs.stroke?.width : legacy.strokeWidth) ?? 2;
-          const r = ub.rect;
-          return (
-            <div
-              key={ub.id}
-              className="absolute"
-              style={{
-                left: pct(r.x),
-                top: pct(r.y + r.h / 2 - (Number(strokeW) / 1160) * 50),
-                width: pct(r.w),
-                height: strokeW,
-                background: stroke,
-                zIndex,
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
-            />
-          );
-        }
-
         if (ub.type === "rect" || ub.type === "ellipse") {
           const bs = (ub as any).blockStyle || {};
           const legacy = (ub as any).style || {};

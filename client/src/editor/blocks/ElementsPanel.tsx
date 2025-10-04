@@ -3,7 +3,7 @@ import React from "react";
 import { useEditor } from "../../state/editor";
 import { BLOCK_DEFS } from "./defs";
 
-type ElemKind = "text" | "line" | "rect" | "ellipse" | "divider";
+type ElemKind = "text" | "line" | "rect" | "ellipse";
 
 export default function ElementsPanel() {
   const {
@@ -19,7 +19,7 @@ export default function ElementsPanel() {
   const disabled = !draft || !(draft as any).pageInstances?.length;
 
   const isActive = (k: ElemKind) =>
-    (tool?.mode === "insert") && ((tool as any)?.kind === k);
+    tool?.mode === "insert" && (tool as any)?.kind === k;
 
   const toggle = (k: ElemKind) => {
     if (disabled) return;
@@ -48,17 +48,20 @@ export default function ElementsPanel() {
     startInsert("rect" as any);
     const id = placeUserBlock({ x: 20, y: 20, w: 40, h: 20 });
     if (!id) return;
-    updateUserBlock(id, {
-      blockStyle: {
-        stroke: { width: 0 },
-        fill: { token: "surface" },
-        meta: {
-          blockKind: "image",
-          payload: { src: "", alt: "Image" },
-          props: BLOCK_DEFS.image.defaultProps,
-        },
-      } as any,
-    } as any);
+    updateUserBlock(
+      id,
+      {
+        blockStyle: {
+          stroke: { width: 0 },
+          fill: { token: "surface" },
+          meta: {
+            blockKind: "image",
+            payload: { src: "", alt: "Image" },
+            props: BLOCK_DEFS.image.defaultProps,
+          },
+        } as any,
+      } as any
+    );
     selectUserBlock(id);
   }
 
@@ -86,7 +89,6 @@ export default function ElementsPanel() {
           <Btn label="Line" k="line" title="Insert a line" />
           <Btn label="Rect" k="rect" title="Insert a rectangle" />
           <Btn label="Ellipse" k="ellipse" title="Insert an ellipse" />
-          <Btn label="Divider" k="divider" title="Insert a horizontal divider" />
         </div>
         <p className="text-[11px] text-gray-400 mt-1">
           Press Esc to cancel placement.
@@ -107,9 +109,7 @@ export default function ElementsPanel() {
       </div>
 
       {disabled && (
-        <div className="text-[11px] text-gray-500">
-          Load or create a draft first.
-        </div>
+        <div className="text-[11px] text-gray-500">Load or create a draft first.</div>
       )}
     </div>
   );

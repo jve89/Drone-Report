@@ -10,7 +10,7 @@ import type {
 import type { Template } from "../../types/template";
 
 export type Rect = { x: number; y: number; w: number; h: number };
-export type InsertKind = "text" | "line" | "rect" | "ellipse" | "divider";
+export type InsertKind = "text" | "line" | "rect" | "ellipse";
 
 export type GuideState = { enabled: boolean; stepIndex: number };
 export type ToolState =

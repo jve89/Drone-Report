@@ -51,15 +51,6 @@ export type UserLine = {
   z?: number;
 };
 
-export type UserDivider = {
-  id: string;
-  type: "divider";
-  rect: Rect;
-  style?: StrokeStyle;
-  blockStyle?: BlockStyle;
-  z?: number;
-};
-
 export type UserRect = {
   id: string;
   type: "rect";
@@ -88,7 +79,7 @@ export type UserImage = {
   z?: number;
 };
 
-export type UserBlock = UserText | UserLine | UserDivider | UserRect | UserEllipse | UserImage;
+export type UserBlock = UserText | UserLine | UserRect | UserEllipse | UserImage;
 
 // Rotation HUD
 export type RotHUD = {
