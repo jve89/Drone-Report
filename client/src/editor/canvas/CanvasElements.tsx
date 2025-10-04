@@ -37,6 +37,48 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
+  const renderBoxBadge = (ub: any, xPct: number, yPct: number) => {
+    const badge = ub?.blockStyle?.meta?.badge;
+    if (!badge?.visible || !badge.text) return null;
+    return (
+      <div
+        className="absolute px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-500 text-white select-none"
+        style={{
+          left: pct(xPct),
+          top: pct(yPct),
+          transform: "translate(-50%, calc(-100% - 6px))",
+          pointerEvents: "none",
+        }}
+      >
+        {badge.text}
+      </div>
+    );
+  };
+
+  const renderLineBadge = (ub: any, mid: { x: number; y: number }) => {
+    const badge = ub?.blockStyle?.meta?.badge;
+    if (!badge?.visible || !badge.text) return null;
+    return (
+      <foreignObject
+        x={pct(mid.x)}
+        y={`calc(${pct(mid.y)} - 30px)`}
+        width="120"
+        height="30"
+        pointerEvents="none"
+      >
+        <div
+          className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-500 text-white select-none"
+          style={{
+          transform: "translate(-50%, 0)",
+          width: "fit-content",
+        }}
+        >
+          {badge.text}
+        </div>
+      </foreignObject>
+    );
+  };
+
   // dashed = true if stroke.dash has any positive number
   function isDashed(ub: any): boolean {
     const dash = ub?.blockStyle?.stroke?.dash as unknown;
@@ -49,7 +91,7 @@ export function CanvasElements({
     <>
       {userBlocks.map((ub, i) => {
         const active = selectedUserBlockId === ub.id;
-        const baseZ = ub.type === "text" ? 1000 : 0; // text should float above shapes
+        const baseZ = ub.type === "text" ? 1000 : 0;
         const zIndex = baseZ + ((ub as any).z ?? i);
 
         if (ub.type === "image") {
@@ -121,6 +163,7 @@ export function CanvasElements({
                 onSelectBlock(ub.id);
               }}
             >
+              {renderBoxBadge(ub, 0, 0)}
               {active && (
                 <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
               )}
@@ -213,6 +256,7 @@ export function CanvasElements({
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
+              {renderLineBadge(ub, mid)}
               {active && (
                 <>
                   <circle
@@ -278,7 +322,7 @@ export function CanvasElements({
                 borderWidth: strokeW,
                 borderStyle: dashed ? "dashed" : "solid",
                 borderColor: stroke,
-                background: "transparent", // fill removed per final plan
+                background: "transparent",
                 borderRadius: ub.type === "ellipse" ? "50%" : 4,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",
@@ -289,6 +333,7 @@ export function CanvasElements({
                 onSelectBlock(ub.id);
               }}
             >
+              {renderBoxBadge(ub, 0, 0)}
               {active && (
                 <>
                   {(["nw", "ne", "sw", "se"] as const).map((dir) => (

@@ -2,7 +2,7 @@
 import React from "react";
 import { useEditor } from "../../state/editor";
 
-type ShapeKind = "line" | "rect" | "ellipse" | "divider";
+type ShapeKind = "line" | "rect" | "ellipse";
 
 type Props = {
   blockId: string;
@@ -14,7 +14,7 @@ type Props = {
 export default function ShapeToolbar({ blockId, kind, style }: Props) {
   const { updateUserBlock } = useEditor();
 
-  // Normalize incoming style to a uniform view
+  // -------- Stroke normalization --------
   const strokeHex: string =
     style?.stroke?.color?.hex ??
     style?.strokeColor ??
@@ -25,8 +25,6 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
       ? style.stroke.width
       : Number.isFinite(style?.strokeWidth)
       ? style.strokeWidth
-      : kind === "divider"
-      ? 2
       : 2;
 
   // Dash is simplified to on/off (true if any dash > 0)
@@ -60,8 +58,22 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
   const setDashed = (on: boolean) =>
     updateUserBlock(blockId, { blockStyle: composeStroke({ dash: on ? [6, 6] : [] }) } as any);
 
+  // -------- Badge (tag) controls --------
+  const badge = style?.meta?.badge ?? {};
+  const badgeVisible: boolean = !!badge.visible;
+  const badgeText: string = badge.text ?? "";
+
+  const setBadge = (patch: { visible?: boolean; text?: string }) => {
+    const prevMeta = style?.meta ?? {};
+    const next = {
+      ...prevMeta,
+      badge: { ...(prevMeta.badge ?? {}), ...patch },
+    };
+    updateUserBlock(blockId, { blockStyle: { meta: next } } as any);
+  };
+
   return (
-    <div className="flex items-center gap-2 bg-white/95 border shadow-sm rounded px-2 py-1">
+    <div className="flex items-center gap-3 bg-white/95 border shadow-sm rounded px-2 py-1">
       {/* Stroke color */}
       <label className="flex items-center gap-1 text-xs text-gray-600">
         Stroke
@@ -99,6 +111,31 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
           title="Dashed border"
         />
       </label>
+
+      {/* Divider */}
+      <div className="w-px h-6 bg-gray-200" />
+
+      {/* Badge visibility */}
+      <label className="flex items-center gap-1 text-xs text-gray-600">
+        Show tag
+        <input
+          type="checkbox"
+          className="w-4 h-4"
+          checked={badgeVisible}
+          onChange={(e) => setBadge({ visible: e.target.checked })}
+          title="Toggle tag badge"
+        />
+      </label>
+
+      {/* Badge text */}
+      <input
+        type="text"
+        className="border rounded px-2 py-1 text-sm w-28"
+        placeholder="Tag ID"
+        value={badgeText}
+        onChange={(e) => setBadge({ text: e.target.value })}
+        title="Tag text"
+      />
     </div>
   );
 }
