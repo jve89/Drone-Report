@@ -37,6 +37,14 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
+  // dashed = true if stroke.dash has any positive number
+  function isDashed(ub: any): boolean {
+    const dash = ub?.blockStyle?.stroke?.dash as unknown;
+    if (Array.isArray(dash)) return dash.some((n) => Number(n) > 0);
+    const n = Number(dash);
+    return Number.isFinite(n) && n > 0;
+  }
+
   return (
     <>
       {userBlocks.map((ub, i) => {
@@ -85,7 +93,6 @@ export function CanvasElements({
         }
 
         if (ub.type === "text") {
-          // Positioned wrapper so text respects zIndex; add dashed outline when active.
           const st = ub.style || {};
           const r = ub.rect;
           const textareaStyle: React.CSSProperties = {
@@ -114,7 +121,6 @@ export function CanvasElements({
                 onSelectBlock(ub.id);
               }}
             >
-              {/* selection outline, non-interactive */}
               {active && (
                 <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
               )}
@@ -150,7 +156,6 @@ export function CanvasElements({
         }
 
         if (ub.type === "line") {
-          // Normalize style
           const bs = (ub as any).blockStyle || {};
           const strokeHex =
             bs.stroke?.color?.hex ?? (ub as any).style?.strokeColor ?? "#111827";
@@ -178,7 +183,6 @@ export function CanvasElements({
               className="absolute inset-0"
               style={{ zIndex, width: "100%", height: "100%" }}
             >
-              {/* wide hit line to capture drags */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -193,7 +197,6 @@ export function CanvasElements({
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
-              {/* visible stroke */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -254,9 +257,10 @@ export function CanvasElements({
         }
 
         if (ub.type === "divider") {
-          const st = ub.style || {};
-          const stroke = st.strokeColor || "#111827";
-          const strokeW = st.strokeWidth ?? 2;
+          const bs = (ub as any).blockStyle || {};
+          const legacy = (ub as any).style || {};
+          const stroke = bs.stroke?.color?.hex ?? legacy.strokeColor ?? "#111827";
+          const strokeW = (Number.isFinite(bs.stroke?.width) ? bs.stroke?.width : legacy.strokeWidth) ?? 2;
           const r = ub.rect;
           return (
             <div
@@ -264,7 +268,7 @@ export function CanvasElements({
               className="absolute"
               style={{
                 left: pct(r.x),
-                top: pct(r.y + r.h / 2 - (strokeW / 1160) * 50),
+                top: pct(r.y + r.h / 2 - (Number(strokeW) / 1160) * 50),
                 width: pct(r.w),
                 height: strokeW,
                 background: stroke,
@@ -279,10 +283,12 @@ export function CanvasElements({
         }
 
         if (ub.type === "rect" || ub.type === "ellipse") {
-          const st = ub.style || {};
-          const stroke = st.strokeColor || "#111827";
-          const strokeW = st.strokeWidth ?? 1;
-          const fill = st.fillColor || "transparent";
+          const bs = (ub as any).blockStyle || {};
+          const legacy = (ub as any).style || {};
+          const stroke = bs.stroke?.color?.hex ?? legacy.strokeColor ?? "#111827";
+          const strokeW = (Number.isFinite(bs.stroke?.width) ? bs.stroke?.width : legacy.strokeWidth) ?? 1;
+
+          const dashed = isDashed(ub);
           const r = ub.rect;
           const rotation = (ub as any).rotation || 0;
 
@@ -295,8 +301,10 @@ export function CanvasElements({
                 top: pct(r.y),
                 width: pct(r.w),
                 height: pct(r.h),
-                border: `${strokeW}px solid ${stroke}`,
-                background: fill,
+                borderWidth: strokeW,
+                borderStyle: dashed ? "dashed" : "solid",
+                borderColor: stroke,
+                background: "transparent", // fill removed per final plan
                 borderRadius: ub.type === "ellipse" ? "50%" : 4,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",

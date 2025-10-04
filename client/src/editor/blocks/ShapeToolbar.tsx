@@ -29,66 +29,36 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
       ? 2
       : 2;
 
-  const dashVal: number =
-    Array.isArray(style?.stroke?.dash) && style.stroke.dash.length
-      ? Number(style.stroke.dash[0])
-      : Number.isFinite(style?.dash)
-      ? Number(style.dash)
-      : 0;
+  // Dash is simplified to on/off (true if any dash > 0)
+  const dashed: boolean =
+    Array.isArray(style?.stroke?.dash)
+      ? style.stroke.dash.some((n: any) => Number(n) > 0)
+      : Number(style?.dash) > 0;
 
-  const fillHex: string =
-    style?.fill?.hex ??
-    style?.fillColor ??
-    (kind === "rect" || kind === "ellipse" ? "#ffffff" : "#ffffff");
-
-  // Helper to compose a full blockStyle so we don't clobber sibling keys
-  const composeBlockStyle = (patch: { stroke?: any; fill?: any }) => {
+  // Compose a full stroke blockStyle so we don't clobber sibling keys
+  const composeStroke = (patch: any) => {
     const prevStroke = style?.stroke ?? {};
-    const prevFill = style?.fill ?? {};
     return {
       stroke: {
-        // keep what's there
         ...prevStroke,
-        // ensure current normalized values are persisted (unless overridden by patch)
         width: strokeW,
-        dash: dashVal > 0 ? [dashVal, dashVal] : [],
         color: { hex: strokeHex },
-        // apply overrides from the specific setter
-        ...(patch.stroke ?? {}),
+        // Keep current dashed state unless overridden
+        dash: dashed ? [6, 6] : [],
+        ...patch,
       },
-      // only meaningfully include fill for rect/ellipse
-      ...(kind === "rect" || kind === "ellipse"
-        ? {
-            fill: {
-              ...prevFill,
-              hex: fillHex,
-              ...(patch.fill ?? {}),
-            },
-          }
-        : {}),
     };
   };
 
   // Setters that preserve the rest of blockStyle
   const setStrokeHex = (hex: string) =>
-    updateUserBlock(blockId, {
-      blockStyle: composeBlockStyle({ stroke: { color: { hex } } }),
-    } as any);
+    updateUserBlock(blockId, { blockStyle: composeStroke({ color: { hex } }) } as any);
 
   const setStrokeW = (n: number) =>
-    updateUserBlock(blockId, {
-      blockStyle: composeBlockStyle({ stroke: { width: n } }),
-    } as any);
+    updateUserBlock(blockId, { blockStyle: composeStroke({ width: n }) } as any);
 
-  const setDash = (n: number) =>
-    updateUserBlock(blockId, {
-      blockStyle: composeBlockStyle({ stroke: { dash: n > 0 ? [n, n] : [] } }),
-    } as any);
-
-  const setFillHex = (hex: string) =>
-    updateUserBlock(blockId, {
-      blockStyle: composeBlockStyle({ fill: { hex } }),
-    } as any);
+  const setDashed = (on: boolean) =>
+    updateUserBlock(blockId, { blockStyle: composeStroke({ dash: on ? [6, 6] : [] }) } as any);
 
   return (
     <div className="flex items-center gap-2 bg-white/95 border shadow-sm rounded px-2 py-1">
@@ -118,33 +88,17 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
         />
       </label>
 
-      {/* Dash */}
+      {/* Dash on/off */}
       <label className="flex items-center gap-1 text-xs text-gray-600">
-        Dash
+        Dashed
         <input
-          type="number"
-          min={0}
-          max={40}
-          className="w-16 border rounded px-2 py-1 text-sm"
-          value={dashVal}
-          onChange={(e) => setDash(Math.max(0, Number(e.target.value || 0)))}
-          title="Dash pattern (0 = solid)"
+          type="checkbox"
+          className="w-4 h-4"
+          checked={dashed}
+          onChange={(e) => setDashed(e.target.checked)}
+          title="Dashed border"
         />
       </label>
-
-      {/* Fill for rectangles/ellipses */}
-      {(kind === "rect" || kind === "ellipse") && (
-        <label className="flex items-center gap-1 text-xs text-gray-600">
-          Fill
-          <input
-            type="color"
-            className="w-9 h-8 border rounded"
-            value={fillHex}
-            onChange={(e) => setFillHex(e.target.value)}
-            title="Fill color"
-          />
-        </label>
-      )}
     </div>
   );
 }
