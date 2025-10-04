@@ -12,7 +12,7 @@ export type SectionKind =
 export type Block =
   | {
       id: string;
-      type: "text" | "divider" | "line" | "rect" | "ellipse";
+      type: "text" | "line" | "rect" | "ellipse";
       rect: { x: number; y: number; w: number; h: number };
       placeholder?: string;
       label?: string;
@@ -41,7 +41,7 @@ export type Block =
 export type TemplatePage = {
   id: string;
   name: string;
-  kind: string;           // was optional; now required to match schema/shared
+  kind: string; // was optional; now required to match schema/shared
   repeatable?: boolean;
   blocks: Block[];
 };

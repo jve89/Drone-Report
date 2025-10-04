@@ -15,7 +15,6 @@ export type SectionKind =
 
 export type BlockType =
   | "text"
-  | "divider"
   | "line"
   | "rect"
   | "ellipse"
@@ -37,7 +36,7 @@ export type BlockBase = {
 };
 
 export type BlockText = BlockBase & {
-  type: "text" | "divider" | "line" | "rect" | "ellipse";
+  type: "text" | "line" | "rect" | "ellipse";
   // style is intentionally open; renderer interprets per type
   options?: Record<string, any>;
 };
