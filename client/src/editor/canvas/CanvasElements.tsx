@@ -41,7 +41,7 @@ export function CanvasElements({
     <>
       {userBlocks.map((ub, i) => {
         const active = selectedUserBlockId === ub.id;
-        const baseZ = ub.type === "text" ? 1000 : 0;
+        const baseZ = ub.type === "text" ? 1000 : 0; // text should float above shapes
         const zIndex = baseZ + ((ub as any).z ?? i);
 
         if (ub.type === "image") {
@@ -85,7 +85,9 @@ export function CanvasElements({
         }
 
         if (ub.type === "text") {
+          // Positioned wrapper so text respects zIndex; add dashed outline when active.
           const st = ub.style || {};
+          const r = ub.rect;
           const textareaStyle: React.CSSProperties = {
             color: st.color,
             fontFamily: st.fontFamily,
@@ -103,16 +105,24 @@ export function CanvasElements({
           const displayVal = isBinding ? renderString(rawVal, ctx) : rawVal;
 
           return (
-            <Frame key={ub.id} rect={ub.rect} active={active} overflowVisible>
+            <div
+              key={ub.id}
+              className="absolute"
+              style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onSelectBlock(ub.id);
+              }}
+            >
+              {/* selection outline, non-interactive */}
+              {active && (
+                <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
+              )}
               <textarea
                 className="w-full h-full outline-none resize-none bg-transparent"
                 style={textareaStyle}
                 value={displayVal}
                 readOnly={isBinding}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
-                }}
                 onChange={(e) => {
                   if (!isBinding) onUpdateBlock(ub.id, { value: e.target.value });
                 }}
@@ -120,22 +130,22 @@ export function CanvasElements({
               {active && (
                 <>
                   <div
-                    onMouseDown={(e) => startDrag("resize-tl", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
                     className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
                   />
                   <div
-                    onMouseDown={(e) => startDrag("resize-right", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
                   />
                   <div
-                    onMouseDown={(e) => startDrag("move", ub.id, ub.rect, e)}
+                    onMouseDown={(e) => startDrag("move", ub.id, r, e)}
                     className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
                   >
                     ⤧
                   </div>
                 </>
               )}
-            </Frame>
+            </div>
           );
         }
 
@@ -160,7 +170,6 @@ export function CanvasElements({
           const p2 = points[points.length - 1];
           const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 
-          // Hit area thickness independent of visual width
           const hitW = Math.max(12, Number(strokeW) || 2);
 
           return (
@@ -169,7 +178,7 @@ export function CanvasElements({
               className="absolute inset-0"
               style={{ zIndex, width: "100%", height: "100%" }}
             >
-              {/* 1) Wide, almost-transparent hit line to capture drags */}
+              {/* wide hit line to capture drags */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -184,7 +193,7 @@ export function CanvasElements({
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
-              {/* 2) Visible line */}
+              {/* visible stroke */}
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -203,7 +212,6 @@ export function CanvasElements({
               />
               {active && (
                 <>
-                  {/* Endpoints */}
                   <circle
                     cx={pct(p1.x)}
                     cy={pct(p1.y)}
@@ -218,7 +226,6 @@ export function CanvasElements({
                     className="fill-white stroke-slate-400 cursor-grab"
                     onMouseDown={(e) => startLineDrag("p2", ub.id, p1, p2, e)}
                   />
-                  {/* Controls near midpoint */}
                   <foreignObject
                     x={pct(mid.x)}
                     y={`calc(${pct(mid.y)} + 20px)`}
