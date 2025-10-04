@@ -87,3 +87,4 @@ vite.config.ts.timestamp-*
 
 # Test artifacts
 report.pdf
+filetree.txt
