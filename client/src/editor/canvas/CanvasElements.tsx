@@ -60,18 +60,15 @@ export function CanvasElements({
     if (!badge?.visible || !badge.text) return null;
     return (
       <foreignObject
-        x={pct(mid.x)}
+        x={`calc(${pct(mid.x)} - 100px)`}
         y={`calc(${pct(mid.y)} - 30px)`}
-        width="120"
-        height="30"
+        width="200"
+        height="40"
         pointerEvents="none"
       >
         <div
           className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-500 text-white select-none"
-          style={{
-          transform: "translate(-50%, 0)",
-          width: "fit-content",
-        }}
+          style={{ width: "fit-content", margin: "0 auto" }}
         >
           {badge.text}
         </div>

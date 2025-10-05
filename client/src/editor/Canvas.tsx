@@ -170,10 +170,9 @@ export default function Canvas() {
             transformOrigin: "top left",
             cursor: tool.mode === "insert" ? "crosshair" : "default",
           }}
-          onMouseDown={onCanvasBackgroundMouseDown}
+          onClick={(e) => { onCanvasClick(e); onCanvasBackgroundMouseDown(e); }}
           onDragOver={onDragOver}
           onDrop={onDrop}
-          onClick={onCanvasClick}
         >
           <CanvasSurface
             blocks={blocks}

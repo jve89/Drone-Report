@@ -10,12 +10,14 @@ export default function LayersPanel() {
     selectedUserBlockId,
     bringForward,
     sendBackward,
+    cancelInsert,
   } = useEditor();
+
 
   const items = useMemo(() => {
     const pi = draft?.pageInstances?.[pageIndex];
     const list = Array.isArray((pi as any)?.userBlocks) ? ((pi as any).userBlocks as any[]) : [];
-    const sorted = list.slice().sort((a, b) => (a?.z ?? 0) - (b?.z ?? 0));
+    const sorted = list.slice().sort((a, b) => (b?.z ?? 0) - (a?.z ?? 0));
 
     return sorted.map((b, i) => {
       const meta = (b?.blockStyle?.meta ?? {}) as { blockKind?: string };
@@ -78,7 +80,7 @@ export default function LayersPanel() {
                 <button
                   className="flex-1 text-left text-xs truncate"
                   title={it.label}
-                  onClick={() => selectUserBlock(it.id)}
+                  onClick={() => { cancelInsert?.(); selectUserBlock(active ? null : it.id); }}
                   aria-pressed={active}
                 >
                   {it.label}

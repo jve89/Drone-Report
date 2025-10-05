@@ -118,7 +118,9 @@ export function useCanvasEvents(opts: {
     placeUserBlock({ x: Math.min(nx, 100 - w), y: Math.min(ny, 100 - h), w, h });
   }, [tool.mode, tool.kind, placeUserBlock, pageRef]);
 
-  const onCanvasBackgroundMouseDown = useCallback(() => {
+  const onCanvasBackgroundMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only deselect if the click target IS the background element itself
+    if (e.currentTarget !== e.target) return;
     if (tool.mode === "insert") return;
     selectUserBlock(null);
   }, [tool.mode, selectUserBlock]);
