@@ -37,6 +37,12 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
+  const handleBlockMouseDown = (e: React.MouseEvent, id: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onSelectBlock(id);
+  };
+
   const renderBoxBadge = (ub: any, xPct: number, yPct: number) => {
     const badge = ub?.blockStyle?.meta?.badge;
     if (!badge?.visible || !badge.text) return null;
@@ -76,7 +82,6 @@ export function CanvasElements({
     );
   };
 
-  // dashed = true if stroke.dash has any positive number
   function isDashed(ub: any): boolean {
     const dash = ub?.blockStyle?.stroke?.dash as unknown;
     if (Array.isArray(dash)) return dash.some((n) => Number(n) > 0);
@@ -96,12 +101,10 @@ export function CanvasElements({
           return (
             <div
               key={ub.id}
+              data-user-block
               className="absolute"
               style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
             >
               <img
                 src={(ub as any).src}
@@ -153,12 +156,10 @@ export function CanvasElements({
           return (
             <div
               key={ub.id}
+              data-user-block
               className="absolute"
               style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
             >
               {renderBoxBadge(ub, 0, 0)}
               {active && (
@@ -214,13 +215,13 @@ export function CanvasElements({
           const p1 = points[0];
           const p2 = points[points.length - 1];
           const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-
           const hitW = Math.max(12, Number(strokeW) || 2);
 
           return (
             <svg
               key={ub.id}
-              className="absolute inset-0"
+              data-user-block
+              className="absolute inset-0 pointer-events-none"
               style={{ zIndex, width: "100%", height: "100%" }}
             >
               <line
@@ -232,8 +233,7 @@ export function CanvasElements({
                 strokeWidth={hitW}
                 pointerEvents="stroke"
                 onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
+                  handleBlockMouseDown(e, ub.id);
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
@@ -248,8 +248,7 @@ export function CanvasElements({
                 strokeLinecap="round"
                 pointerEvents="stroke"
                 onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
+                  handleBlockMouseDown(e, ub.id);
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
@@ -310,6 +309,7 @@ export function CanvasElements({
           return (
             <div
               key={ub.id}
+              data-user-block
               style={{
                 position: "absolute",
                 left: pct(r.x),
@@ -325,10 +325,7 @@ export function CanvasElements({
                 transformOrigin: "center",
                 zIndex,
               }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
             >
               {renderBoxBadge(ub, 0, 0)}
               {active && (
