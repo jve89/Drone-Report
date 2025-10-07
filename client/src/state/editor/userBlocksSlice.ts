@@ -84,9 +84,6 @@ export const createUserBlocksSlice: StateCreator<
       block = { id, type: "rect", rect, rotation: 0, blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
     } else if (kind === "ellipse") {
       block = { id, type: "ellipse", rect, blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
-    } else if (kind === "divider") {
-      const thin = { ...rect, h: Math.max(0.4, Math.min(rect.h, 2)) };
-      block = { id, type: "divider", rect: thin, blockStyle: { stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
     } else if (kind === "line") {
       // Treat rectPct.x/y as the click CENTER. If w/h are 0, use a default half-length.
       const cx = clamp01(rectPct.w === 0 && rectPct.h === 0 ? rectPct.x : rectPct.x + rectPct.w / 2);

@@ -40,31 +40,7 @@ export default function Canvas() {
     cancelInsert,
   } = useEditor();
 
-  // ✅ Early returns moved up here (before hooks)
-  if (!draft)
-    return <div className="p-6 text-gray-500">Loading editor…</div>;
-
-  if (!template)
-    return (
-      <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
-        <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
-          <div className="text-lg font-medium mb-2">Select a template to start</div>
-          <p className="text-sm text-gray-600 mb-4">
-            The workspace will populate with the template’s page stack.
-          </p>
-          <button
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent("open-template-dropdown"))
-            }
-            className="px-3 py-2 border rounded hover:bg-gray-50"
-          >
-            Pick a template
-          </button>
-        </div>
-      </div>
-    );
-
-  // Now we can safely use hooks below this line
+  // Always declare hooks (no early returns before hooks)
   const pageRef = useRef<HTMLDivElement>(null);
 
   const getHeaderH = () =>
@@ -126,51 +102,75 @@ export default function Canvas() {
     redo,
   });
 
-  // Compute a safe index locally and fix the store if needed.
+  // Keep this effect stable; guard with draft
+  useEffect(() => {
+    if (!draft) return;
+    const count = Math.max(1, draft.pageInstances?.length ?? 1);
+    const safe = clamp(Number(pageIndex), 0, count - 1);
+    if (pageIndex !== safe) setPageIndex(safe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, pageIndex]);
+
+  // ---- Conditional render blocks (no conditional hooks) ----
+  if (!draft) {
+    return <div className="p-6 text-gray-500">Loading editor…</div>;
+  }
+
+  if (!template) {
+    return (
+      <div className="w-full flex items-center justify-center bg-neutral-100 p-12">
+        <div className="bg-white border rounded shadow-sm p-6 max-w-xl text-center">
+          <div className="text-lg font-medium mb-2">Select a template to start</div>
+          <p className="text-sm text-gray-600 mb-4">
+            The workspace will populate with the template’s page stack.
+          </p>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-template-dropdown"))}
+            className="px-3 py-2 border rounded hover:bg-gray-50"
+          >
+            Pick a template
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Safe computations now that draft & template exist
   const count = Math.max(1, draft.pageInstances?.length ?? 1);
   const safeIndex = clamp(Number(pageIndex), 0, count - 1);
-  useEffect(() => {
-    if (pageIndex !== safeIndex) setPageIndex(safeIndex);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIndex, count]);
-
   const pageInstance = draft.pageInstances?.[safeIndex];
-  if (!pageInstance)
-    return <div className="p-6 text-gray-500">No page to display</div>;
 
-  const tPage = template.pages.find(
-    (p: any) => p.id === pageInstance.templatePageId
-  );
-  if (!tPage)
+  if (!pageInstance) {
+    return <div className="p-6 text-gray-500">No page to display</div>;
+  }
+
+  const tPage = template.pages.find((p: any) => p.id === pageInstance.templatePageId);
+  if (!tPage) {
     return <div className="p-6 text-gray-500">Template page not found</div>;
+  }
 
   const blocks = (tPage.blocks ?? []) as any[];
-  const userBlocks: any[] = Array.isArray(
-    (pageInstance as any).userBlocks
-  )
+  const userBlocks: any[] = Array.isArray((pageInstance as any).userBlocks)
     ? ((pageInstance as any).userBlocks as any[])
     : [];
 
-  const activeTextBlock = selectedUserBlockId
-    ? userBlocks.find(
-        (b) => b.id === selectedUserBlockId && b.type === "text"
-      ) || null
-    : null;
+  const activeTextBlock =
+    selectedUserBlockId
+      ? userBlocks.find((b) => b.id === selectedUserBlockId && b.type === "text") || null
+      : null;
 
-  const activeShapeBlock = selectedUserBlockId
-    ? userBlocks.find(
-        (b) =>
-          b.id === selectedUserBlockId &&
-          ["line", "rect", "ellipse", "divider"].includes(b.type)
-      ) || null
-    : null;
+  const activeShapeBlock =
+    selectedUserBlockId
+      ? userBlocks.find(
+          (b) =>
+            b.id === selectedUserBlockId &&
+            ["line", "rect", "ellipse", "divider"].includes(b.type)
+        ) || null
+      : null;
 
   return (
     <div className="w-full flex items-start justify-center bg-neutral-100 p-6">
-      <div
-        className="relative"
-        style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }}
-      >
+      <div className="relative" style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }}>
         <CanvasHUD
           toolbarTop={toolbarTop}
           activeTextBlock={activeTextBlock}
