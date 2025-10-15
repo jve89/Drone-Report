@@ -1,10 +1,6 @@
 {
   "name": "Drone-Report Dev",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
-  },
-
   "remoteUser": "node",
 
   "forwardPorts": [5173, 3000],
@@ -13,19 +9,15 @@
     "3000": { "label": "API",  "onAutoForward": "openBrowser", "visibility": "public" }
   },
 
+  "mounts": ["type=cache,target=/home/node/.npm"],
+
   "postCreateCommand": "npm ci",
   "postStartCommand": "echo 'Ready → run: npm run dev --workspace server | npm run dev --workspace client'",
 
   "customizations": {
     "vscode": {
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
-      ],
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
-      }
+      "extensions": ["esbenp.prettier-vscode"],
+      "settings": { "terminal.integrated.defaultProfile.linux": "bash" }
     }
   }
 }
-
