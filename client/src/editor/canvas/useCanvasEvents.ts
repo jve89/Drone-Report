@@ -118,9 +118,14 @@ export function useCanvasEvents(opts: {
     placeUserBlock({ x: Math.min(nx, 100 - w), y: Math.min(ny, 100 - h), w, h });
   }, [tool.mode, tool.kind, placeUserBlock, pageRef]);
 
-  const onCanvasBackgroundMouseDown = useCallback(() => {
+  const onCanvasBackgroundMouseDown = useCallback((e: React.MouseEvent) => {
     if (tool.mode === "insert") return;
-    selectUserBlock(null);
+
+    // If click is NOT inside any selectable element → deselect
+    const el = e.target as HTMLElement;
+    const isBlock = el.closest("[data-user-block]");
+    console.log("Canvas background click:", e.target, isBlock);
+    if (!isBlock) selectUserBlock(null);
   }, [tool.mode, selectUserBlock]);
 
   // Keyboard shortcuts

@@ -112,6 +112,174 @@ export default function Inspector() {
         // Merge defaults with saved props
         const props = { ...(def.defaultProps ?? {}), ...(meta.props ?? {}) } as Record<string, any>;
 
+        // --- Simplified, user-friendly inspector for IMAGE section blocks -----------
+        if (kind === "image") {
+          const p = props;
+          // Prefer the first non-empty string across props, payload, or legacy fields.
+          // Avoid `??` here because `""` is *not* a usable image and would stop the chain.
+          const pickFirstString = (...vals: any[]) =>
+            vals.find((s) => typeof s === "string" && s.trim().length > 0) || "";
+
+          const currentSrc = pickFirstString(
+            p.src,
+            p.url,
+            meta?.payload?.src,
+            meta?.payload?.url,
+            (ub as any).src,
+            (ub as any).url,
+            (ub as any).media?.url
+          ) as string;
+
+          // When uploading from the inspector, write to BOTH places to keep things in sync.
+          const onPickLocal = (file: File | null) => {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            // write BOTH keys (src & url) so whichever the renderer reads will match
+            updateBlockProps(ub.id, { src: url, url }); // props
+            updateUserBlock(ub.id, {
+              src: url,
+              url,
+              media: { url },
+              blockStyle: {
+                ...(ub as any).blockStyle,
+                meta: {
+                  ...(meta ?? {}),
+                  payload: { ...(meta?.payload ?? {}), src: url, url },
+                  props:   { ...(meta?.props   ?? {}), src: url, url },
+                },
+              },
+            } as any);
+          };
+
+          const onClearImage = () => {
+            updateUserBlock(
+              ub.id,
+              {
+                src: "",
+                url: "",
+                media: undefined,
+                blockStyle: {
+                  ...(ub as any).blockStyle,
+                  meta: {
+                    ...(meta ?? {}),
+                    payload: { ...(meta?.payload ?? {}), src: "", url: "" },
+                    props:   { ...(meta?.props   ?? {}), src: "", url: "" },
+                  },
+                },
+              } as any
+            );
+          };
+
+          return (
+            <div className="p-3 space-y-4">
+              <div className="text-sm font-medium">Inspector</div>
+              <div className="text-[11px] text-gray-500 -mt-1">Image block</div>
+
+              {/* Image picker */}
+              <div className="space-y-1">
+                <div className="text-xs text-gray-600">Image</div>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-1.5 border rounded text-sm bg-white hover:bg-gray-50 cursor-pointer">
+                    {currentSrc ? "Replace image" : "Upload image"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50 disabled:opacity-50"
+                    onClick={onClearImage}
+                    disabled={!currentSrc}
+                    title="Remove image"
+                  >
+                    Remove
+                  </button>
+
+                  {currentSrc ? (
+                    <span className="text-[11px] text-gray-500 truncate max-w-[140px]">Selected</span>
+                  ) : (
+                    <span className="text-[11px] text-gray-400">No image selected</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  Tip: You can also drag an image from the Media panel onto the block.
+                </div>
+              </div>
+
+              {/* Fit */}
+              <div>
+                <div className="text-xs text-gray-600">Object fit</div>
+                <select
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={p.fit ?? "contain"}
+                  onChange={(e) => updateBlockProps(ub.id, { fit: e.target.value })}
+                >
+                  <option value="contain">Contain</option>
+                  <option value="cover">Cover</option>
+                  <option value="scale-down">Scale down</option>
+                </select>
+              </div>
+
+              {/* Style */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-gray-600">Opacity (%)</div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="w-full"
+                    value={Number.isFinite(p.opacity) ? p.opacity : 100}
+                    onChange={(e) =>
+                      updateBlockProps(ub.id, {
+                        opacity: Math.max(0, Math.min(100, Number(e.target.value || 0))),
+                      })
+                    }
+                  />
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {Number.isFinite(p.opacity) ? p.opacity : 100}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Border radius (px)</div>
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={Number.isFinite(p.borderRadius) ? p.borderRadius : 0}
+                    onChange={(e) =>
+                      updateBlockProps(ub.id, { borderRadius: Math.max(0, Number(e.target.value || 0)) })
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>
+                  Bring forward
+                </button>
+                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>
+                  Send backward
+                </button>
+                <div className="flex-1" />
+                <button
+                  className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
+                  onClick={onDelete}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        }
+        // ---------------------------------------------------------------------------
+
         return (
           <div className="p-3 space-y-3">
             <div className="text-sm font-medium">Inspector</div>
@@ -197,7 +365,7 @@ export default function Inspector() {
             <div>
               <div className="text-xs text-gray-600">Summary</div>
               <pre className="text-[11px] bg-gray-50 border rounded p-2 overflow-auto max-h-40">
-{JSON.stringify({ payload: meta.payload ?? {}, props }, null, 2)}
+              {JSON.stringify({ payload: meta.payload ?? {}, props }, null, 2)}
               </pre>
             </div>
 

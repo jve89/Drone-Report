@@ -37,7 +37,51 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
-  // dashed = true if stroke.dash has any positive number
+  const handleBlockMouseDown = (e: React.MouseEvent, id: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onSelectBlock(id);
+  };
+
+  const renderBoxBadge = (ub: any, xPct: number, yPct: number) => {
+    const badge = ub?.blockStyle?.meta?.badge;
+    if (!badge?.visible || !badge.text) return null;
+    return (
+      <div
+        className="absolute px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-500 text-white select-none"
+        style={{
+          left: pct(xPct),
+          top: pct(yPct),
+          transform: "translate(-50%, calc(-100% - 6px))",
+          pointerEvents: "none",
+        }}
+      >
+        {badge.text}
+      </div>
+    );
+  };
+
+  const renderLineBadge = (ub: any, mid: { x: number; y: number }) => {
+    const badge = ub?.blockStyle?.meta?.badge;
+    if (!badge?.visible || !badge.text) return null;
+    return (
+      <foreignObject
+        x={`calc(${pct(mid.x)} - 100px)`}
+        y={`calc(${pct(mid.y)} - 30px)`}
+        width="200"
+        height="40"
+        pointerEvents="none"
+      >
+        <div
+          className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-orange-500 text-white select-none"
+          style={{ width: "fit-content", margin: "0 auto" }}
+        >
+          {badge.text}
+        </div>
+      </foreignObject>
+    );
+  };
+
   function isDashed(ub: any): boolean {
     const dash = ub?.blockStyle?.stroke?.dash as unknown;
     if (Array.isArray(dash)) return dash.some((n) => Number(n) > 0);
@@ -49,48 +93,121 @@ export function CanvasElements({
     <>
       {userBlocks.map((ub, i) => {
         const active = selectedUserBlockId === ub.id;
-        const baseZ = ub.type === "text" ? 1000 : 0; // text should float above shapes
+        const baseZ = ub.type === "text" ? 1000 : 0;
         const zIndex = baseZ + ((ub as any).z ?? i);
 
-        if (ub.type === "image") {
-          const r = ub.rect;
-          return (
-            <div
-              key={ub.id}
-              className="absolute"
-              style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
-            >
-              <img
-                src={(ub as any).src}
-                alt="image"
-                className="w-full h-full object-contain border rounded bg-white"
-                draggable={false}
-              />
-              {active && (
-                <>
-                  <div
-                    onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
-                    className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
-                  />
-                  <div
-                    onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
-                  />
-                  <div
-                    onMouseDown={(e) => startDrag("move", ub.id, r, e)}
-                    className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
-                  >
-                    ⤧
-                  </div>
-                </>
-              )}
-            </div>
-          );
+      if (ub.type === "image") {
+      const r = ub.rect;
+      const src =
+        (ub as any).src ??
+        (ub as any).url ??
+        (ub as any).media?.url ??
+        (ub as any).image?.url ??
+        null;
+
+      const hasImage = Boolean(src);
+
+      // mime used elsewhere in the app for media drag/drop
+      const DR_MEDIA_MIME = "application/x-dr-media";
+
+      const onImgDragOver = (e: React.DragEvent) => {
+        if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "copy";
         }
+      };
+
+      const onImgDrop = (e: React.DragEvent) => {
+        const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
+        if (!raw) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          const payload = JSON.parse(raw); // { url, ... }
+          if (payload?.url) onUpdateBlock(ub.id, { src: payload.url, url: payload.url, media: { url: payload.url } });
+        } catch { /* ignore */ }
+      };
+
+      const onPickLocal = (file: File | null) => {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        onUpdateBlock(ub.id, { src: url, url, media: { url } });
+      };
+
+      return (
+        <div
+          key={ub.id}
+          data-user-block
+          className="absolute"
+          style={{
+            left: pct(r.x),
+            top: pct(r.y),
+            width: pct(r.w),
+            height: pct(r.h),
+            zIndex,
+            borderRadius: 4,
+            background: hasImage ? "transparent" : "rgba(148,163,184,0.08)",
+          }}
+          onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
+          onDragOver={onImgDragOver}
+          onDrop={onImgDrop}
+        >
+          {/* Show image when present */}
+          {hasImage && (
+            <img
+              src={src as string}
+              alt="image"
+              className="w-full h-full object-contain bg-white rounded"
+              draggable={false}
+            />
+          )}
+
+          {/* Always-visible dashed frame when empty (same pattern as text block) */}
+          {!hasImage && (
+            <>
+              <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
+              <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                <label
+                  className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto"
+                >
+                  Add image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </label>
+                <div className="mt-2 text-xs text-slate-500 pointer-events-none">
+                  or drag from Media
+                </div>
+              </div>
+            </>
+          )}
+
+          {active && (
+            <>
+              <div
+                onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
+                className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
+              />
+              <div
+                onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
+                className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
+              />
+              <div
+                onMouseDown={(e) => startDrag("move", ub.id, r, e)}
+                className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
+              >
+                ⤧
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
 
         if (ub.type === "text") {
           const st = ub.style || {};
@@ -114,13 +231,12 @@ export function CanvasElements({
           return (
             <div
               key={ub.id}
+              data-user-block
               className="absolute"
               style={{ left: pct(r.x), top: pct(r.y), width: pct(r.w), height: pct(r.h), zIndex }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
             >
+              {renderBoxBadge(ub, 0, 0)}
               {active && (
                 <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
               )}
@@ -174,13 +290,13 @@ export function CanvasElements({
           const p1 = points[0];
           const p2 = points[points.length - 1];
           const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-
           const hitW = Math.max(12, Number(strokeW) || 2);
 
           return (
             <svg
               key={ub.id}
-              className="absolute inset-0"
+              data-user-block
+              className="absolute inset-0 pointer-events-none"
               style={{ zIndex, width: "100%", height: "100%" }}
             >
               <line
@@ -192,8 +308,7 @@ export function CanvasElements({
                 strokeWidth={hitW}
                 pointerEvents="stroke"
                 onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
+                  handleBlockMouseDown(e, ub.id);
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
@@ -208,11 +323,11 @@ export function CanvasElements({
                 strokeLinecap="round"
                 pointerEvents="stroke"
                 onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onSelectBlock(ub.id);
+                  handleBlockMouseDown(e, ub.id);
                   startLineDrag("move", ub.id, p1, p2, e);
                 }}
               />
+              {renderLineBadge(ub, mid)}
               {active && (
                 <>
                   <circle
@@ -266,29 +381,106 @@ export function CanvasElements({
           const r = ub.rect;
           const rotation = (ub as any).rotation || 0;
 
+          // --- image block detection & props ---
+          const meta = bs.meta || {};
+          const isImageBlock = meta?.blockKind === "image";
+          const imgSrc =
+            meta?.payload?.src ||
+            meta?.payload?.url ||
+            (ub as any).src ||
+            (ub as any).url ||
+            null;
+
+          // drag/drop from Media panel
+          const DR_MEDIA_MIME = "application/x-dr-media";
+          const onImgDragOver = (e: React.DragEvent) => {
+            if (!isImageBlock) return;
+            if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = "copy";
+            }
+          };
+          const updateImageSrc = (url: string) => {
+            const curBS = (ub as any).blockStyle || {};
+            const curMeta = curBS.meta || {};
+            const payload = { ...(curMeta.payload || {}), src: url, url };
+            onUpdateBlock(ub.id, { blockStyle: { ...curBS, meta: { ...curMeta, payload } } });
+          };
+          const onImgDrop = (e: React.DragEvent) => {
+            if (!isImageBlock) return;
+            const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
+            if (!raw) return;
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              const payload = JSON.parse(raw);
+              if (payload?.url) updateImageSrc(payload.url);
+            } catch {}
+          };
+          const onPickLocal = (file: File | null) => {
+            if (!isImageBlock || !file) return;
+            const url = URL.createObjectURL(file);
+            updateImageSrc(url);
+          };
+
+          // base border/background:
+          const showEmptyImgFrame = isImageBlock && !imgSrc;
+
           return (
             <div
               key={ub.id}
+              data-user-block
               style={{
                 position: "absolute",
                 left: pct(r.x),
                 top: pct(r.y),
                 width: pct(r.w),
                 height: pct(r.h),
-                borderWidth: strokeW,
-                borderStyle: dashed ? "dashed" : "solid",
-                borderColor: stroke,
-                background: "transparent", // fill removed per final plan
+                // shapes default border
+                borderWidth: showEmptyImgFrame ? 1 : strokeW,
+                borderStyle: showEmptyImgFrame ? "dashed" : (dashed ? "dashed" : "solid"),
+                borderColor: showEmptyImgFrame ? "#94a3b8" : stroke,
+                background: showEmptyImgFrame ? "rgba(148,163,184,0.08)" : "transparent",
                 borderRadius: ub.type === "ellipse" ? "50%" : 4,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",
                 zIndex,
               }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onSelectBlock(ub.id);
-              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
+              onDragOver={onImgDragOver}
+              onDrop={onImgDrop}
             >
+              {renderBoxBadge(ub, 0, 0)}
+
+              {isImageBlock ? (
+                imgSrc ? (
+                  <img
+                    src={imgSrc as string}
+                    alt="image"
+                    className="w-full h-full object-contain bg-white"
+                    draggable={false}
+                  />
+                ) : (
+                  // empty state with button
+                  <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                    <label className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto">
+                      Add image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </label>
+                    <div className="mt-2 text-xs text-slate-500 pointer-events-none">
+                      or drag from Media
+                    </div>
+                  </div>
+                )
+              ) : null}
+
               {active && (
                 <>
                   {(["nw", "ne", "sw", "se"] as const).map((dir) => (

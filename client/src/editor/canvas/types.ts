@@ -26,7 +26,12 @@ export type StrokeStyle = {
 export type FillStyle = { fillColor?: string };
 
 export type BlockStyle = {
-  meta?: { blockKind?: string; payload?: any; props?: any };
+  meta?: {
+    blockKind?: string;
+    payload?: any;
+    props?: any;
+    badge?: { visible?: boolean; text?: string };
+  };
   stroke?: { color?: { hex?: string }; width?: number; dash?: number[] };
   fill?: { hex?: string };
 };
