@@ -1,20 +1,31 @@
-// The Dev Container format allows you to configure your environment. At the heart of it
-// is a Docker image or Dockerfile which controls the tools available in your environment.
-//
-// See https://aka.ms/devcontainer.json for more information.
 {
-	"name": "Ona",
-	// Use "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
-	// instead of the build to use a pre-built image.
-	"build": {
-        "context": ".",
-        "dockerfile": "Dockerfile"
+  "name": "Drone-Report Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+
+  "remoteUser": "node",
+
+  "forwardPorts": [5173, 3000],
+  "portsAttributes": {
+    "5173": { "label": "Vite", "onAutoForward": "openBrowser", "visibility": "public" },
+    "3000": { "label": "API",  "onAutoForward": "openBrowser", "visibility": "public" }
+  },
+
+  "postCreateCommand": "npm ci",
+  "postStartCommand": "echo 'Ready → run: npm run dev --workspace server | npm run dev --workspace client'",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
     }
-	// Features add additional features to your environment. See https://containers.dev/features
-	// Beware: features are not supported on all platforms and may have unintended side-effects.
-	// "features": {
-    //   "ghcr.io/devcontainers/features/docker-in-docker": {
-    //     "moby": false
-    //   }
-    // }
+  }
 }
+
