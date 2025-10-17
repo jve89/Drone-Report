@@ -9,7 +9,7 @@
     "3000": { "label": "API",  "onAutoForward": "openBrowser", "visibility": "public" }
   },
 
-  "mounts": ["type=cache,target=/home/node/.npm"],
+  "mounts": ["type=cache,target=/home/node/.npm","type=cache,target=/workspaces/.pnpm-store"],
 
   "postCreateCommand": "npm ci",
   "postStartCommand": "echo 'Ready → run: npm run dev --workspace server | npm run dev --workspace client'",
