@@ -70,27 +70,39 @@ export default function BlocksPanel() {
         ],
       };
     }
-    if (kind === "image") return {}; // props drive ImageBlock
+    // Match ElementsPanel: give image a safe initial payload
+    if (kind === "image") return { src: "", alt: "Image" };
     return {};
   }
 
   function insert(kind: BlockKind) {
-    startInsert("rect" as any); // user blocks are hosted in a rect
-    const h = kind === "photoStrip" ? 18 : kind === "image" ? 20 : 24;
-    const id = placeUserBlock({ x: 10, y: 10, w: 80, h });
+    // All section blocks are hosted in a rect user element
+    startInsert("rect" as any);
+
+    // Mirror ElementsPanel behavior for image; keep original defaults for others
+    const rect =
+      kind === "image"
+        ? { x: 20, y: 20, w: 40, h: 20 } // identical to ElementsPanel
+        : { x: 10, y: 10, w: 80, h: kind === "photoStrip" ? 18 : 24 };
+
+    const id = placeUserBlock(rect);
     if (!id) return;
 
-    updateUserBlock(id, {
-      blockStyle: {
-        stroke: { width: 0 },
-        fill: { token: "surface" },
-        meta: {
-          blockKind: kind,
-          payload: makePayload(kind),
-          props: BLOCK_DEFS[kind].defaultProps,
-        },
-      } as any,
-    } as any);
+    updateUserBlock(
+      id,
+      {
+        blockStyle: {
+          stroke: { width: 0 },
+          fill: { token: "surface" },
+          meta: {
+            blockKind: kind,
+            payload: makePayload(kind),
+            // Use the same default props table as ElementsPanel
+            props: BLOCK_DEFS[kind].defaultProps,
+          },
+        } as any,
+      } as any
+    );
 
     selectUserBlock(id);
   }

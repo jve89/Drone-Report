@@ -9,9 +9,11 @@ type Props = {
   kind: ShapeKind;
   // Accept either legacy 'style' or the canonical 'blockStyle' coming from Canvas
   style?: any;
+  /** When true, hide the dashed toggle (used for image user elements). */
+  hideDashed?: boolean;
 };
 
-export default function ShapeToolbar({ blockId, kind, style }: Props) {
+export default function ShapeToolbar({ blockId, kind, style, hideDashed }: Props) {
   const { updateUserBlock } = useEditor();
 
   // -------- Stroke normalization --------
@@ -100,17 +102,19 @@ export default function ShapeToolbar({ blockId, kind, style }: Props) {
         />
       </label>
 
-      {/* Dash on/off */}
-      <label className="flex items-center gap-1 text-xs text-gray-600">
-        Dashed
-        <input
-          type="checkbox"
-          className="w-4 h-4"
-          checked={dashed}
-          onChange={(e) => setDashed(e.target.checked)}
-          title="Dashed border"
-        />
-      </label>
+      {/* Dash on/off — hidden for image user elements via hideDashed */}
+      {!hideDashed && (
+        <label className="flex items-center gap-1 text-xs text-gray-600">
+          Dashed
+          <input
+            type="checkbox"
+            className="w-4 h-4"
+            checked={dashed}
+            onChange={(e) => setDashed(e.target.checked)}
+            title="Dashed border"
+          />
+        </label>
+      )}
 
       {/* Divider */}
       <div className="w-px h-6 bg-gray-200" />

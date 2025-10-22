@@ -20,20 +20,94 @@ type UBCommon = {
   points?: Array<{ x: number; y: number }>;
   rotation?: number;
   value?: string;
+  /** legacy inline style */
   style?: any;
+  /** canonical style container used by canvas & toolbars */
   blockStyle?: any;
   z?: number;
 };
 
-/** Type guards */
+/** Type guards for template blocks */
 function isText(b: BlockBase): b is BlockText { return b.type === "text"; }
 function isImage(b: BlockBase): b is BlockImage { return b.type === "image_slot"; }
 function isTable(b: BlockBase): b is BlockTable { return b.type === "table"; }
 function isBadge(b: BlockBase): b is BlockBadge { return b.type === "badge"; }
 function isRepeater(b: BlockBase): b is BlockRepeater { return b.type === "repeater"; }
 
-function titleCase(s: string) {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+/** Small helpers */
+const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+const numOr = (v: any, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
+
+/** Read helpers for blockStyle (shapes & image) */
+function readStroke(style: any) {
+  const color = style?.stroke?.color?.hex ?? style?.strokeColor ?? "#111827";
+  const width = Number.isFinite(style?.stroke?.width)
+    ? style.stroke.width
+    : Number.isFinite(style?.strokeWidth)
+    ? style.strokeWidth
+    : 2;
+  const dashArr: number[] = Array.isArray(style?.stroke?.dash)
+    ? style.stroke.dash.map(Number).filter((n: any) => Number.isFinite(n))
+    : Number.isFinite(style?.dash)
+    ? [Number(style.dash), Number(style.dash)]
+    : [];
+  const dashed = dashArr.some((n) => n > 0);
+  const dashLength = dashed ? (dashArr[0] ?? 6) : 6;
+  return { color, width, dashed, dashLength };
+}
+
+function readFill(style: any) {
+  const hex = style?.fill?.color?.hex ?? style?.fillColor ?? "#ffffff";
+  return { hex };
+}
+
+function readOpacity(style: any) {
+  const o = style?.opacity;
+  if (typeof o === "number" && o >= 0 && o <= 1) return o;
+  if (typeof o === "number" && o > 1 && o <= 100) return clamp(o / 100, 0, 1);
+  return 1;
+}
+
+function readRadius(style: any) {
+  const r = style?.radius ?? style?.borderRadius ?? 0;
+  return numOr(r, 0);
+}
+
+/** Compose helpers (never clobber siblings) */
+function composeBlockStyle(prev: any, patch: any) {
+  return { ...(prev || {}), ...patch };
+}
+
+function composeStroke(prevStyle: any, patch: any) {
+  const prevStroke = prevStyle?.stroke ?? {};
+  return composeBlockStyle(prevStyle, {
+    stroke: { ...prevStroke, ...patch },
+  });
+}
+
+function composeFill(prevStyle: any, hex: string | null) {
+  if (!hex) return composeBlockStyle(prevStyle, { fill: undefined });
+  const prevFill = prevStyle?.fill ?? {};
+  return composeBlockStyle(prevStyle, {
+    fill: { ...prevFill, color: { hex } },
+  });
+}
+
+function composeOpacity(prevStyle: any, opacity01: number) {
+  return composeBlockStyle(prevStyle, { opacity: clamp(opacity01, 0, 1) });
+}
+
+function composeRadius(prevStyle: any, r: number) {
+  return composeBlockStyle(prevStyle, { radius: Math.max(0, Math.round(r)) });
+}
+
+/** Image meta helpers */
+function readImageMeta(ub: UBCommon) {
+  const meta = (ub as any)?.blockStyle?.meta ?? {};
+  const props = meta.props ?? {};
+  const fit: "contain" | "cover" | "scale-down" = (props.fit as any) || "contain";
+  const zoom = clamp(numOr(props.zoom, 100), 10, 500); // percent for UX
+  return { meta, props, fit, zoom };
 }
 
 export default function Inspector() {
@@ -42,7 +116,7 @@ export default function Inspector() {
     setValue, selectedBlockId, setSelectedBlock, guide, guideNext,
     // User elements
     selectedUserBlockId, selectUserBlock, updateUserBlock, deleteUserBlock,
-    bringForward, sendBackward, updateBlockProps,
+    bringForward, sendBackward,
   } = useEditor();
 
   if (!draft || !template) {
@@ -54,7 +128,7 @@ export default function Inspector() {
     );
   }
 
-  const page = draft.pageInstances?.[pageIndex];
+  const page = (draft.pageInstances?.[pageIndex] as any) || null;
   if (!page) {
     return (
       <div className="p-3">
@@ -74,10 +148,10 @@ export default function Inspector() {
     );
   }
 
-  // If a user element is selected, show its panel and short-circuit.
+  /** ---------- USER ELEMENTS (Text / Line / Rect / Ellipse / Image) ---------- */
   if (selectedUserBlockId) {
-    const list: UBCommon[] = Array.isArray((page as any).userBlocks) ? (page as any).userBlocks : [];
-    const ub = list.find((b) => b.id === selectedUserBlockId);
+    const list: UBCommon[] = Array.isArray(page.userBlocks) ? page.userBlocks : [];
+    const ub = list.find((b) => b.id === selectedUserBlockId) as UBCommon | undefined;
     if (!ub) {
       // stale selection
       selectUserBlock(null);
@@ -85,356 +159,161 @@ export default function Inspector() {
       const onDelete = () => { deleteUserBlock(ub.id); selectUserBlock(null); };
       const onBringFwd = () => bringForward(ub.id);
       const onSendBack = () => sendBackward(ub.id);
-      const meta = (ub as any)?.blockStyle?.meta as { blockKind?: BlockKind; payload?: any; props?: any } | undefined;
 
-      // Section blocks (editable props)
-      if (meta?.blockKind) {
-        const kind = meta.blockKind as keyof typeof BLOCK_DEFS;
-        const def = BLOCK_DEFS[kind];
-        if (!def) {
-          return (
-            <div className="p-3 space-y-3">
-              <div className="text-sm font-medium">Inspector</div>
-              <div className="text-[11px] text-gray-500 -mt-1">
-                Section block: <code>{String(kind)}</code>
-              </div>
-              <div className="text-xs text-red-600">Unknown block kind.</div>
-              <div className="flex gap-2 pt-1">
-                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
-                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
-                <div className="flex-1" />
-                <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
-              </div>
-            </div>
-          );
-        }
+      const blockStyle = (ub as any).blockStyle ?? (ub as any).style ?? {};
+      const isImageUserElement = (blockStyle?.meta?.blockKind === "image");
 
-        // Merge defaults with saved props
-        const props = { ...(def.defaultProps ?? {}), ...(meta?.props ?? {}) } as Record<string, any>;
+      /** --- IMAGE FIRST: short-circuit if image user element --- */
+      if (isImageUserElement) {
+        const { meta, props, fit, zoom } = readImageMeta(ub);
 
-        // --- Simplified, user-friendly inspector for IMAGE section blocks -----------
-        if (kind === "image") {
-          const p = props;
-          // Prefer the first non-empty string across props, payload, or legacy fields.
-          // Avoid `??` here because `""` is *not* a usable image and would stop the chain.
-          const pickFirstString = (...vals: any[]) =>
-            vals.find((s) => typeof s === "string" && s.trim().length > 0) || "";
+        // Read current values from meta.props (source of truth for Canvas)
+        const oPct = clamp(numOr(props.opacity, 100), 0, 100);
+        const rpx = numOr(props.borderRadius, 0);
 
-          const currentSrc = pickFirstString(
-            p.src,
-            p.url,
-            meta?.payload?.src,
-            meta?.payload?.url,
-            (ub as any).src,
-            (ub as any).url,
-            (ub as any).media?.url
-          ) as string;
-
-          // Normalized numeric helpers
-          const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
-          const toNum = (v: any, fallback: number) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-
-          const zoom = clamp(toNum(p.zoom, 100), 10, 500);
-          const panX = toNum(p.panX, 0);
-          const panY = toNum(p.panY, 0);
-
-          // When uploading from the inspector, write to BOTH places to keep things in sync.
-          const onPickLocal = (file: File | null) => {
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            // write BOTH keys (src & url) so whichever the renderer reads will match
-            updateBlockProps(ub.id, { src: url, url }); // props
-            updateUserBlock(ub.id, {
-              src: url,
-              url,
-              media: { url },
-              blockStyle: {
-                ...(ub as any).blockStyle,
+        const setFit = (next: "contain" | "cover" | "scale-down") =>
+          updateUserBlock(
+            ub.id,
+            {
+              blockStyle: composeBlockStyle(blockStyle, {
                 meta: {
-                  ...(meta ?? {}),
-                  payload: { ...(meta?.payload ?? {}), src: url, url },
-                  props:   { ...(meta?.props   ?? {}), src: url, url },
+                  ...(blockStyle?.meta ?? {}),
+                  props: { ...(blockStyle?.meta?.props ?? {}), fit: next },
                 },
-              },
-            } as any);
-          };
-
-          const onClearImage = () => {
-            updateUserBlock(
-              ub.id,
-              {
-                src: "",
-                url: "",
-                media: undefined,
-                blockStyle: {
-                  ...(ub as any).blockStyle,
-                  meta: {
-                    ...(meta ?? {}),
-                    payload: { ...(meta?.payload ?? {}), src: "", url: "" },
-                    props:   { ...(meta?.props   ?? {}), src: "", url: "" },
-                  },
-                },
-              } as any
-            );
-          };
-
-          // Reset zoom/pan to defaults
-          const onResetZoomPan = () => {
-            updateBlockProps(ub.id, { zoom: 100, panX: 0, panY: 0 });
-          };
-
-          return (
-            <div className="p-3 space-y-4">
-              <div className="text-sm font-medium">Inspector</div>
-              <div className="text-[11px] text-gray-500 -mt-1">Image block</div>
-
-              {/* Image picker */}
-              <div className="space-y-1">
-                <div className="text-xs text-gray-600">Image</div>
-                <div className="flex items-center gap-2">
-                  <label className="px-3 py-1.5 border rounded text-sm bg-white hover:bg-gray-50 cursor-pointer">
-                    {currentSrc ? "Replace image" : "Upload image"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50 disabled:opacity-50"
-                    onClick={onClearImage}
-                    disabled={!currentSrc}
-                    title="Remove image"
-                  >
-                    Remove
-                  </button>
-
-                  {currentSrc ? (
-                    <span className="text-[11px] text-gray-500 truncate max-w-[140px]">Selected</span>
-                  ) : (
-                    <span className="text-[11px] text-gray-400">No image selected</span>
-                  )}
-                </div>
-                <div className="text-[11px] text-gray-500">
-                  Tip: You can also drag an image from the Media panel onto the block.
-                </div>
-              </div>
-
-              {/* Fit */}
-              <div>
-                <div className="text-xs text-gray-600">Object fit</div>
-                <select
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  value={p.fit ?? "contain"}
-                  onChange={(e) => updateBlockProps(ub.id, { fit: e.target.value })}
-                >
-                  <option value="contain">Contain</option>
-                  <option value="cover">Cover</option>
-                  <option value="scale-down">Scale down</option>
-                </select>
-              </div>
-
-              {/* Content zoom & pan */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-gray-600">Zoom</div>
-                  <div className="text-[11px] text-gray-500 ml-auto">{zoom}%</div>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={500}
-                  step={1}
-                  className="w-full"
-                  value={zoom}
-                  onChange={(e) =>
-                    updateBlockProps(ub.id, { zoom: clamp(Number(e.target.value || 100), 10, 500) })
-                  }
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-600">Pan X (%)</div>
-                    <input
-                      type="number"
-                      className="w-full border rounded px-2 py-1 text-sm"
-                      value={Number.isFinite(p.panX) ? p.panX : 0}
-                      onChange={(e) => updateBlockProps(ub.id, { panX: Number(e.target.value || 0) })}
-                    />
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-600">Pan Y (%)</div>
-                    <input
-                      type="number"
-                      className="w-full border rounded px-2 py-1 text-sm"
-                      value={Number.isFinite(p.panY) ? p.panY : 0}
-                      onChange={(e) => updateBlockProps(ub.id, { panY: Number(e.target.value || 0) })}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
-                    onClick={onResetZoomPan}
-                    title="Reset zoom and pan"
-                  >
-                    Reset zoom/pan
-                  </button>
-                  <div className="text-[11px] text-gray-500">
-                    Tip: When zoom &gt; 100%, drag inside the image to pan.
-                  </div>
-                </div>
-              </div>
-
-              {/* Style */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs text-gray-600">Opacity (%)</div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    className="w-full"
-                    value={Number.isFinite(p.opacity) ? p.opacity : 100}
-                    onChange={(e) =>
-                      updateBlockProps(ub.id, {
-                        opacity: Math.max(0, Math.min(100, Number(e.target.value || 0))),
-                      })
-                    }
-                  />
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    {Number.isFinite(p.opacity) ? p.opacity : 100}%
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-600">Border radius (px)</div>
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-full border rounded px-2 py-1 text-sm"
-                    value={Number.isFinite(p.borderRadius) ? p.borderRadius : 0}
-                    onChange={(e) =>
-                      updateBlockProps(ub.id, { borderRadius: Math.max(0, Number(e.target.value || 0)) })
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>
-                  Bring forward
-                </button>
-                <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>
-                  Send backward
-                </button>
-                <div className="flex-1" />
-                <button
-                  className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50"
-                  onClick={onDelete}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
+              }),
+            } as any
           );
-        }
-        // ---------------------------------------------------------------------------
+
+        const setZoom = (pct: number) =>
+          updateUserBlock(
+            ub.id,
+            {
+              blockStyle: composeBlockStyle(blockStyle, {
+                meta: {
+                  ...(blockStyle?.meta ?? {}),
+                  props: { ...(blockStyle?.meta?.props ?? {}), zoom: clamp(Math.round(pct), 10, 500) },
+                },
+              }),
+            } as any
+          );
+
+        const resetZoom = () =>
+          updateUserBlock(
+            ub.id,
+            {
+              blockStyle: composeBlockStyle(blockStyle, {
+                meta: {
+                  ...(blockStyle?.meta ?? {}),
+                  props: { ...(blockStyle?.meta?.props ?? {}), zoom: 100 },
+                },
+              }),
+            } as any
+          );
+
+        // WRITE to meta.props.opacity (0–100)
+        const setImgOpacity = (pct: number) =>
+          updateUserBlock(
+            ub.id,
+            {
+              blockStyle: composeBlockStyle(blockStyle, {
+                meta: {
+                  ...(blockStyle?.meta ?? {}),
+                  props: { ...(blockStyle?.meta?.props ?? {}), opacity: clamp(Math.round(pct), 0, 100) },
+                },
+              }),
+            } as any
+          );
+
+        // WRITE to meta.props.borderRadius (px)
+        const setImgRadius = (n: number) =>
+          updateUserBlock(
+            ub.id,
+            {
+              blockStyle: composeBlockStyle(blockStyle, {
+                meta: {
+                  ...(blockStyle?.meta ?? {}),
+                  props: { ...(blockStyle?.meta?.props ?? {}), borderRadius: Math.max(0, Math.round(n)) },
+                },
+              }),
+            } as any
+          );
 
         return (
-          <div className="p-3 space-y-3">
+          <div className="p-3 space-y-4">
             <div className="text-sm font-medium">Inspector</div>
-            <div className="text-[11px] text-gray-500 -mt-1">
-              Section block: <code>{String(kind)}</code>
-            </div>
 
-            {/* Dynamic props form */}
-            <div className="space-y-2">
-              {def.inspectorFields.map((f) => {
-                if (f.type === "checkbox") {
-                  return (
-                    <label key={f.key} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={!!props[f.key]}
-                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.checked })}
-                      />
-                      <span>{f.label}</span>
-                    </label>
-                  );
-                }
-                if (f.type === "number") {
-                  return (
-                    <div key={f.key}>
-                      <div className="text-xs text-gray-600">{f.label}</div>
-                      <input
-                        type="number"
-                        className="w-full border rounded px-2 py-1 text-sm"
-                        min={f.min ?? 0}
-                        max={f.max ?? 999}
-                        step={f.step ?? 1}
-                        value={Number.isFinite(Number(props[f.key])) ? Number(props[f.key]) : 0}
-                        onChange={(e) =>
-                          updateBlockProps(ub.id, {
-                            [f.key]: Math.max(
-                              f.min ?? -Infinity,
-                              Math.min(f.max ?? Infinity, Number(e.target.value || 0))
-                            ),
-                          })
-                        }
-                      />
-                    </div>
-                  );
-                }
-                if (f.type === "text") {
-                  return (
-                    <div key={f.key}>
-                      <div className="text-xs text-gray-600">{f.label}</div>
-                      <input
-                        type="text"
-                        className="w-full border rounded px-2 py-1 text-sm"
-                        value={props[f.key] ?? ""}
-                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.value })}
-                      />
-                    </div>
-                  );
-                }
-                if ((f as any).type === "select") {
-                  const rawOpts = (f as any).options;
-                  const opts = Array.isArray(rawOpts) ? rawOpts : (rawOpts ? [rawOpts] : []);
-                  const current = props[f.key] ?? (opts[0]?.value ?? "");
-                  return (
-                    <div key={f.key}>
-                      <div className="text-xs text-gray-600">{f.label}</div>
-                      <select
-                        className="w-full border rounded px-2 py-1 text-sm"
-                        value={current}
-                        onChange={(e) => updateBlockProps(ub.id, { [f.key]: e.target.value })}
-                      >
-                        {opts.map((o: any) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                }
-                return null;
-              })}
-            </div>
-
-            {/* Summary */}
+            {/* Fit */}
             <div>
-              <div className="text-xs text-gray-600">Summary</div>
-              <pre className="text-[11px] bg-gray-50 border rounded p-2 overflow-auto max-h-40">
-              {JSON.stringify({ payload: meta.payload ?? {}, props }, null, 2)}
-              </pre>
+              <div className="text-xs text-gray-600">Object fit</div>
+              <select
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={fit}
+                onChange={(e) => setFit(e.target.value as any)}
+              >
+                <option value="contain">Contain</option>
+                <option value="cover">Cover</option>
+                <option value="scale-down">Scale down</option>
+              </select>
             </div>
 
-            <div className="flex gap-2">
+            {/* Zoom */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="text-xs text-gray-600">Zoom</div>
+                <div className="text-[11px] text-gray-500 ml-auto">{zoom}%</div>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={500}
+                step={1}
+                className="w-full"
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value || 100))}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
+                  onClick={resetZoom}
+                >
+                  Reset
+                </button>
+                <div className="text-[11px] text-gray-500">
+                  Tip: When zoom &gt; 100%, drag the image to pan.
+                </div>
+              </div>
+            </div>
+
+            {/* Style */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-gray-600">Opacity (%)</div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                  value={oPct}
+                  onChange={(e) => setImgOpacity(Number(e.target.value || 100))}
+                />
+                <div className="text-[11px] text-gray-500 mt-0.5">{oPct}%</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Border radius (px)</div>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={rpx}
+                  onChange={(e) => setImgRadius(Number(e.target.value || 0))}
+                />
+              </div>
+            </div>
+
+            {/* z-order + delete */}
+            <div className="flex flex-wrap gap-2">
               <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
               <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
               <div className="flex-1" />
@@ -444,7 +323,347 @@ export default function Inspector() {
         );
       }
 
-      // Primitive element panel
+      /** --- TEXT --- */
+      if (ub.type === "text") {
+        const tStyle = (ub.style || {}) as {
+          fontSize?: number;
+          bold?: boolean; italic?: boolean; underline?: boolean;
+          align?: "left" | "center" | "right" | "justify";
+          color?: string; lineHeight?: number; letterSpacing?: number;
+        };
+        const setText = (patch: Partial<typeof tStyle>) =>
+          updateUserBlock(ub.id, { style: { ...(tStyle || {}), ...patch } });
+
+        return (
+          <div className="p-3 space-y-4">
+            <div className="text-sm font-medium">Inspector</div>
+
+            {/* Content */}
+            <div className="space-y-1">
+              <div className="text-xs text-gray-600">Text</div>
+              <textarea
+                className="w-full border rounded px-2 py-1 text-sm min-h-[80px]"
+                value={(ub as any).value || ""}
+                onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
+                placeholder="Type here…"
+              />
+            </div>
+
+            {/* Typography */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-gray-600">Font size (px)</div>
+                <input
+                  type="number"
+                  min={8}
+                  max={96}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={tStyle.fontSize ?? 14}
+                  onChange={(e) =>
+                    setText({ fontSize: clamp(Number(e.target.value || 14), 8, 96) })
+                  }
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Color</div>
+                <input
+                  type="color"
+                  className="w-full h-9 border rounded"
+                  value={tStyle.color || "#111827"}
+                  onChange={(e) => setText({ color: e.target.value })}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Line height</div>
+                <input
+                  type="number"
+                  step={0.1}
+                  min={0.8}
+                  max={3}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={tStyle.lineHeight ?? 1.4}
+                  onChange={(e) => setText({ lineHeight: Number(e.target.value || 1.4) })}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Letter spacing (px)</div>
+                <input
+                  type="number"
+                  step={0.5}
+                  min={-2}
+                  max={10}
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  value={tStyle.letterSpacing ?? 0}
+                  onChange={(e) => setText({ letterSpacing: Number(e.target.value || 0) })}
+                />
+              </div>
+            </div>
+
+            {/* B / I / U + Align */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={`border rounded px-2 h-8 ${tStyle.bold ? "bg-gray-100" : ""}`}
+                onClick={() => setText({ bold: !tStyle.bold })}
+                title="Bold"
+              >
+                B
+              </button>
+              <button
+                type="button"
+                className={`border rounded px-2 h-8 italic ${tStyle.italic ? "bg-gray-100" : ""}`}
+                onClick={() => setText({ italic: !tStyle.italic })}
+                title="Italic"
+              >
+                I
+              </button>
+              <button
+                type="button"
+                className={`border rounded px-2 h-8 underline ${tStyle.underline ? "bg-gray-100" : ""}`}
+                onClick={() => setText({ underline: !tStyle.underline })}
+                title="Underline"
+              >
+                U
+              </button>
+
+              <div className="ml-2 flex flex-wrap items-center gap-1">
+                {(["left", "center", "right", "justify"] as const).map((a) => (
+                  <button
+                    type="button"
+                    key={a}
+                    className={`border rounded px-2 h-8 ${tStyle.align === a ? "bg-gray-100" : ""}`}
+                    onClick={() => setText({ align: a })}
+                    title={`Align ${a}`}
+                  >
+                    {a[0].toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* z-order + delete */}
+            <div className="flex flex-wrap gap-2">
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+              <div className="flex-1" />
+              <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+            </div>
+          </div>
+        );
+      }
+
+      /** --- SHAPES: LINE / RECT / ELLIPSE --- */
+      const stroke = readStroke(blockStyle);
+      const fill = readFill(blockStyle);
+      const radius = readRadius(blockStyle);
+      const opacity01 = readOpacity(blockStyle);
+
+      const setStrokeHex = (hex: string) =>
+        updateUserBlock(ub.id, { blockStyle: composeStroke(blockStyle, { color: { hex } }) } as any);
+
+      const setStrokeW = (n: number) =>
+        updateUserBlock(ub.id, { blockStyle: composeStroke(blockStyle, { width: clamp(n, 1, 64) }) } as any);
+
+      const setDashed = (on: boolean) =>
+        updateUserBlock(ub.id, {
+          blockStyle: composeStroke(blockStyle, { dash: on ? [stroke.dashLength, stroke.dashLength] : [] }),
+        } as any);
+
+      const setDashLength = (n: number) =>
+        updateUserBlock(ub.id, {
+          blockStyle: composeStroke(blockStyle, {
+            dash: stroke.dashed ? [clamp(n, 1, 64), clamp(n, 1, 64)] : [],
+          }),
+        } as any);
+
+      const setFillHex = (hex: string | null) =>
+        updateUserBlock(ub.id, { blockStyle: composeFill(blockStyle, hex) } as any);
+
+      const setOpacity = (pct: number) =>
+        updateUserBlock(ub.id, { blockStyle: composeOpacity(blockStyle, clamp(pct / 100, 0, 1)) } as any);
+
+      const setRadius = (r: number) =>
+        updateUserBlock(ub.id, { blockStyle: composeRadius(blockStyle, r) } as any);
+
+      if (ub.type === "line") {
+        return (
+          <div className="p-3 space-y-4">
+            <div className="text-sm font-medium">Inspector</div>
+
+            {/* Stroke */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <div className="text-xs text-gray-600">Stroke color</div>
+                <input type="color" className="w-full h-9 border rounded" value={stroke.color} onChange={(e) => setStrokeHex(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Stroke width (px)</div>
+                <input type="number" min={1} max={64} className="w-full border rounded px-2 py-1 text-sm" value={stroke.width} onChange={(e) => setStrokeW(Number(e.target.value || 1))} />
+              </div>
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <input type="checkbox" className="w-4 h-4" checked={stroke.dashed} onChange={(e) => setDashed(e.target.checked)} />
+                  Dashed
+                </label>
+                <input
+                  type="number"
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  min={1}
+                  max={64}
+                  value={stroke.dashLength}
+                  onChange={(e) => setDashLength(Number(e.target.value || stroke.dashLength))}
+                  disabled={!stroke.dashed}
+                  title="Dash length"
+                />
+              </div>
+            </div>
+
+            {/* z-order + delete */}
+            <div className="flex flex-wrap gap-2">
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+              <div className="flex-1" />
+              <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (ub.type === "rect") {
+        return (
+          <div className="p-3 space-y-4">
+            <div className="text-sm font-medium">Inspector</div>
+
+            {/* Fill / Stroke */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <div className="text-xs text-gray-600">Fill</div>
+                <input type="color" className="w-full h-9 border rounded" value={fill.hex} onChange={(e) => setFillHex(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Stroke</div>
+                <input type="color" className="w-full h-9 border rounded" value={stroke.color} onChange={(e) => setStrokeHex(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Stroke width (px)</div>
+                <input type="number" min={0} max={64} className="w-full border rounded px-2 py-1 text-sm" value={stroke.width} onChange={(e) => setStrokeW(Number(e.target.value || 0))} />
+              </div>
+            </div>
+
+            {/* Dash, radius, opacity */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <input type="checkbox" className="w-4 h-4" checked={stroke.dashed} onChange={(e) => setDashed(e.target.checked)} />
+                  Dashed
+                </label>
+                <input
+                  type="number"
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  min={1}
+                  max={64}
+                  value={stroke.dashLength}
+                  onChange={(e) => setDashLength(Number(e.target.value || stroke.dashLength))}
+                  disabled={!stroke.dashed}
+                  title="Dash length"
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Corner radius (px)</div>
+                <input type="number" min={0} className="w-full border rounded px-2 py-1 text-sm" value={radius} onChange={(e) => setRadius(Number(e.target.value || 0))} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Opacity (%)</div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                  value={Math.round(opacity01 * 100)}
+                  onChange={(e) => setOpacity(Number(e.target.value || 100))}
+                />
+                <div className="text-[11px] text-gray-500 mt-0.5">{Math.round(opacity01 * 100)}%</div>
+              </div>
+            </div>
+
+            {/* z-order + delete */}
+            <div className="flex flex-wrap gap-2">
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+              <div className="flex-1" />
+              <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (ub.type === "ellipse") {
+        return (
+          <div className="p-3 space-y-4">
+            <div className="text-sm font-medium">Inspector</div>
+
+            {/* Fill / Stroke */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <div className="text-xs text-gray-600">Fill</div>
+                <input type="color" className="w-full h-9 border rounded" value={fill.hex} onChange={(e) => setFillHex(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Stroke</div>
+                <input type="color" className="w-full h-9 border rounded" value={stroke.color} onChange={(e) => setStrokeHex(e.target.value)} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Stroke width (px)</div>
+                <input type="number" min={0} max={64} className="w-full border rounded px-2 py-1 text-sm" value={stroke.width} onChange={(e) => setStrokeW(Number(e.target.value || 0))} />
+              </div>
+            </div>
+
+            {/* Dash, opacity */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <input type="checkbox" className="w-4 h-4" checked={stroke.dashed} onChange={(e) => setDashed(e.target.checked)} />
+                  Dashed
+                </label>
+                <input
+                  type="number"
+                  className="w-full border rounded px-2 py-1 text-sm"
+                  min={1}
+                  max={64}
+                  value={stroke.dashLength}
+                  onChange={(e) => setDashLength(Number(e.target.value || stroke.dashLength))}
+                  disabled={!stroke.dashed}
+                  title="Dash length"
+                />
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <div className="text-xs text-gray-600">Opacity (%)</div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                  value={Math.round(opacity01 * 100)}
+                  onChange={(e) => setOpacity(Number(e.target.value || 100))}
+                />
+                <div className="text-[11px] text-gray-500 mt-0.5">{Math.round(opacity01 * 100)}%</div>
+              </div>
+            </div>
+
+            {/* z-order + delete */}
+            <div className="flex flex-wrap gap-2">
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+              <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
+              <div className="flex-1" />
+              <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
+            </div>
+          </div>
+        );
+      }
+
+      /** Fallback: unknown primitive */
       return (
         <div className="p-3 space-y-3">
           <div className="text-sm font-medium">Inspector</div>
@@ -452,54 +671,21 @@ export default function Inspector() {
             Editing element: <code>{ub.type}</code>
           </div>
 
-          <div className="flex gap-2 pt-1">
-            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd} title="Bring forward">Bring forward</button>
-            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack} title="Send backward">Send backward</button>
+          {/* z-order + delete */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onBringFwd}>Bring forward</button>
+            <button className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50" onClick={onSendBack}>Send backward</button>
             <div className="flex-1" />
-            <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete} title={`Delete ${titleCase(ub.type)}`}>Delete</button>
+            <button className="px-3 py-1.5 border rounded text-sm text-red-700 border-red-300 hover:bg-red-50" onClick={onDelete}>Delete</button>
           </div>
-
-          {ub.type === "text" && (
-            <>
-              <div className="space-y-1">
-                <div className="text-xs text-gray-600">Text</div>
-                <textarea
-                  className="w-full border rounded px-2 py-1 text-sm min-h-[80px]"
-                  value={(ub as any).value || ""}
-                  onChange={(e) => updateUserBlock(ub.id, { value: e.target.value })}
-                  placeholder="Type here…"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {(["x", "y", "w", "h"] as const).map((k) => (
-                  <div key={k}>
-                    <div className="text-[11px] text-gray-500 uppercase">{k}</div>
-                    <input
-                      type="number"
-                      className="w-full border rounded px-2 py-1 text-sm"
-                      min={0}
-                      max={100}
-                      value={Number((ub as any).rect?.[k] ?? 0).toString()}
-                      onChange={(e) => {
-                        const num = Number(e.target.value || 0);
-                        updateUserBlock(ub.id, { rect: { ...((ub as any).rect || { x: 0, y: 0, w: 0, h: 0 }), [k]: num } as any });
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </div>
       );
     }
   }
 
-  // Template inspector as before
+  /** ---------- TEMPLATE BLOCKS (existing behavior) ---------- */
   const allBlocks = (tPage.blocks ?? []) as BlockBase[] as Block[];
-  const targetBlocks =
-    selectedBlockId ? allBlocks.filter((b) => b.id === selectedBlockId) : allBlocks;
+  const targetBlocks = selectedBlockId ? allBlocks.filter((b) => b.id === selectedBlockId) : allBlocks;
 
   return (
     <div className="p-3 space-y-3">
@@ -641,9 +827,10 @@ export default function Inspector() {
         }
 
         if (isImage(b)) {
+          // Simplified image field (URL or binding), no pan inputs here.
           const val = typeof v === "string" ? v : "";
           return (
-            <div key={b.id} className="space-y-1">
+            <div key={b.id} className="space-y-2">
               <div className="text-xs text-gray-600">
                 {b.label || "Image"} <span className="text-[10px] text-gray-400">(URL or <code>{"{{"}binding{"}}"}</code>)</span>
               </div>

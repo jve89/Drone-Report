@@ -27,15 +27,36 @@ export function CanvasHUD({
           <TextToolbar blockId={activeTextBlock.id} style={activeTextBlock.style || {}} />
         </div>
       )}
-      {activeShapeBlock && (
-        <div className="fixed left-1/2 -translate-x-1/2 z-50" style={{ top: toolbarTop }}>
-          <ShapeToolbar
-            blockId={activeShapeBlock.id}
-            kind={activeShapeBlock.type}
-            style={(activeShapeBlock as any).blockStyle ?? (activeShapeBlock as any).style}
-          />
-        </div>
-      )}
+
+      {(() => {
+        if (!activeShapeBlock) return null;
+
+        // Normalize style from either blockStyle or legacy style
+        const style =
+          (activeShapeBlock as any)?.blockStyle ??
+          (activeShapeBlock as any)?.style;
+
+        // Detect image user element (rect with image meta)
+        const meta = style?.meta;
+        const isImageUserElement = meta?.blockKind === "image";
+
+        // Only pass supported kinds to ShapeToolbar to satisfy TS
+        const t = activeShapeBlock.type;
+        const isSupportedKind = t === "line" || t === "rect" || t === "ellipse";
+        if (!isSupportedKind) return null;
+
+        return (
+          <div className="fixed left-1/2 -translate-x-1/2 z-50" style={{ top: toolbarTop }}>
+            <ShapeToolbar
+              blockId={activeShapeBlock.id}
+              kind={t}
+              style={style}
+              /* Hide only the dashed toggle when the selected block is an image */
+              hideDashed={isImageUserElement}
+            />
+          </div>
+        );
+      })()}
 
       {/* Rotation HUD */}
       {rotHUD.active && (

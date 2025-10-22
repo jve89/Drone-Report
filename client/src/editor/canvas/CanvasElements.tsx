@@ -521,7 +521,7 @@ export function CanvasElements({
                 style={{
                   overflow: "hidden",
                   borderRadius: outerBorderRadius as any,
-                  background: isImageBlock && imgSrc ? "white" : "transparent",
+                  background: isImageBlock && imgSrc ? "transparent" : "transparent",
                 }}
               >
                 {isImageBlock ? (
@@ -543,6 +543,7 @@ export function CanvasElements({
                               )}%) scale(${iProps.zoom / 100})`
                             : "none",
                         cursor: iProps.zoom > 100 ? "grab" : "default",
+                        borderRadius: `${iProps.borderRadius}px`,
                       }}
                       draggable={false}
                       onMouseDown={onPanMouseDown}
