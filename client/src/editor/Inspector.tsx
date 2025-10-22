@@ -110,7 +110,7 @@ export default function Inspector() {
         }
 
         // Merge defaults with saved props
-        const props = { ...(def.defaultProps ?? {}), ...(meta.props ?? {}) } as Record<string, any>;
+        const props = { ...(def.defaultProps ?? {}), ...(meta?.props ?? {}) } as Record<string, any>;
 
         // --- Simplified, user-friendly inspector for IMAGE section blocks -----------
         if (kind === "image") {
@@ -129,6 +129,14 @@ export default function Inspector() {
             (ub as any).url,
             (ub as any).media?.url
           ) as string;
+
+          // Normalized numeric helpers
+          const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+          const toNum = (v: any, fallback: number) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+          const zoom = clamp(toNum(p.zoom, 100), 10, 500);
+          const panX = toNum(p.panX, 0);
+          const panY = toNum(p.panY, 0);
 
           // When uploading from the inspector, write to BOTH places to keep things in sync.
           const onPickLocal = (file: File | null) => {
@@ -168,6 +176,11 @@ export default function Inspector() {
                 },
               } as any
             );
+          };
+
+          // Reset zoom/pan to defaults
+          const onResetZoomPan = () => {
+            updateBlockProps(ub.id, { zoom: 100, panX: 0, panY: 0 });
           };
 
           return (
@@ -222,6 +235,58 @@ export default function Inspector() {
                   <option value="cover">Cover</option>
                   <option value="scale-down">Scale down</option>
                 </select>
+              </div>
+
+              {/* Content zoom & pan */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-gray-600">Zoom</div>
+                  <div className="text-[11px] text-gray-500 ml-auto">{zoom}%</div>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={500}
+                  step={1}
+                  className="w-full"
+                  value={zoom}
+                  onChange={(e) =>
+                    updateBlockProps(ub.id, { zoom: clamp(Number(e.target.value || 100), 10, 500) })
+                  }
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Pan X (%)</div>
+                    <input
+                      type="number"
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      value={Number.isFinite(p.panX) ? p.panX : 0}
+                      onChange={(e) => updateBlockProps(ub.id, { panX: Number(e.target.value || 0) })}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Pan Y (%)</div>
+                    <input
+                      type="number"
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      value={Number.isFinite(p.panY) ? p.panY : 0}
+                      onChange={(e) => updateBlockProps(ub.id, { panY: Number(e.target.value || 0) })}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50"
+                    onClick={onResetZoomPan}
+                    title="Reset zoom and pan"
+                  >
+                    Reset zoom/pan
+                  </button>
+                  <div className="text-[11px] text-gray-500">
+                    Tip: When zoom &gt; 100%, drag inside the image to pan.
+                  </div>
+                </div>
               </div>
 
               {/* Style */}

@@ -1,5 +1,5 @@
 // client/src/editor/canvas/CanvasElements.tsx
-import React from "react";
+import React, { useRef } from "react";
 import { Frame } from "./RenderHelpers";
 import { renderString } from "../../templates/bindings";
 import type { UserBlock, Rect, LinePoint } from "./types";
@@ -96,118 +96,112 @@ export function CanvasElements({
         const baseZ = ub.type === "text" ? 1000 : 0;
         const zIndex = baseZ + ((ub as any).z ?? i);
 
-      if (ub.type === "image") {
-      const r = ub.rect;
-      const src =
-        (ub as any).src ??
-        (ub as any).url ??
-        (ub as any).media?.url ??
-        (ub as any).image?.url ??
-        null;
+        // ------------------- Simple user image (legacy variant) --------------------
+        if (ub.type === "image") {
+          const r = ub.rect;
+          const src =
+            (ub as any).src ??
+            (ub as any).url ??
+            (ub as any).media?.url ??
+            (ub as any).image?.url ??
+            null;
 
-      const hasImage = Boolean(src);
+          const hasImage = Boolean(src);
+          const DR_MEDIA_MIME = "application/x-dr-media";
 
-      // mime used elsewhere in the app for media drag/drop
-      const DR_MEDIA_MIME = "application/x-dr-media";
+          const onImgDragOver = (e: React.DragEvent) => {
+            if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = "copy";
+            }
+          };
 
-      const onImgDragOver = (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes(DR_MEDIA_MIME)) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.dataTransfer.dropEffect = "copy";
-        }
-      };
+          const onImgDrop = (e: React.DragEvent) => {
+            const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
+            if (!raw) return;
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              const payload = JSON.parse(raw);
+              if (payload?.url) onUpdateBlock(ub.id, { src: payload.url, url: payload.url, media: { url: payload.url } });
+            } catch {}
+          };
 
-      const onImgDrop = (e: React.DragEvent) => {
-        const raw = e.dataTransfer.getData(DR_MEDIA_MIME);
-        if (!raw) return;
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-          const payload = JSON.parse(raw); // { url, ... }
-          if (payload?.url) onUpdateBlock(ub.id, { src: payload.url, url: payload.url, media: { url: payload.url } });
-        } catch { /* ignore */ }
-      };
+          const onPickLocal = (file: File | null) => {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            onUpdateBlock(ub.id, { src: url, url, media: { url } });
+          };
 
-      const onPickLocal = (file: File | null) => {
-        if (!file) return;
-        const url = URL.createObjectURL(file);
-        onUpdateBlock(ub.id, { src: url, url, media: { url } });
-      };
+          return (
+            <div
+              key={ub.id}
+              data-user-block
+              className="absolute"
+              style={{
+                left: pct(r.x),
+                top: pct(r.y),
+                width: pct(r.w),
+                height: pct(r.h),
+                zIndex,
+                borderRadius: 4,
+                background: hasImage ? "transparent" : "rgba(148,163,184,0.08)",
+              }}
+              onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
+              onDragOver={onImgDragOver}
+              onDrop={onImgDrop}
+            >
+              {hasImage && (
+                <img
+                  src={src as string}
+                  alt="image"
+                  className="w-full h-full object-contain bg-white rounded"
+                  draggable={false}
+                />
+              )}
 
-      return (
-        <div
-          key={ub.id}
-          data-user-block
-          className="absolute"
-          style={{
-            left: pct(r.x),
-            top: pct(r.y),
-            width: pct(r.w),
-            height: pct(r.h),
-            zIndex,
-            borderRadius: 4,
-            background: hasImage ? "transparent" : "rgba(148,163,184,0.08)",
-          }}
-          onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
-          onDragOver={onImgDragOver}
-          onDrop={onImgDrop}
-        >
-          {/* Show image when present */}
-          {hasImage && (
-            <img
-              src={src as string}
-              alt="image"
-              className="w-full h-full object-contain bg-white rounded"
-              draggable={false}
-            />
-          )}
+              {!hasImage && (
+                <>
+                  <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
+                  <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                    <label className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto">
+                      Add image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </label>
+                    <div className="mt-2 text-xs text-slate-500 pointer-events-none">or drag from Media</div>
+                  </div>
+                </>
+              )}
 
-          {/* Always-visible dashed frame when empty (same pattern as text block) */}
-          {!hasImage && (
-            <>
-              <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
-              <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                <label
-                  className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto"
-                >
-                  Add image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
-                    onClick={(e) => e.stopPropagation()}
+              {active && (
+                <>
+                  <div
+                    onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
+                    className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
                   />
-                </label>
-                <div className="mt-2 text-xs text-slate-500 pointer-events-none">
-                  or drag from Media
-                </div>
-              </div>
-            </>
-          )}
-
-          {active && (
-            <>
-              <div
-                onMouseDown={(e) => startDrag("resize-tl", ub.id, r, e)}
-                className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-slate-400 cursor-nwse-resize"
-              />
-              <div
-                onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
-                className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
-              />
-              <div
-                onMouseDown={(e) => startDrag("move", ub.id, r, e)}
-                className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
-              >
-                ⤧
-              </div>
-            </>
-          )}
-        </div>
-      );
-    }
+                  <div
+                    onMouseDown={(e) => startDrag("resize-right", ub.id, r, e)}
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 w-3 h-5 rounded bg-white border border-slate-400 cursor-ew-resize"
+                  />
+                  <div
+                    onMouseDown={(e) => startDrag("move", ub.id, r, e)}
+                    className="absolute left-1/2 -bottom-7 -translate-x-1/2 w-7 h-7 rounded-full bg-white border border-slate-400 grid place-items-center cursor-move text-sm"
+                  >
+                    ⤧
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        }
+        // --------------------------------------------------------------------------
 
         if (ub.type === "text") {
           const st = ub.style || {};
@@ -237,9 +231,7 @@ export function CanvasElements({
               onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
             >
               {renderBoxBadge(ub, 0, 0)}
-              {active && (
-                <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />
-              )}
+              {active && <div className="absolute inset-0 rounded border border-dashed border-slate-400 pointer-events-none" />}
               <textarea
                 className="w-full h-full outline-none resize-none bg-transparent"
                 style={textareaStyle}
@@ -273,11 +265,8 @@ export function CanvasElements({
 
         if (ub.type === "line") {
           const bs = (ub as any).blockStyle || {};
-          const strokeHex =
-            bs.stroke?.color?.hex ?? (ub as any).style?.strokeColor ?? "#111827";
-          const strokeW = Number.isFinite(bs.stroke?.width)
-            ? bs.stroke.width
-            : (ub as any).style?.strokeWidth ?? 2;
+          const strokeHex = bs.stroke?.color?.hex ?? (ub as any).style?.strokeColor ?? "#111827";
+          const strokeW = Number.isFinite(bs.stroke?.width) ? bs.stroke.width : (ub as any).style?.strokeWidth ?? 2;
           const dashArr =
             Array.isArray(bs.stroke?.dash) && bs.stroke.dash.length
               ? bs.stroke.dash
@@ -293,12 +282,7 @@ export function CanvasElements({
           const hitW = Math.max(12, Number(strokeW) || 2);
 
           return (
-            <svg
-              key={ub.id}
-              data-user-block
-              className="absolute inset-0 pointer-events-none"
-              style={{ zIndex, width: "100%", height: "100%" }}
-            >
+            <svg key={ub.id} data-user-block className="absolute inset-0 pointer-events-none" style={{ zIndex, width: "100%", height: "100%" }}>
               <line
                 x1={pct(p1.x)}
                 y1={pct(p1.y)}
@@ -344,12 +328,7 @@ export function CanvasElements({
                     className="fill-white stroke-slate-400 cursor-grab"
                     onMouseDown={(e) => startLineDrag("p2", ub.id, p1, p2, e)}
                   />
-                  <foreignObject
-                    x={pct(mid.x)}
-                    y={`calc(${pct(mid.y)} + 20px)`}
-                    width="40"
-                    height="40"
-                  >
+                  <foreignObject x={pct(mid.x)} y={`calc(${pct(mid.y)} + 20px)`} width="40" height="40">
                     <div className="flex gap-2">
                       <div
                         onMouseDown={(e) => startLineDrag("rotate", ub.id, p1, p2, e)}
@@ -384,14 +363,37 @@ export function CanvasElements({
           // --- image block detection & props ---
           const meta = bs.meta || {};
           const isImageBlock = meta?.blockKind === "image";
+
           const imgSrc =
             meta?.payload?.src ||
             meta?.payload?.url ||
+            (meta?.props?.src as string) ||
+            (meta?.props?.url as string) ||
             (ub as any).src ||
             (ub as any).url ||
             null;
 
-          // drag/drop from Media panel
+          const defaultImgProps = {
+            fit: "contain",
+            opacity: 100,
+            borderRadius: 0,
+            zoom: 100,
+            panX: 0,
+            panY: 0,
+          } as const;
+
+          const iProps = {
+            ...defaultImgProps,
+            ...(meta?.props || {}),
+          } as {
+            fit: "contain" | "cover" | "scale-down";
+            opacity: number;
+            borderRadius: number;
+            zoom: number;
+            panX: number;
+            panY: number;
+          };
+
           const DR_MEDIA_MIME = "application/x-dr-media";
           const onImgDragOver = (e: React.DragEvent) => {
             if (!isImageBlock) return;
@@ -424,28 +426,88 @@ export function CanvasElements({
             updateImageSrc(url);
           };
 
-          // base border/background:
           const showEmptyImgFrame = isImageBlock && !imgSrc;
+
+          const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+          const maxPanPct = iProps.zoom > 100 ? ((iProps.zoom - 100) / (2 * iProps.zoom)) * 100 : 0;
+
+          const containerRef = useRef<HTMLDivElement | null>(null);
+
+          const pushImgProps = (patch: Partial<typeof iProps>) => {
+            const curBS = (ub as any).blockStyle || {};
+            const curMeta = curBS.meta || {};
+            const curProps = curMeta.props || {};
+            const next = { ...curProps, ...patch };
+            onUpdateBlock(ub.id, { blockStyle: { ...curBS, meta: { ...curMeta, props: next } } });
+          };
+
+          const onPanMouseDown = (e: React.MouseEvent) => {
+            if (!isImageBlock) return;
+            if (iProps.zoom <= 100) return; // don't swallow; allow selection/handles
+
+            e.preventDefault();
+            e.stopPropagation();
+            onSelectBlock(ub.id);
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startPanX = iProps.panX || 0;
+            const startPanY = iProps.panY || 0;
+
+            const el = containerRef.current;
+            if (!el) return;
+            const rectPx = el.getBoundingClientRect();
+
+            const onMove = (ev: MouseEvent) => {
+              const dxPct = ((ev.clientX - startX) / rectPx.width) * 100;
+              const dyPct = ((ev.clientY - startY) / rectPx.height) * 100;
+              const nextX = clamp(startPanX + dxPct, -maxPanPct, maxPanPct);
+              const nextY = clamp(startPanY + dyPct, -maxPanPct, maxPanPct);
+              pushImgProps({ panX: nextX, panY: nextY });
+              document.body.style.cursor = "grabbing";
+            };
+            const onUp = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+              document.body.style.cursor = "";
+            };
+
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+            document.body.style.cursor = "grabbing";
+          };
+
+          // -------- Render outer container (no clipping) + inner content (clipped) --------
+          // OUTER: shows border/background and allows handles to protrude
+          // INNER: clips the image content
+          const outerBorderRadius =
+            isImageBlock
+              ? (Number.isFinite(iProps.borderRadius) ? `${iProps.borderRadius}px` : 0)
+              : ub.type === "ellipse"
+              ? "50%"
+              : 4;
 
           return (
             <div
               key={ub.id}
               data-user-block
+              ref={containerRef}
               style={{
                 position: "absolute",
                 left: pct(r.x),
                 top: pct(r.y),
                 width: pct(r.w),
                 height: pct(r.h),
-                // shapes default border
                 borderWidth: showEmptyImgFrame ? 1 : strokeW,
                 borderStyle: showEmptyImgFrame ? "dashed" : (dashed ? "dashed" : "solid"),
                 borderColor: showEmptyImgFrame ? "#94a3b8" : stroke,
                 background: showEmptyImgFrame ? "rgba(148,163,184,0.08)" : "transparent",
-                borderRadius: ub.type === "ellipse" ? "50%" : 4,
+                borderRadius: outerBorderRadius as any,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",
                 zIndex,
+                // IMPORTANT: allow handles to render outside
+                overflow: "visible",
               }}
               onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
               onDragOver={onImgDragOver}
@@ -453,33 +515,55 @@ export function CanvasElements({
             >
               {renderBoxBadge(ub, 0, 0)}
 
-              {isImageBlock ? (
-                imgSrc ? (
-                  <img
-                    src={imgSrc as string}
-                    alt="image"
-                    className="w-full h-full object-contain bg-white"
-                    draggable={false}
-                  />
-                ) : (
-                  // empty state with button
-                  <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                    <label className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto">
-                      Add image
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </label>
-                    <div className="mt-2 text-xs text-slate-500 pointer-events-none">
-                      or drag from Media
+              {/* Content wrapper that clips the image */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  overflow: "hidden",
+                  borderRadius: outerBorderRadius as any,
+                  background: isImageBlock && imgSrc ? "white" : "transparent",
+                }}
+              >
+                {isImageBlock ? (
+                  imgSrc ? (
+                    <img
+                      src={imgSrc as string}
+                      alt="image"
+                      className="w-full h-full select-none"
+                      style={{
+                        objectFit: iProps.fit,
+                        opacity: clamp(iProps.opacity, 0, 100) / 100,
+                        transformOrigin: "center center",
+                        transform:
+                          iProps.zoom !== 100 || iProps.panX || iProps.panY
+                            ? `translate(${clamp(iProps.panX, -maxPanPct, maxPanPct)}%, ${clamp(
+                                iProps.panY,
+                                -maxPanPct,
+                                maxPanPct
+                              )}%) scale(${iProps.zoom / 100})`
+                            : "none",
+                        cursor: iProps.zoom > 100 ? "grab" : "default",
+                      }}
+                      draggable={false}
+                      onMouseDown={onPanMouseDown}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                      <label className="px-3 py-1.5 text-sm rounded border bg-white shadow-sm cursor-pointer pointer-events-auto">
+                        Add image
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </label>
+                      <div className="mt-2 text-xs text-slate-500 pointer-events-none">or drag from Media</div>
                     </div>
-                  </div>
-                )
-              ) : null}
+                  )
+                ) : null}
+              </div>
 
               {active && (
                 <>

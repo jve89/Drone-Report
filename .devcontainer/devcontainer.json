@@ -2,14 +2,29 @@
   "name": "Drone-Report Dev",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
   "remoteUser": "node",
+  "init": true,
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "nonFreePackages": true,
+      "packages": "tree"
+    },
+    "ghcr.io/devcontainers/features/postgres-client:1": {}
+  },
+
+  "overrideCommand": false,
+  "runArgs": ["--userns=host"],
 
   "forwardPorts": [5173, 3000],
   "portsAttributes": {
     "5173": { "label": "Vite", "onAutoForward": "openBrowser", "visibility": "public" },
-    "3000": { "label": "API",  "onAutoForward": "openBrowser", "visibility": "public" }
+    "3000": { "label": "API", "onAutoForward": "openBrowser", "visibility": "public" }
   },
 
-  "mounts": ["type=cache,target=/home/node/.npm","type=cache,target=/workspaces/.pnpm-store"],
+  "mounts": [
+    "type=cache,target=/home/node/.npm"
+  ],
 
   "postCreateCommand": "npm ci",
   "postStartCommand": "echo 'Ready → run: npm run dev --workspace server | npm run dev --workspace client'",
@@ -17,7 +32,9 @@
   "customizations": {
     "vscode": {
       "extensions": ["esbenp.prettier-vscode"],
-      "settings": { "terminal.integrated.defaultProfile.linux": "bash" }
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
     }
   }
 }

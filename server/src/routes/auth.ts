@@ -15,20 +15,35 @@ const Email = z.string().email().max(320);
 const Password = z.string().min(8).max(200);
 
 const COOKIE = process.env.COOKIE_NAME || "dr_session";
-// Defaults work for cross-site in Gitpod/Vite; override in prod via env
-const COOKIE_SAMESITE = (process.env.COOKIE_SAMESITE || "none") as
-  | "lax"
-  | "strict"
-  | "none";
-const COOKIE_SECURE =
-  (process.env.COOKIE_SECURE ?? "true").toLowerCase() !== "false";
-const COOKIE_MAXAGE_MS = Number(process.env.COOKIE_MAXAGE_MS ?? 1000 * 60 * 60 * 24 * 7); // 7d
+const COOKIE_MAXAGE_MS = Number(
+  process.env.COOKIE_MAXAGE_MS ?? 1000 * 60 * 60 * 24 * 7
+); // 7d
+
+// Decide cookie security based on environment/origin.
+// On http://localhost we must NOT set SameSite=None; Secure (browser will drop it).
+const ORIGIN =
+  process.env.APP_ORIGIN ||
+  process.env.CORS_ORIGIN ||
+  "http://localhost:5173";
+
+let originHost = "localhost";
+try {
+  originHost = new URL(ORIGIN).hostname || "localhost";
+} catch {
+  originHost = "localhost";
+}
+const isLocalDev =
+  process.env.NODE_ENV !== "production" &&
+  (originHost === "localhost" || originHost === "127.0.0.1");
+
+const sameSiteForEnv: "lax" | "none" = isLocalDev ? "lax" : "none";
+const secureForEnv = !isLocalDev;
 
 function setSessionCookie(res: Response, token: string) {
   res.cookie(COOKIE, token, {
     httpOnly: true,
-    sameSite: COOKIE_SAMESITE,
-    secure: COOKIE_SECURE,
+    sameSite: sameSiteForEnv,
+    secure: secureForEnv,
     path: "/",
     maxAge: COOKIE_MAXAGE_MS,
   });
@@ -71,19 +86,20 @@ router.post("/auth/login", async (req, res, next) => {
 });
 
 router.post("/auth/logout", (req, res) => {
-  // Mirror attributes to ensure deletion in cross-site context
+  // Mirror attributes to ensure deletion matches how we set it.
   res.clearCookie(COOKIE, {
     path: "/",
-    sameSite: COOKIE_SAMESITE,
-    secure: COOKIE_SECURE,
+    sameSite: sameSiteForEnv,
+    secure: secureForEnv,
   });
   res.status(204).end();
 });
 
 router.get("/auth/me", async (req, res) => {
   const cookieToken = req.cookies?.[COOKIE];
-  const authHeader = req.header("authorization") || req.header("Authorization") || "";
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const authHeader =
+    req.header("authorization") || req.header("Authorization") || "";
+  const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i);
   const headerToken = bearerMatch?.[1];
 
   const raw = cookieToken || headerToken;
