@@ -55,6 +55,7 @@
 │   │   │   │   ├── ImageBlock.tsx
 │   │   │   │   ├── InspectionDetailsBlock.tsx
 │   │   │   │   ├── OrthoPairBlock.tsx
+│   │   │   │   ├── SeverityOverviewBlock.tsx
 │   │   │   │   ├── ShapeToolbar.tsx
 │   │   │   │   ├── SitePropertiesBlock.tsx
 │   │   │   │   ├── TextToolbar.tsx
@@ -67,6 +68,12 @@
 │   │   │   │   ├── RenderHelpers.tsx
 │   │   │   │   ├── types.ts
 │   │   │   │   └── useCanvasEvents.ts
+│   │   │   ├── inspector
+│   │   │   │   ├── InspectorSectionPanels.tsx
+│   │   │   │   ├── SectionPanels.tsx
+│   │   │   │   ├── TemplateBlockPanels.tsx
+│   │   │   │   ├── UserElementPanels.tsx
+│   │   │   │   └── shared.ts
 │   │   │   ├── layout
 │   │   │   │   └── EditorShell.tsx
 │   │   │   ├── media
@@ -219,62 +226,62 @@
 │   │       ├── mailer.ts
 │   │       └── validate.ts
 │   └── tsconfig.json
-├── shared
-│   ├── blocks
-│   │   ├── footer.json
-│   │   └── header.json
-│   ├── dist
-│   │   ├── schema
-│   │   │   ├── intake.schema.d.ts
-│   │   │   ├── intake.schema.d.ts.map
-│   │   │   └── intake.schema.js
-│   │   ├── templates
-│   │   │   ├── blank.json
-│   │   │   ├── generic-building.json
-│   │   │   ├── index.d.ts
-│   │   │   ├── index.d.ts.map
-│   │   │   ├── index.js
-│   │   │   ├── solar-pv.json
-│   │   │   └── wind-blade.json
-│   │   └── types
-│   │       ├── draft.d.ts
-│   │       ├── draft.d.ts.map
-│   │       ├── draft.js
-│   │       ├── finding.d.ts
-│   │       ├── finding.d.ts.map
-│   │       ├── finding.js
-│   │       ├── intake.d.ts
-│   │       ├── intake.d.ts.map
-│   │       ├── intake.js
-│   │       ├── media.d.ts
-│   │       ├── media.d.ts.map
-│   │       ├── media.js
-│   │       ├── style.d.ts
-│   │       ├── style.d.ts.map
-│   │       ├── style.js
-│   │       ├── template.d.ts
-│   │       ├── template.d.ts.map
-│   │       └── template.js
-│   ├── mapping
-│   │   └── report.map.md
-│   ├── package.json
-│   ├── schema
-│   │   ├── intake.schema.ts
-│   │   └── template.v1.json
-│   ├── templates
-│   │   ├── blank.json
-│   │   ├── building-roof-v1.json
-│   │   ├── generic-building.json
-│   │   ├── index.ts
-│   │   ├── solar-pv.json
-│   │   └── wind-blade.json
-│   ├── tsconfig.json
-│   └── types
-│       ├── draft.ts
-│       ├── finding.ts
-│       ├── intake.ts
-│       ├── media.ts
-│       ├── style.ts
-│       └── template.ts
+└── shared
+    ├── blocks
+    │   ├── footer.json
+    │   └── header.json
+    ├── dist
+    │   ├── schema
+    │   │   ├── intake.schema.d.ts
+    │   │   ├── intake.schema.d.ts.map
+    │   │   └── intake.schema.js
+    │   ├── templates
+    │   │   ├── blank.json
+    │   │   ├── generic-building.json
+    │   │   ├── index.d.ts
+    │   │   ├── index.d.ts.map
+    │   │   ├── index.js
+    │   │   ├── solar-pv.json
+    │   │   └── wind-blade.json
+    │   └── types
+    │       ├── draft.d.ts
+    │       ├── draft.d.ts.map
+    │       ├── draft.js
+    │       ├── finding.d.ts
+    │       ├── finding.d.ts.map
+    │       ├── finding.js
+    │       ├── intake.d.ts
+    │       ├── intake.d.ts.map
+    │       ├── intake.js
+    │       ├── media.d.ts
+    │       ├── media.d.ts.map
+    │       ├── media.js
+    │       ├── style.d.ts
+    │       ├── style.d.ts.map
+    │       ├── style.js
+    │       ├── template.d.ts
+    │       ├── template.d.ts.map
+    │       └── template.js
+    ├── mapping
+    │   └── report.map.md
+    ├── package.json
+    ├── schema
+    │   ├── intake.schema.ts
+    │   └── template.v1.json
+    ├── templates
+    │   ├── blank.json
+    │   ├── building-roof-v1.json
+    │   ├── generic-building.json
+    │   ├── index.ts
+    │   ├── solar-pv.json
+    │   └── wind-blade.json
+    ├── tsconfig.json
+    └── types
+        ├── draft.ts
+        ├── finding.ts
+        ├── intake.ts
+        ├── media.ts
+        ├── style.ts
+        └── template.ts
 
-63 directories, 216 files
+64 directories, 221 files

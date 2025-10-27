@@ -3,6 +3,7 @@ import React, { useRef } from "react";
 import { Frame } from "./RenderHelpers";
 import { renderString } from "../../templates/bindings";
 import type { UserBlock, Rect, LinePoint } from "./types";
+import SeverityOverviewBlock from "../blocks/SeverityOverviewBlock";
 
 export function CanvasElements({
   userBlocks,
@@ -36,9 +37,6 @@ export function CanvasElements({
   startDrag: (mode: "move" | "resize-tl" | "resize-right", id: string, rect: Rect, e: React.MouseEvent) => void;
 }) {
   const pct = (n: number) => `${n}%`;
-
-  // Single, stable hook call: a map of refs keyed by block id
-  const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleBlockMouseDown = (e: React.MouseEvent, id: string) => {
     if (e.button !== 0) return;
@@ -174,12 +172,7 @@ export function CanvasElements({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] ?? null;
-                          if (!f) return;
-                          const url = URL.createObjectURL(f);
-                          onUpdateBlock(ub.id, { src: url, url, media: { url } });
-                        }}
+                        onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
                         onClick={(e) => e.stopPropagation()}
                       />
                     </label>
@@ -368,9 +361,12 @@ export function CanvasElements({
           const r = ub.rect;
           const rotation = (ub as any).rotation || 0;
 
-          // --- image block detection & props ---
+          // --- section meta ---
           const meta = bs.meta || {};
-          const isImageBlock = meta?.blockKind === "image";
+          const kind = meta?.blockKind;
+
+          // --- image block detection & props ---
+          const isImageBlock = kind === "image";
 
           const imgSrc =
             meta?.payload?.src ||
@@ -439,10 +435,7 @@ export function CanvasElements({
           const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
           const maxPanPct = iProps.zoom > 100 ? ((iProps.zoom - 100) / (2 * iProps.zoom)) * 100 : 0;
 
-          // Use the stable ref map
-          const setContainerRef = (el: HTMLDivElement | null) => {
-            containerRefs.current[ub.id] = el;
-          };
+          const containerRef = useRef<HTMLDivElement | null>(null);
 
           const pushImgProps = (patch: Partial<typeof iProps>) => {
             const curBS = (ub as any).blockStyle || {};
@@ -454,7 +447,7 @@ export function CanvasElements({
 
           const onPanMouseDown = (e: React.MouseEvent) => {
             if (!isImageBlock) return;
-            if (iProps.zoom <= 100) return; // don't swallow; allow selection/handles
+            if (iProps.zoom <= 100) return;
 
             e.preventDefault();
             e.stopPropagation();
@@ -465,7 +458,7 @@ export function CanvasElements({
             const startPanX = iProps.panX || 0;
             const startPanY = iProps.panY || 0;
 
-            const el = containerRefs.current[ub.id];
+            const el = containerRef.current;
             if (!el) return;
             const rectPx = el.getBoundingClientRect();
 
@@ -488,18 +481,40 @@ export function CanvasElements({
             document.body.style.cursor = "grabbing";
           };
 
+          // OUTER and INNER containers
           const outerBorderRadius =
-            meta?.blockKind === "image"
+            isImageBlock
               ? (Number.isFinite(iProps.borderRadius) ? `${iProps.borderRadius}px` : 0)
               : ub.type === "ellipse"
               ? "50%"
               : 4;
 
+          // ---------- Section renderers ----------
+          const isSeverityOverview = kind === "severityOverview";
+          const sevCounts: number[] = Array.isArray(meta?.payload?.counts) ? meta.payload.counts : [0, 0, 0, 0, 0];
+          const sevShowIcons: boolean = !!(meta?.props?.showIcons ?? true);
+
+          const isFindingsTable = kind === "findingsTable";
+          const ftProps = {
+            pageSize: Number.isFinite(meta?.props?.pageSize) ? meta.props.pageSize : 6,
+            showSeverityIcons: !!(meta?.props?.showSeverityIcons ?? false),
+          };
+          const ftRows: Array<{ title: string; location?: string; category?: string }> =
+            Array.isArray(meta?.payload?.rows) ? meta.payload.rows : [];
+
+          // NEW: Photo Strip
+          const isPhotoStrip = kind === "photoStrip";
+          const psCount = Number.isFinite(meta?.props?.count)
+            ? Math.max(1, Math.min(12, Number(meta.props.count)))
+            : 3;
+          const psPhotos: string[] = Array.isArray(meta?.payload?.photos) ? meta.payload.photos : [];
+          const psSlots = Array.from({ length: psCount }, (_, idx) => psPhotos[idx] || "");
+
           return (
             <div
               key={ub.id}
               data-user-block
-              ref={setContainerRef}
+              ref={containerRef}
               style={{
                 position: "absolute",
                 left: pct(r.x),
@@ -527,10 +542,10 @@ export function CanvasElements({
                 style={{
                   overflow: "hidden",
                   borderRadius: outerBorderRadius as any,
-                  background: meta?.blockKind === "image" && imgSrc ? "transparent" : "transparent",
+                  background: isImageBlock && imgSrc ? "transparent" : "transparent",
                 }}
               >
-                {meta?.blockKind === "image" ? (
+                {isImageBlock ? (
                   imgSrc ? (
                     <img
                       src={imgSrc as string}
@@ -562,18 +577,76 @@ export function CanvasElements({
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] ?? null;
-                            if (!f) return;
-                            const url = URL.createObjectURL(f);
-                            updateImageSrc(url);
-                          }}
+                          onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </label>
                       <div className="mt-2 text-xs text-slate-500 pointer-events-none">or drag from Media</div>
                     </div>
                   )
+                ) : isSeverityOverview ? (
+                  <SeverityOverviewBlock counts={sevCounts} showIcons={sevShowIcons} />
+                ) : isFindingsTable ? (
+                  <div className="w-full h-full overflow-auto">
+                    <table className="w-full text-[11px]">
+                      <thead className="sticky top-0">
+                        <tr className="bg-slate-100 border-b border-slate-200">
+                          {ftProps.showSeverityIcons && <th className="text-left px-2 py-1 w-6">S</th>}
+                          <th className="text-left px-2 py-1">Title</th>
+                          <th className="text-left px-2 py-1">Location</th>
+                          <th className="text-left px-2 py-1">Category</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(ftRows || []).slice(0, Math.max(1, ftProps.pageSize)).map((row, idx) => (
+                          <tr key={idx} className={idx % 2 ? "bg-white" : "bg-slate-50"}>
+                            {ftProps.showSeverityIcons && (
+                              <td className="px-2 py-1 align-top">
+                                <span className="inline-block w-3 h-3 rounded-full bg-slate-400" />
+                              </td>
+                            )}
+                            <td className="px-2 py-1 align-top">{row?.title || <span className="text-slate-400">—</span>}</td>
+                            <td className="px-2 py-1 align-top">{row?.location || <span className="text-slate-400">—</span>}</td>
+                            <td className="px-2 py-1 align-top">{row?.category || <span className="text-slate-400">—</span>}</td>
+                          </tr>
+                        ))}
+                        {(!ftRows || ftRows.length === 0) && (
+                          <tr>
+                            <td className="px-2 py-2 text-slate-400" colSpan={ftProps.showSeverityIcons ? 4 : 3}>
+                              No rows yet. Use the Inspector to add rows.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : isPhotoStrip ? (
+                  <div className="w-full h-full p-1">
+                    <div
+                      className="grid gap-1 h-full"
+                      style={{
+                        gridTemplateColumns: `repeat(${psCount}, minmax(0, 1fr))`,
+                        alignItems: "stretch",
+                      }}
+                    >
+                      {psSlots.map((url, idx) => (
+                        <div key={idx} className="relative bg-white border border-slate-200 rounded overflow-hidden">
+                          {url ? (
+                            <img
+                              src={url}
+                              alt={`photo-${idx + 1}`}
+                              className="w-full h-full object-cover select-none"
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 grid place-items-center">
+                              <div className="text-[11px] text-slate-400">Photo</div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </div>
 
