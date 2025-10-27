@@ -32,8 +32,7 @@ export default function MediaPanel() {
 
   // Keep media store in sync with current draft’s media
   useEffect(() => {
-    if (!draft) return;
-    const serverMedia = ((draft as any).media || []) as MediaItem[];
+    const serverMedia = ((draft as any)?.media || []) as MediaItem[];
     const cur = new Set(items.map((m) => m.id));
     const nxt = new Set(serverMedia.map((m) => m.id));
     const identical = cur.size === nxt.size && [...cur].every((id) => nxt.has(id));
@@ -45,12 +44,7 @@ export default function MediaPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.id]);
 
-  if (!draft) return null;
-
-  const renderable = useMemo(
-    () => items.filter((m) => m && m.id && mediaSrc(m)),
-    [items]
-  );
+  const renderable = useMemo(() => items.filter((m) => m && m.id && mediaSrc(m)), [items]);
 
   const filtered = useMemo(() => {
     if (!query) return renderable;
@@ -60,7 +54,7 @@ export default function MediaPanel() {
 
   const handleUpload = useCallback(
     async (files: File[]) => {
-      if (!files.length || !draft) return;
+      if (!files.length || !draft?.id) return;
       setIsUploading(true);
       try {
         const before = new Set(items.map((x) => x.id));
@@ -72,7 +66,7 @@ export default function MediaPanel() {
         setIsUploading(false);
       }
     },
-    [draft, items, addItems]
+    [draft?.id, items, addItems]
   );
 
   const onChoose =
@@ -130,7 +124,7 @@ export default function MediaPanel() {
   });
 
   async function onDelete(id: string) {
-    if (!draft) return;
+    if (!draft?.id) return;
     removeItems([id]); // optimistic
     setBusyIds((s) => new Set(s).add(id));
     try {
@@ -145,11 +139,11 @@ export default function MediaPanel() {
   }
 
   function onDragStartMedia(ev: React.DragEvent, m: MediaItem) {
-    if (!draft) return;
+    const dId = draft?.id;
     const url = mediaSrc(m) || "";
-    if (!url) return;
+    if (!dId || !url) return;
     const payload = {
-      draftId: draft.id,
+      draftId: dId,
       id: m.id,
       url,
       filename: m.filename || m.id,
@@ -159,7 +153,10 @@ export default function MediaPanel() {
     ev.dataTransfer.effectAllowed = "copy";
   }
 
-  const currentPageId = draft.pageInstances?.[pageIndex]?.id || null;
+  const currentPageId = draft?.pageInstances?.[pageIndex]?.id || null;
+
+  // Render nothing only AFTER all hooks are called
+  if (!draft) return null;
 
   return (
     <div
@@ -263,28 +260,28 @@ export default function MediaPanel() {
         </div>
 
         <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.zip"
-            onChange={onChoose(handleUpload)}
-            className="hidden"
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.zip"
+          onChange={onChoose(handleUpload)}
+          className="hidden"
         />
         <input
-            ref={folderInputRef}
-            type="file"
-            multiple
-            onChange={onChoose(handleUpload)}
-            className="hidden"
+          ref={folderInputRef}
+          type="file"
+          multiple
+          onChange={onChoose(handleUpload)}
+          className="hidden"
         />
         <input
-            ref={zipInputRef}
-            type="file"
-            accept=".zip"
-            onChange={onChoose((fs) =>
-              handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip")))
-            )}
-            className="hidden"
+          ref={zipInputRef}
+          type="file"
+          accept=".zip"
+          onChange={onChoose((fs) =>
+            handleUpload(fs.filter((f) => f.name.toLowerCase().endsWith(".zip")))
+          )}
+          className="hidden"
         />
 
         <button

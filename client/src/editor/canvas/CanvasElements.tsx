@@ -37,6 +37,9 @@ export function CanvasElements({
 }) {
   const pct = (n: number) => `${n}%`;
 
+  // Single, stable hook call: a map of refs keyed by block id
+  const containerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const handleBlockMouseDown = (e: React.MouseEvent, id: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -171,7 +174,12 @@ export function CanvasElements({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null;
+                          if (!f) return;
+                          const url = URL.createObjectURL(f);
+                          onUpdateBlock(ub.id, { src: url, url, media: { url } });
+                        }}
                         onClick={(e) => e.stopPropagation()}
                       />
                     </label>
@@ -431,7 +439,10 @@ export function CanvasElements({
           const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
           const maxPanPct = iProps.zoom > 100 ? ((iProps.zoom - 100) / (2 * iProps.zoom)) * 100 : 0;
 
-          const containerRef = useRef<HTMLDivElement | null>(null);
+          // Use the stable ref map
+          const setContainerRef = (el: HTMLDivElement | null) => {
+            containerRefs.current[ub.id] = el;
+          };
 
           const pushImgProps = (patch: Partial<typeof iProps>) => {
             const curBS = (ub as any).blockStyle || {};
@@ -454,7 +465,7 @@ export function CanvasElements({
             const startPanX = iProps.panX || 0;
             const startPanY = iProps.panY || 0;
 
-            const el = containerRef.current;
+            const el = containerRefs.current[ub.id];
             if (!el) return;
             const rectPx = el.getBoundingClientRect();
 
@@ -477,11 +488,8 @@ export function CanvasElements({
             document.body.style.cursor = "grabbing";
           };
 
-          // -------- Render outer container (no clipping) + inner content (clipped) --------
-          // OUTER: shows border/background and allows handles to protrude
-          // INNER: clips the image content
           const outerBorderRadius =
-            isImageBlock
+            meta?.blockKind === "image"
               ? (Number.isFinite(iProps.borderRadius) ? `${iProps.borderRadius}px` : 0)
               : ub.type === "ellipse"
               ? "50%"
@@ -491,7 +499,7 @@ export function CanvasElements({
             <div
               key={ub.id}
               data-user-block
-              ref={containerRef}
+              ref={setContainerRef}
               style={{
                 position: "absolute",
                 left: pct(r.x),
@@ -506,7 +514,6 @@ export function CanvasElements({
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: "center",
                 zIndex,
-                // IMPORTANT: allow handles to render outside
                 overflow: "visible",
               }}
               onMouseDown={(e) => handleBlockMouseDown(e, ub.id)}
@@ -515,16 +522,15 @@ export function CanvasElements({
             >
               {renderBoxBadge(ub, 0, 0)}
 
-              {/* Content wrapper that clips the image */}
               <div
                 className="absolute inset-0"
                 style={{
                   overflow: "hidden",
                   borderRadius: outerBorderRadius as any,
-                  background: isImageBlock && imgSrc ? "transparent" : "transparent",
+                  background: meta?.blockKind === "image" && imgSrc ? "transparent" : "transparent",
                 }}
               >
-                {isImageBlock ? (
+                {meta?.blockKind === "image" ? (
                   imgSrc ? (
                     <img
                       src={imgSrc as string}
@@ -556,7 +562,12 @@ export function CanvasElements({
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => onPickLocal(e.target.files?.[0] ?? null)}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            if (!f) return;
+                            const url = URL.createObjectURL(f);
+                            updateImageSrc(url);
+                          }}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </label>
