@@ -1,20 +1,11 @@
 // client/src/editor/blocks/ElementsPanel.tsx
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "../../state/editor";
-import { BLOCK_DEFS } from "./defs";
 
 type ElemKind = "text" | "line" | "rect" | "ellipse";
 
 export default function ElementsPanel() {
-  const {
-    draft,
-    tool,
-    startInsert,
-    cancelInsert,
-    placeUserBlock,
-    updateUserBlock,
-    selectUserBlock,
-  } = useEditor();
+  const { draft, tool, startInsert, cancelInsert } = useEditor();
 
   const disabled = !draft || !(draft as any).pageInstances?.length;
 
@@ -42,28 +33,19 @@ export default function ElementsPanel() {
     </button>
   );
 
-  function insertImageBlock() {
-    if (disabled) return;
-    // Place a section-style image block inside a rect host
-    startInsert("rect" as any);
-    const id = placeUserBlock({ x: 20, y: 20, w: 40, h: 20 });
-    if (!id) return;
-    updateUserBlock(
-      id,
-      {
-        blockStyle: {
-          stroke: { width: 0 },
-          fill: { token: "surface" },
-          meta: {
-            blockKind: "image",
-            payload: { src: "", alt: "Image" },
-            props: BLOCK_DEFS.image.defaultProps,
-          },
-        } as any,
-      } as any
-    );
-    selectUserBlock(id);
-  }
+  // Shape dropdown (Rectangle / Ellipse) as a split-button group
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  const shapeGroupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!shapeMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!shapeGroupRef.current) return;
+      if (!shapeGroupRef.current.contains(e.target as Node)) setShapeMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [shapeMenuOpen]);
 
   return (
     <div className="p-3 space-y-4">
@@ -82,30 +64,87 @@ export default function ElementsPanel() {
         </div>
       </div>
 
-      {/* Shapes */}
+      {/* Line & Shape */}
       <div>
         <div className="text-xs font-medium text-gray-600 mb-2">Shapes</div>
-        <div className="grid grid-cols-3 gap-2">
-          <Btn label="Line" k="line" title="Insert a line" />
-          <Btn label="Rect" k="rect" title="Insert a rectangle" />
-          <Btn label="Ellipse" k="ellipse" title="Insert an ellipse" />
+        <div className="grid grid-cols-2 gap-2 items-stretch">
+          <Btn label="Line" k="line" title="Insert a line or arrow" />
+
+          {/* Split button group for Shape */}
+          <div className="relative" ref={shapeGroupRef}>
+            <div className="inline-flex w-full">
+              <button
+                className={`px-3 py-2 border rounded-l text-sm flex-1 text-left disabled:opacity-50 ${
+                  isActive("rect") || isActive("ellipse")
+                    ? "bg-green-50 border-green-300"
+                    : "hover:bg-gray-50"
+                }`}
+                disabled={disabled}
+                onClick={() => {
+                  // Default action places Rectangle
+                  if (isActive("rect")) cancelInsert();
+                  else toggle("rect");
+                }}
+                title="Insert a shape"
+              >
+                {(isActive("rect") || isActive("ellipse")) ? "Cancel" : "Shape"}
+              </button>
+              <button
+                className={`px-2 border border-l-0 rounded-r text-sm disabled:opacity-50 ${
+                  isActive("rect") || isActive("ellipse")
+                    ? "bg-green-50 border-green-300"
+                    : "hover:bg-gray-50"
+                }`}
+                disabled={disabled}
+                onClick={() => setShapeMenuOpen((v) => !v)}
+                aria-label="More shape options"
+                aria-haspopup="menu"
+                aria-expanded={shapeMenuOpen}
+                title="More shape options"
+              >
+                ▾
+              </button>
+            </div>
+
+            {shapeMenuOpen && (
+              <ul
+                role="menu"
+                className="absolute z-50 mt-1 w-40 bg-white text-gray-900 border rounded shadow"
+                onMouseLeave={() => setShapeMenuOpen(false)}
+              >
+                <li>
+                  <button
+                    role="menuitem"
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                    onClick={() => {
+                      setShapeMenuOpen(false);
+                      if (isActive("rect")) cancelInsert();
+                      else toggle("rect");
+                    }}
+                  >
+                    Rectangle
+                  </button>
+                </li>
+                <li>
+                  <button
+                    role="menuitem"
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                    onClick={() => {
+                      setShapeMenuOpen(false);
+                      if (isActive("ellipse")) cancelInsert();
+                      else toggle("ellipse");
+                    }}
+                  >
+                    Ellipse
+                  </button>
+                </li>
+              </ul>
+            )}
+          </div>
         </div>
         <p className="text-[11px] text-gray-400 mt-1">
           Press Esc to cancel placement.
         </p>
-      </div>
-
-      {/* Media */}
-      <div>
-        <div className="text-xs font-medium text-gray-600 mb-2">Media</div>
-        <button
-          className="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
-          disabled={disabled}
-          onClick={insertImageBlock}
-          title="Insert an image block"
-        >
-          Image Block
-        </button>
       </div>
 
       {disabled && (
