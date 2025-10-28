@@ -137,6 +137,7 @@ export function CanvasElements({
               onBlockMouseDown={handleBlockMouseDown}
               onUpdateBlock={onUpdateBlock}
               startDrag={startDrag}
+              renderBoxBadge={renderBoxBadge}
             />
           );
         }
@@ -189,6 +190,7 @@ export function CanvasElements({
                 onSelectBlock={onSelectBlock}
                 startRectDrag={startRectDrag}
                 isDashed={isDashed}
+                renderBoxBadge={renderBoxBadge}
               />
             );
           }
@@ -204,6 +206,7 @@ export function CanvasElements({
                 onBlockMouseDown={handleBlockMouseDown}
                 startRectDrag={startRectDrag}
                 isDashed={isDashed}
+                renderBoxBadge={renderBoxBadge}
               />
             );
           }
@@ -219,6 +222,7 @@ export function CanvasElements({
                 onBlockMouseDown={handleBlockMouseDown}
                 startRectDrag={startRectDrag}
                 isDashed={isDashed}
+                renderBoxBadge={renderBoxBadge}
               />
             );
           }
@@ -233,6 +237,7 @@ export function CanvasElements({
               onBlockMouseDown={handleBlockMouseDown}
               startRectDrag={startRectDrag}
               isDashed={isDashed}
+              renderBoxBadge={renderBoxBadge}
             />
           );
         }

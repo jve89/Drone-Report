@@ -15,6 +15,7 @@ const LegacyImageBlockImpl = ({
   onBlockMouseDown,
   onUpdateBlock,
   startDrag,
+  renderBoxBadge,
 }: {
   ub: any;
   active: boolean;
@@ -23,6 +24,7 @@ const LegacyImageBlockImpl = ({
   onBlockMouseDown: (e: React.MouseEvent, id: string) => void;
   onUpdateBlock: (id: string, updates: any) => void;
   startDrag: (mode: "move" | "resize-tl" | "resize-right", id: string, rect: Rect, e: React.MouseEvent) => void;
+  renderBoxBadge: (ub: any, xPct: number, yPct: number) => React.ReactNode;
 }) => {
   const r = ub.rect;
   const src = ub?.src ?? ub?.url ?? ub?.media?.url ?? ub?.image?.url ?? null;
@@ -71,6 +73,8 @@ const LegacyImageBlockImpl = ({
       onDragOver={onImgDragOver}
       onDrop={onImgDrop}
     >
+      {renderBoxBadge(ub, 0, 0)}
+
       {hasImage ? (
         <img src={src as string} alt="image" className="w-full h-full object-contain bg-white rounded" draggable={false} />
       ) : (
@@ -312,6 +316,7 @@ export const RectEllipsePrimitive = ({
   onBlockMouseDown,
   startRectDrag,
   isDashed,
+  renderBoxBadge,
 }: {
   ub: any;
   active: boolean;
@@ -326,6 +331,7 @@ export const RectEllipsePrimitive = ({
     e: React.MouseEvent
   ) => void;
   isDashed: (ub: any) => boolean;
+  renderBoxBadge: (ub: any, xPct: number, yPct: number) => React.ReactNode;
 }) => {
   const bs = (ub as any).blockStyle || {};
   const legacy = (ub as any).style || {};
@@ -358,6 +364,7 @@ export const RectEllipsePrimitive = ({
       }}
       onMouseDown={(e) => onBlockMouseDown(e, ub.id)}
     >
+      {renderBoxBadge(ub, 0, 0)}
       <div className="absolute inset-0" style={{ overflow: "hidden", borderRadius: outerBorderRadius as any }} />
       {active && (
         <>
