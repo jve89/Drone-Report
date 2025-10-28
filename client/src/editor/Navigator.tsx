@@ -42,24 +42,24 @@ export default function Navigator() {
     };
   }, [openMenuId]);
 
-  // Items
+  // Items: always show "Page N" derived from index (stable, avoids duplicate template names)
   const items = useMemo(() => {
-    if (!draft || !template) return [];
-    return draft.pageInstances.map((pi: any, i: number) => {
-      const tp = template.pages.find((p: any) => p.id === pi.templatePageId);
-      return { idx: i, id: pi.id, name: tp?.name ?? `Page ${i + 1}` };
-    });
-  }, [draft, template]);
+    if (!draft) return [];
+    return draft.pageInstances.map((pi: any, i: number) => ({
+      idx: i,
+      id: pi.id,
+      name: `Page ${i + 1}`,
+    }));
+  }, [draft?.pageInstances]);
 
   const pageCount = draft?.pageInstances?.length ?? 0;
-  const hasPages = !!draft && !!template && pageCount > 0;
+  const hasPages = !!draft && pageCount > 0;
   const current = hasPages ? draft!.pageInstances[pageIndex] : null;
 
   const blocked = !template || !hasPages;
   const navPrevDisabled = blocked || pageIndex <= 0;
   const navNextDisabled = blocked || pageIndex >= pageCount - 1;
 
-  // Guards
   if (!draft) return <div className="p-2 text-xs text-gray-500">Loading…</div>;
   if (!template) return <div className="p-2 text-xs text-gray-500">Select a template to see pages.</div>;
 
@@ -128,7 +128,7 @@ export default function Navigator() {
       <div className="flex-1 min-h-0 overflow-auto">
         {mode === "list" ? (
           <ul className="py-1">
-            {items.map((it: any) => {
+            {items.map((it) => {
               const menuId = `page-menu-${it.id}`;
               const isOpen = openMenuId === it.id;
               return (
@@ -179,7 +179,7 @@ export default function Navigator() {
           </ul>
         ) : (
           <div className="p-2 grid grid-cols-1 gap-3">
-            {items.map((it: any) => {
+            {items.map((it) => {
               const menuId = `page-menu-${it.id}`;
               const isOpen = openMenuId === it.id;
               return (
