@@ -1,7 +1,6 @@
 // client/src/editor/LeftPane.tsx
 import Navigator from "./Navigator";
 import { Accordion, AccordionItem } from "../components/Accordion";
-import FindingsPanel from "./panels/FindingsPanel";
 import GuidePanel from "./GuidePanel";
 import LayersPanel from "./panels/LayersPanel";
 
@@ -34,15 +33,6 @@ export default function LeftPane() {
             aria-label="Guide panel"
           >
             <GuidePanel />
-          </div>
-        </AccordionItem>
-
-        <AccordionItem id="findings" title="Findings">
-          <div
-            className="min-h-[120px] max-h-[60vh] overflow-y-auto overflow-x-hidden"
-            aria-label="Findings panel"
-          >
-            <FindingsPanel />
           </div>
         </AccordionItem>
       </Accordion>
