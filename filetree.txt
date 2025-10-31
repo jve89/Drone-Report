@@ -52,6 +52,7 @@
 │   │   │   ├── blocks
 │   │   │   │   ├── BlocksPanel.tsx
 │   │   │   │   ├── ElementsPanel.tsx
+│   │   │   │   ├── FindingsTableBlock.tsx
 │   │   │   │   ├── ImageBlock.tsx
 │   │   │   │   ├── InspectionDetailsBlock.tsx
 │   │   │   │   ├── OrthoPairBlock.tsx
@@ -60,7 +61,9 @@
 │   │   │   │   ├── SitePropertiesBlock.tsx
 │   │   │   │   ├── TextToolbar.tsx
 │   │   │   │   ├── ThermalAnomaliesTableBlock.tsx
-│   │   │   │   └── defs.ts
+│   │   │   │   ├── defs.ts
+│   │   │   │   └── primitives
+│   │   │   │       └── TableBlock.tsx
 │   │   │   ├── canvas
 │   │   │   │   ├── CanvasElements.tsx
 │   │   │   │   ├── CanvasHUD.tsx
@@ -68,6 +71,11 @@
 │   │   │   │   ├── CanvasSections.tsx
 │   │   │   │   ├── CanvasSurface.tsx
 │   │   │   │   ├── RenderHelpers.tsx
+│   │   │   │   ├── sections
+│   │   │   │   │   ├── SectionFindingsTable.tsx
+│   │   │   │   │   ├── SectionImageBlock.tsx
+│   │   │   │   │   ├── SectionSeverityOverview.tsx
+│   │   │   │   │   └── SectionTableBlock.tsx
 │   │   │   │   ├── types.ts
 │   │   │   │   └── useCanvasEvents.ts
 │   │   │   ├── inspector
@@ -92,12 +100,9 @@
 │   │   │   ├── onboarding
 │   │   │   │   └── FirstRunBanner.tsx
 │   │   │   ├── panels
-│   │   │   │   ├── ExportPanel.tsx
-│   │   │   │   ├── FindingsPanel.tsx
 │   │   │   │   ├── LayersPanel.tsx
 │   │   │   │   ├── MediaPanel.tsx
-│   │   │   │   ├── StartChecklist.tsx
-│   │   │   │   └── TemplatePanel.tsx
+│   │   │   │   └── StartChecklist.tsx
 │   │   │   └── preview
 │   │   │       ├── BlockViewer.tsx
 │   │   │       ├── EditorPreviewModal.tsx
@@ -286,4 +291,4 @@
         ├── style.ts
         └── template.ts
 
-64 directories, 223 files
+66 directories, 226 files

@@ -87,6 +87,9 @@ export default function ElementsPanel() {
   const findingsArr = Array.isArray(findings) ? findings : [];
 
   function makePayload(kind: BlockKind) {
+    if (kind === "table") {
+      return { data: [["A1", "B1"], ["A2", "B2"]] };
+    }
     if (kind === "severityOverview") {
       const counts = [1, 2, 3, 4, 5].map(
         (s) => findingsArr.filter((f: any) => f?.severity === s).length
@@ -131,13 +134,11 @@ export default function ElementsPanel() {
   function insertSection(kind: BlockKind) {
     if (!draft || pageIndex < 0) return;
 
-    // Use a rect frame; the renderer will switch behavior based on blockKind
     const rect =
       kind === "image"
         ? { x: 20, y: 20, w: 40, h: 20 }
         : { x: 10, y: 10, w: 80, h: kind === "photoStrip" ? 18 : 24 };
 
-    // Place a generic rect userBlock, then tag it with meta.blockKind + props
     startInsert("rect" as any);
     const id = placeUserBlock(rect);
     if (!id) return;
@@ -190,7 +191,6 @@ export default function ElementsPanel() {
                   }`}
                   disabled={disabled}
                   onClick={() => {
-                    // Default action places Rectangle
                     if (isActive("rect")) cancelInsert();
                     else toggle("rect");
                   }}
@@ -250,13 +250,27 @@ export default function ElementsPanel() {
             </div>
           </div>
 
+          {/* New generic table element */}
+          <div className="mt-3">
+            <div className="text-xs font-medium text-gray-600 mb-2">Table</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                className="px-3 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+                disabled={disabled}
+                onClick={() => insertSection("table")}
+              >
+                Table
+              </button>
+            </div>
+          </div>
+
           <p className="text-[11px] text-gray-400 mt-1">Press Esc to cancel placement.</p>
         </div>
 
         {disabled && <div className="text-[11px] text-gray-500 mt-2">Load or create a draft first.</div>}
       </section>
 
-      {/* Group 2: Report sections (merged from the old Sections panel) */}
+      {/* Group 2: Report sections */}
       <section>
         <div className="text-sm font-medium">Report sections</div>
         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -330,7 +344,6 @@ export default function ElementsPanel() {
               </div>
             }
           />
-          {/* Optional extras (still accessible but not in the user's way) */}
           <Card
             title="Before/After"
             subtitle="Side-by-side images"
@@ -353,21 +366,6 @@ export default function ElementsPanel() {
               </div>
             }
           />
-          {/* Photo Strip available if you want it visible later */}
-          {/*
-          <Card
-            title="Photo Strip"
-            subtitle="Row of images"
-            onInsert={() => insertSection("photoStrip")}
-            preview={
-              <div className="flex gap-1 px-2 w-full">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="flex-1 h-12 bg-gray-200 rounded" />
-                ))}
-              </div>
-            }
-          />
-          */}
         </div>
       </section>
     </div>

@@ -1,5 +1,6 @@
 // client/src/editor/blocks/defs.ts
 export type BlockKind =
+  | "table"
   | "severityOverview"
   | "findingsTable"
   | "photoStrip"
@@ -8,6 +9,10 @@ export type BlockKind =
   | "orthoPair"
   | "thermalAnomalies"
   | "image";
+
+export type TableProps = {
+  data: string[][];
+};
 
 export type SeverityOverviewProps = { showIcons: boolean };
 export type FindingsTableProps = {
@@ -41,23 +46,18 @@ export type ThermalAnomaliesProps = {
 
 // Image block props now include zooming & panning the image CONTENT (frame unchanged).
 export type ImageProps = {
-  src?: string; // URL or local path (server-served uploads)
+  src?: string;
   alt?: string;
   fit: "contain" | "cover" | "scale-down";
-  opacity: number; // 0–100 (%)
-  borderRadius: number; // px
-
-  // New content-zoom & pan state (percent units)
-  // zoom: 100 means no zoom. Range recommended 10–500.
+  opacity: number;
+  borderRadius: number;
   zoom: number;
-  // panX/panY are percentage offsets relative to the element (NOT pixels).
-  // Positive panX moves the image right, positive panY moves it down.
-  // At zoom=100 they should be functionally 0; clamped in UI/renderer.
-  panX: number; // -100..100 (clamped at runtime)
-  panY: number; // -100..100 (clamped at runtime)
+  panX: number;
+  panY: number;
 };
 
 export type BlockPropsByKind = {
+  table: TableProps;
   severityOverview: SeverityOverviewProps;
   findingsTable: FindingsTableProps;
   photoStrip: PhotoStripProps;
@@ -74,12 +74,15 @@ type Field =
   | { type: "text"; key: string; label: string }
   | { type: "select"; key: string; label: string; options: Array<{ value: string; label: string }> };
 
-// Note: The Inspector has a custom panel for "image" section blocks, but we still
-// provide inspectorFields here for uniformity and for any generic forms that
-// might read BLOCK_DEFS.
 export const BLOCK_DEFS: {
   [K in BlockKind]: { defaultProps: BlockPropsByKind[K]; inspectorFields: Field[] };
 } = {
+  table: {
+    defaultProps: { data: [["A1", "B1"], ["A2", "B2"]] },
+    inspectorFields: [
+      { type: "text", key: "data", label: "Initial data (JSON or ignored at runtime)" },
+    ],
+  },
   severityOverview: {
     defaultProps: { showIcons: true },
     inspectorFields: [{ type: "checkbox", key: "showIcons", label: "Show icons" }],
@@ -96,7 +99,6 @@ export const BLOCK_DEFS: {
     inspectorFields: [{ type: "number", key: "count", label: "Photos", min: 1, max: 12, step: 1 }],
   },
   siteProperties: {
-    // These act as initial values for the editable table
     defaultProps: {
       address: "",
       peakPowerMWp: 0,
@@ -106,7 +108,7 @@ export const BLOCK_DEFS: {
       areaHa: 0,
       panelModel: "",
       inverterModel: "",
-    } as SitePropertiesProps,
+    },
     inspectorFields: [
       { type: "text", key: "address", label: "Address" },
       { type: "number", key: "peakPowerMWp", label: "Peak Power (MWp)", min: 0 },
@@ -183,7 +185,6 @@ export const BLOCK_DEFS: {
       },
       { type: "number", key: "opacity", label: "Opacity (%)", min: 0, max: 100, step: 1 },
       { type: "number", key: "borderRadius", label: "Border radius (px)", min: 0, max: 64, step: 1 },
-      // Optional generic fields; the dedicated Inspector UI will manage these with nicer controls.
       { type: "number", key: "zoom", label: "Zoom (%)", min: 10, max: 500, step: 1 },
       { type: "number", key: "panX", label: "Pan X (%)", min: -100, max: 100, step: 1 },
       { type: "number", key: "panY", label: "Pan Y (%)", min: -100, max: 100, step: 1 },

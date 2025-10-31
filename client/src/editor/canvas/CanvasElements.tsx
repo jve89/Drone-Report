@@ -10,8 +10,9 @@ import {
 import {
   SectionImageBlock,
   SectionSeverityOverview,
-  SectionFindingsTable,
+  SectionTableBlock,
 } from "./CanvasSections";
+import { FindingsTableBlock } from "../blocks/FindingsTableBlock";
 
 export function CanvasElements({
   userBlocks,
@@ -211,9 +212,26 @@ export function CanvasElements({
             );
           }
 
+          if (kind === "table") {
+            return (
+              <SectionTableBlock
+                key={ub.id}
+                ub={ub as any}
+                active={active}
+                zIndex={zIndex}
+                pct={pct}
+                onBlockMouseDown={handleBlockMouseDown}
+                onUpdateBlock={onUpdateBlock}
+                startRectDrag={startRectDrag}
+                isDashed={isDashed}
+                renderBoxBadge={renderBoxBadge}
+              />
+            );
+          }
+
           if (kind === "findingsTable") {
             return (
-              <SectionFindingsTable
+              <FindingsTableBlock
                 key={ub.id}
                 ub={ub as any}
                 active={active}
