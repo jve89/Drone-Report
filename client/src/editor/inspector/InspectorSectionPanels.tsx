@@ -42,7 +42,12 @@ export default function InspectorSectionPanels({
 }: SectionPanelsProps) {
   const blockStyle = (ub?.blockStyle ?? {}) as any;
   const meta = blockStyle.meta ?? {};
-  const kind = meta.blockKind as string | undefined;
+
+  // 🔧 Normalize legacy kinds
+  const rawKind = meta.blockKind as string | undefined;
+  const kind = rawKind === "image_slot" ? "image" : rawKind;
+
+  console.log("Inspector kind:", kind, ub);
 
   if (!kind) return null;
 

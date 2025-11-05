@@ -5,14 +5,14 @@ import React from "react";
 type Rect = { x: number; y: number; w: number; h: number };
 type BlockBase = { id: string; type: string; rect: Rect; label?: string; placeholder?: string; options?: any };
 type BlockText = BlockBase & { type: "text" };
-type BlockImage = BlockBase & { type: "image_slot" };
+type BlockImage = BlockBase & { type: "image" };
 type BlockTable = BlockBase & { type: "table"; options?: { columns?: { key: string; label: string }[] } };
 type BlockBadge = BlockBase & { type: "badge"; options?: { palette?: string } };
 type BlockRepeater = BlockBase & { type: "repeater"; options?: { previewCount?: number } };
 type Block = BlockText | BlockImage | BlockTable | BlockBadge | BlockRepeater;
 
 const isText = (b: BlockBase): b is BlockText => b.type === "text";
-const isImage = (b: BlockBase): b is BlockImage => b.type === "image_slot";
+const isImage = (b: BlockBase): b is BlockImage => b.type === "image";
 const isTable = (b: BlockBase): b is BlockTable => b.type === "table";
 const isBadge = (b: BlockBase): b is BlockBadge => b.type === "badge";
 const isRepeater = (b: BlockBase): b is BlockRepeater => b.type === "repeater";

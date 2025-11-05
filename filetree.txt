@@ -103,10 +103,12 @@
 │   │   │   │   ├── LayersPanel.tsx
 │   │   │   │   ├── MediaPanel.tsx
 │   │   │   │   └── StartChecklist.tsx
-│   │   │   └── preview
-│   │   │       ├── BlockViewer.tsx
-│   │   │       ├── EditorPreviewModal.tsx
-│   │   │       └── PreviewModal.tsx
+│   │   │   ├── preview
+│   │   │   │   ├── BlockViewer.tsx
+│   │   │   │   ├── EditorPreviewModal.tsx
+│   │   │   │   └── PreviewModal.tsx
+│   │   │   └── utils
+│   │   │       └── createBlock.ts
 │   │   ├── export
 │   │   │   ├── html
 │   │   │   │   └── renderBindings.ts
@@ -291,4 +293,4 @@
         ├── style.ts
         └── template.ts
 
-66 directories, 226 files
+67 directories, 227 files

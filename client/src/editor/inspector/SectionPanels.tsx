@@ -1,6 +1,6 @@
-// client/src/editor/inspector/SectionPanels.tsx
 import React from "react";
 import { BLOCK_DEFS, BlockKind } from "../blocks/defs";
+import InspectorSectionPanels from "./InspectorSectionPanels";
 
 /* ──────────────────────────────────────────────────────────────── */
 /* Helpers                                                         */
@@ -49,12 +49,16 @@ export function SectionInspector(props: SectionPanelProps) {
   if (kind === "photoStrip") return <PhotoStripInspector {...props} meta={meta} />;
   if (kind === "table") return <TableInspector {...props} meta={meta} />;
 
+  // ✅ New: forward all other section kinds (including image) to shared InspectorSectionPanels
   return (
-    <div className="p-3 text-xs text-gray-600">
-      <div className="text-sm font-medium mb-1">Inspector</div>
-      <div>Section type: <span className="font-mono">{String(kind)}</span></div>
-      <div className="text-gray-500">Panel coming soon.</div>
-    </div>
+    <InspectorSectionPanels
+      ub={ub}
+      updateUserBlock={props.updateUserBlock}
+      deleteUserBlock={props.deleteUserBlock}
+      bringForward={props.bringForward}
+      sendBackward={props.sendBackward}
+      selectUserBlock={() => {}}
+    />
   );
 }
 

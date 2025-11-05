@@ -65,8 +65,8 @@ export default function Inspector() {
     const blockStyle = (ub as any).blockStyle ?? (ub as any).style ?? {};
     const blockKind = blockStyle?.meta?.blockKind as string | undefined;
 
-    // If this is a SECTION element → send to SectionInspector
-    if (blockKind && blockKind !== "image") {
+    // ✅ Route both sections and image-based blocks to SectionInspector
+    if (blockKind && ["image", "image_slot"].includes(blockKind) || blockKind) {
       return (
         <SectionInspector
           ub={ub}
@@ -79,7 +79,7 @@ export default function Inspector() {
       );
     }
 
-    // Otherwise → regular user element panels
+    // Fallback: non-block elements (text / shapes)
     return (
       <UserElementInspector
         ub={ub}

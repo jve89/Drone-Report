@@ -1,10 +1,12 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, Rect } from "./types";
 import type { UserBlock, TextStyle, BlockStyle } from "../../types/draft";
+import { createBlock } from "../../editor/utils/createBlock";
 
 // --- helpers -------------------------------------------------
 const DEFAULT_TEXT_STYLE: TextStyle = {
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+  fontFamily:
+    "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
   fontSize: 14,
   bold: false,
   italic: false,
@@ -15,7 +17,9 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   letterSpacing: 0,
 };
 
-function clamp01(x: number) { return Math.max(0, Math.min(100, x)); }
+function clamp01(x: number) {
+  return Math.max(0, Math.min(100, x));
+}
 function clampRectPct(r: Rect): Rect {
   const w = clamp01(r.w);
   const h = clamp01(r.h);
@@ -29,7 +33,10 @@ function clampPointsPct(points: Array<{ x: number; y: number }>) {
 function normalizeZ(blocks: UserBlock[]): UserBlock[] {
   const withIndex = blocks
     .slice()
-    .map((b, i) => ({ ...b, z: Number.isFinite((b as any).z) ? (b as any).z as number : i }));
+    .map((b, i) => ({
+      ...b,
+      z: Number.isFinite((b as any).z) ? ((b as any).z as number) : i,
+    }));
   withIndex.sort((a, b) => ((a as any).z ?? 0) - ((b as any).z ?? 0));
   return withIndex.map((b, i) => ({ ...b, z: i } as UserBlock));
 }
@@ -47,7 +54,10 @@ export type UserBlocksSlice = {
   setLinePoints: (id: string, pts: Array<{ x: number; y: number }>) => void;
   setTextStyle: (id: string, patch: Partial<TextStyle>) => void;
   setBlockFill: (id: string, fill: BlockStyle["fill"]) => void;
-  setBlockStroke: (id: string, stroke: Partial<NonNullable<BlockStyle["stroke"]>>) => void;
+  setBlockStroke: (
+    id: string,
+    stroke: Partial<NonNullable<BlockStyle["stroke"]>>
+  ) => void;
   setBlockRadius: (id: string, r: number) => void;
   setBlockOpacity: (id: string, o: number) => void;
 
@@ -74,31 +84,88 @@ export const createUserBlocksSlice: StateCreator<
     const id = crypto.randomUUID();
     const rect = clampRectPct(rectPct);
     const kind = s.tool.kind!;
-
     (get() as any).mark?.();
 
     let block: UserBlock | null = null;
+
     if (kind === "text") {
-      block = { id, type: "text", rect, value: "", style: { ...DEFAULT_TEXT_STYLE }, z: pi.userBlocks.length } as any;
+      block = {
+        id,
+        type: "text",
+        rect,
+        value: "",
+        style: { ...DEFAULT_TEXT_STYLE },
+        z: pi.userBlocks.length,
+      } as any;
     } else if (kind === "rect") {
-      block = { id, type: "rect", rect, rotation: 0, blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
+      block = {
+        id,
+        type: "rect",
+        rect,
+        rotation: 0,
+        blockStyle: {
+          fill: { token: "surface" },
+          stroke: { width: 1 },
+        },
+        z: pi.userBlocks.length,
+      } as any;
     } else if (kind === "ellipse") {
-      block = { id, type: "ellipse", rect, blockStyle: { fill: { token: "surface" }, stroke: { width: 1 } }, z: pi.userBlocks.length } as any;
+      block = {
+        id,
+        type: "ellipse",
+        rect,
+        blockStyle: {
+          fill: { token: "surface" },
+          stroke: { width: 1 },
+        },
+        z: pi.userBlocks.length,
+      } as any;
     } else if (kind === "line") {
       // Treat rectPct.x/y as the click CENTER. If w/h are 0, use a default half-length.
-      const cx = clamp01(rectPct.w === 0 && rectPct.h === 0 ? rectPct.x : rectPct.x + rectPct.w / 2);
-      const cy = clamp01(rectPct.w === 0 && rectPct.h === 0 ? rectPct.y : rectPct.y + rectPct.h / 2);
+      const cx = clamp01(
+        rectPct.w === 0 && rectPct.h === 0
+          ? rectPct.x
+          : rectPct.x + rectPct.w / 2
+      );
+      const cy = clamp01(
+        rectPct.w === 0 && rectPct.h === 0
+          ? rectPct.y
+          : rectPct.y + rectPct.h / 2
+      );
       const L = 10; // half-length in percent
       const p1 = { x: clamp01(cx - L), y: cy };
       const p2 = { x: clamp01(cx + L), y: cy };
-      block = { id, type: "line", points: clampPointsPct([p1, p2]), blockStyle: { stroke: { width: 2 } }, z: pi.userBlocks.length } as any;
+      block = {
+        id,
+        type: "line",
+        points: clampPointsPct([p1, p2]),
+        blockStyle: { stroke: { width: 2 } },
+        z: pi.userBlocks.length,
+      } as any;
+    } else if (kind === "image") {
+      // ✅ New case: section/image block with proper meta.blockKind
+      const section = createBlock("image");
+      block = {
+        id,
+        type: "section",
+        rect,
+        z: pi.userBlocks.length,
+        blockStyle: section.blockStyle,
+      } as any;
     }
 
     if (!block) return null;
 
     pi.userBlocks = normalizeZ([...(pi.userBlocks || []), block]);
-    set({ draft: d as any, tool: { mode: "idle" }, selectedUserBlockId: id, dirty: true });
-    try { (get() as any).saveDebounced?.(); } catch {}
+    set({
+      draft: d as any,
+      tool: { mode: "idle" },
+      selectedUserBlockId: id,
+      dirty: true,
+    });
+    try {
+      (get() as any).saveDebounced?.();
+    } catch {}
     return id;
   },
 
@@ -112,7 +179,9 @@ export const createUserBlocksSlice: StateCreator<
       const pi = d.pageInstances?.[state.pageIndex];
       if (!pi) return {};
 
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? normalizeZ(pi.userBlocks as UserBlock[]) : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? normalizeZ(pi.userBlocks as UserBlock[])
+        : [];
       const i = list.findIndex((b) => (b as any).id === id);
       if (i < 0) return {};
 
@@ -121,7 +190,10 @@ export const createUserBlocksSlice: StateCreator<
 
       const nextRect =
         patch.rect && !isLine
-          ? clampRectPct({ ...(current.rect || { x: 0, y: 0, w: 0, h: 0 }), ...patch.rect } as Rect)
+          ? clampRectPct({
+              ...(current.rect || { x: 0, y: 0, w: 0, h: 0 }),
+              ...patch.rect,
+            } as Rect)
           : current.rect;
 
       const nextPoints =
@@ -129,7 +201,8 @@ export const createUserBlocksSlice: StateCreator<
           ? clampPointsPct((patch as any).points)
           : current.points;
 
-      const mergedBlockStyle: BlockStyle | undefined = (patch as any).blockStyle
+      const mergedBlockStyle: BlockStyle | undefined = (patch as any)
+        .blockStyle
         ? {
             ...(current.blockStyle || {}),
             ...(patch as any).blockStyle,
@@ -140,10 +213,13 @@ export const createUserBlocksSlice: StateCreator<
           }
         : current.blockStyle;
 
-      const mergedTextStyle: TextStyle | undefined =
-        (patch as any).style ? { ...(current.style || {}), ...(patch as any).style } : current.style;
+      const mergedTextStyle: TextStyle | undefined = (patch as any).style
+        ? { ...(current.style || {}), ...(patch as any).style }
+        : current.style;
 
-      const nextZ = Number.isFinite((patch as any).z) ? (patch as any).z : current.z;
+      const nextZ = Number.isFinite((patch as any).z)
+        ? (patch as any).z
+        : current.z;
 
       const updated: UserBlock = {
         ...current,
@@ -161,7 +237,9 @@ export const createUserBlocksSlice: StateCreator<
       return { draft: d as any, dirty: true };
     });
 
-    try { s.saveDebounced?.(); } catch {}
+    try {
+      s.saveDebounced?.();
+    } catch {}
   },
 
   deleteUserBlock: (id) => {
@@ -171,7 +249,9 @@ export const createUserBlocksSlice: StateCreator<
       const d: any = structuredClone(s.draft);
       const pi = d.pageInstances?.[s.pageIndex];
       if (!pi) return {};
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? normalizeZ(pi.userBlocks as UserBlock[]) : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? normalizeZ(pi.userBlocks as UserBlock[])
+        : [];
       const nextList = list.filter((b: any) => b.id !== id);
       pi.userBlocks = normalizeZ(nextList);
       const next: Partial<EditorState> = { draft: d, dirty: true };
@@ -188,7 +268,9 @@ export const createUserBlocksSlice: StateCreator<
       const d: any = structuredClone(st.draft);
       const pi = d.pageInstances?.[st.pageIndex];
       if (!pi) return {};
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? normalizeZ(pi.userBlocks as UserBlock[]) : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? normalizeZ(pi.userBlocks as UserBlock[])
+        : [];
       const i = list.findIndex((b: any) => b.id === id);
       if (i < 0 || i === list.length - 1) return {};
       const tmp = list[i];
@@ -197,7 +279,9 @@ export const createUserBlocksSlice: StateCreator<
       pi.userBlocks = normalizeZ(list);
       return { draft: d as any, dirty: true };
     });
-    try { s.saveDebounced?.(); } catch {}
+    try {
+      s.saveDebounced?.();
+    } catch {}
   },
 
   sendBackward: (id) => {
@@ -208,7 +292,9 @@ export const createUserBlocksSlice: StateCreator<
       const d: any = structuredClone(st.draft);
       const pi = d.pageInstances?.[st.pageIndex];
       if (!pi) return {};
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? normalizeZ(pi.userBlocks as UserBlock[]) : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? normalizeZ(pi.userBlocks as UserBlock[])
+        : [];
       const i = list.findIndex((b: any) => b.id === id);
       if (i <= 0) return {};
       const tmp = list[i];
@@ -217,7 +303,9 @@ export const createUserBlocksSlice: StateCreator<
       pi.userBlocks = normalizeZ(list);
       return { draft: d as any, dirty: true };
     });
-    try { s.saveDebounced?.(); } catch {}
+    try {
+      s.saveDebounced?.();
+    } catch {}
   },
 
   nudgeSelected: (dxPct, dyPct) => {
@@ -231,23 +319,36 @@ export const createUserBlocksSlice: StateCreator<
       const d: any = structuredClone(st.draft);
       const pi = d.pageInstances?.[st.pageIndex];
       if (!pi) return {};
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? (pi.userBlocks as UserBlock[]).slice() : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? (pi.userBlocks as UserBlock[]).slice()
+        : [];
       const i = list.findIndex((b: any) => b.id === id);
       if (i < 0) return {};
       const b: any = list[i];
 
       if (b.type === "line" && Array.isArray(b.points)) {
-        const moved = clampPointsPct(b.points.map((p: any) => ({ x: p.x + dxPct, y: p.y + dyPct })));
+        const moved = clampPointsPct(
+          b.points.map((p: any) => ({ x: p.x + dxPct, y: p.y + dyPct }))
+        );
         list[i] = { ...b, points: moved } as UserBlock;
       } else if (b.rect) {
-        list[i] = { ...b, rect: clampRectPct({ ...b.rect, x: b.rect.x + dxPct, y: b.rect.y + dyPct }) } as UserBlock;
+        list[i] = {
+          ...b,
+          rect: clampRectPct({
+            ...b.rect,
+            x: b.rect.x + dxPct,
+            y: b.rect.y + dyPct,
+          }),
+        } as UserBlock;
       }
 
       pi.userBlocks = normalizeZ(list);
       return { draft: d as any, dirty: true };
     });
 
-    try { s.saveDebounced?.(); } catch {}
+    try {
+      s.saveDebounced?.();
+    } catch {}
   },
 
   setLinePoints: (id, pts) => {
@@ -278,7 +379,9 @@ export const createUserBlocksSlice: StateCreator<
       const d: any = structuredClone(st.draft);
       const pi = d.pageInstances?.[st.pageIndex];
       if (!pi) return {};
-      const list: UserBlock[] = Array.isArray(pi.userBlocks) ? (pi.userBlocks as UserBlock[]).slice() : [];
+      const list: UserBlock[] = Array.isArray(pi.userBlocks)
+        ? (pi.userBlocks as UserBlock[]).slice()
+        : [];
       const i = list.findIndex((b: any) => b.id === id);
       if (i < 0) return {};
 
@@ -298,6 +401,8 @@ export const createUserBlocksSlice: StateCreator<
       pi.userBlocks = normalizeZ(list);
       return { draft: d as any, dirty: true };
     });
-    try { s.saveDebounced?.(); } catch {}
+    try {
+      s.saveDebounced?.();
+    } catch {}
   },
 });
